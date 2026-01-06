@@ -1,0 +1,15 @@
+node_modules
+.next
+.env.local
+.claude
+.env
+dist
+build
+*.log
+test-results
+screenshots
+playwright-report
+playwright/.cache
+coverage
+/generates/prisma
+tsconfig.tsbuildinfo
