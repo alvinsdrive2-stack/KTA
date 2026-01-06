@@ -1,0 +1,263 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  daerahId    String?
+  name        String
+  email       String   @unique
+  password    String
+  role        UserRole @default(DAERAH)
+  isActive    Boolean  @default(true)
+  ktpUrl      String?
+  fotoUrl     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // NextAuth relations (JWT strategy doesn't need accounts table)
+  sessions    Session[]
+
+  // Relations
+  daerah      Daerah?  @relation(fields: [daerahId], references: [id])
+  ktaRequests KTARequest[]
+  approvals   Approval[]
+  bulkPaymentsSubmitted BulkPayment[] @relation("BulkPaymentSubmittedBy")
+  bulkPaymentsVerified   BulkPayment[] @relation("BulkPaymentVerifiedBy")
+
+  @@map("users")
+}
+
+// Account model removed - not needed for JWT strategy
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @db.Text
+  userId       String
+  expires      BigInt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Daerah {
+  id            String  @id @default(cuid())
+  namaDaerah    String
+  kodeDaerah    String  @unique
+  kodePropinsi  String? // Kode provinsi dari DAGRI (e.g., "11", "32", etc.)
+  alamat        String?
+  telepon       String?
+  email         String?
+  isActive      Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  users         User[]
+  ktaRequests   KTARequest[]
+  regionPrices  RegionPrice[]
+  bulkPayments  BulkPayment[]
+
+  @@map("daerah")
+}
+
+model RegionPrice {
+  id           String   @id @default(cuid())
+  daerahId     String
+  hargaKta     Int      // in Rupiah
+  tahun        Int
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  daerah       Daerah   @relation(fields: [daerahId], references: [id])
+
+  @@unique([daerahId, tahun])
+  @@map("region_prices")
+}
+
+model Subklasifikasi {
+  id                  String   @id @default(cuid())
+  idKlasifikasi       String
+  idSubklasifikasi    String
+  kodeSubklasifikasi  String   @unique
+  subklasifikasi      String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  ktaRequests         KTARequest[]
+
+  @@unique([idKlasifikasi, idSubklasifikasi])
+  @@map("subklasifikasi")
+}
+
+model KTARequest {
+  id                  String          @id @default(cuid())
+  idIzin              String          @unique
+  daerahId            String
+  requestedBy         String
+  nik                 String
+  nama                String
+  jabatanKerja        String
+  subklasifikasiId    String?
+  subklasifikasi      String? // Legacy field - will be removed after data migration
+  jenjang             String
+  noTelp              String
+  email               String
+  alamat              String
+  tanggalDaftar       DateTime
+  status              KTAStatus       @default(DRAFT)
+  hargaRegion         Int
+  pusatApprovedBy     String?
+  pusatApprovedAt     DateTime?
+  kartuGeneratedPath  String?
+  qrCodePath          String?
+  ktpUrl              String?
+  fotoUrl             String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  // Relations
+  daerah              Daerah          @relation(fields: [daerahId], references: [id])
+  requestedByUser     User            @relation(fields: [requestedBy], references: [id])
+  klasifikasi         Subklasifikasi? @relation(fields: [subklasifikasiId], references: [id])
+  documents           KTADocument[]
+  payments            Payment[]
+  approvals           Approval[]
+  qrScans             QRScan[]
+
+  @@map("kta_requests")
+}
+
+model KTADocument {
+  id           String       @id @default(cuid())
+  ktaRequestId String
+  jenis        DocumentType
+  link         String
+  createdAt    DateTime     @default(now())
+
+  // Relations
+  ktaRequest   KTARequest   @relation(fields: [ktaRequestId], references: [id], onDelete: Cascade)
+
+  @@map("kta_documents")
+}
+
+model Payment {
+  id               String           @id @default(cuid())
+  ktaRequestId     String
+  bulkPaymentId    String?
+  invoiceNumber    String
+  rekeningTujuan   String
+  jumlah           Int
+  buktiBayarLink   String?
+  statusPembayaran PaymentStatus    @default(PENDING)
+  paidAt           DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  ktaRequest       KTARequest       @relation(fields: [ktaRequestId], references: [id], onDelete: Cascade)
+  bulkPayment      BulkPayment?     @relation(fields: [bulkPaymentId], references: [id])
+
+  @@map("payments")
+}
+
+model BulkPayment {
+  id                String    @id @default(cuid())
+  invoiceNumber     String    @unique
+  daerahId          String
+  totalJumlah       Int
+  totalNominal      Int
+  buktiPembayaranUrl String
+  status            PaymentStatus @default(PENDING)
+  verifiedBy        String?
+  verifiedAt        DateTime?
+  submittedBy       String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  daerah            Daerah    @relation(fields: [daerahId], references: [id])
+  submittedByUser   User      @relation("BulkPaymentSubmittedBy", fields: [submittedBy], references: [id])
+  verifiedByUser   User?     @relation("BulkPaymentVerifiedBy", fields: [verifiedBy], references: [id])
+  payments          Payment[]
+
+  @@map("bulk_payments")
+}
+
+model Approval {
+  id           String       @id @default(cuid())
+  ktaRequestId String
+  approvedBy   String
+  status       ApprovalStatus
+  catatan      String?
+  createdAt    DateTime     @default(now())
+
+  // Relations
+  ktaRequest   KTARequest   @relation(fields: [ktaRequestId], references: [id], onDelete: Cascade)
+  approvedByUser User        @relation(fields: [approvedBy], references: [id])
+
+  @@map("approvals")
+}
+
+model QRScan {
+  id           String   @id @default(cuid())
+  ktaRequestId String
+  ipAddress    String?
+  userAgent    String?
+  scannedAt    DateTime @default(now())
+
+  // Relations
+  ktaRequest   KTARequest @relation(fields: [ktaRequestId], references: [id], onDelete: Cascade)
+
+  @@map("qr_scans")
+}
+
+// Enums
+enum UserRole {
+  DAERAH
+  PUSAT
+  ADMIN
+}
+
+enum KTAStatus {
+  DRAFT
+  FETCHED_FROM_SIKI
+  EDITED
+  WAITING_PAYMENT
+  READY_FOR_PUSAT
+  APPROVED_BY_PUSAT
+  READY_TO_PRINT
+  PRINTED
+  REJECTED
+}
+
+enum DocumentType {
+  KTP
+  FOTO
+  SERTIFIKAT
+  SURAT_KETERANGAN
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  VERIFIED
+  REJECTED
+}
+
+enum ApprovalStatus {
+  APPROVED
+  REJECTED
+  REVISION
+}
