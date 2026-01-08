@@ -356,7 +356,11 @@ export default function KTAApplyPage() {
                   <Label htmlFor="subklasifikasi" className="text-slate-700">Sub Klasifikasi</Label>
                   <Input
                     id="subklasifikasi"
-                    value={sikiData.subklasifikasi || ''}
+                    value={
+                      sikiData.klasifikasi
+                        ? `${sikiData.klasifikasi.kodeSubklasifikasi} - ${sikiData.klasifikasi.subklasifikasi}`
+                        : sikiData.subklasifikasi || ''
+                    }
                     readOnly
                     className="mt-1 bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
