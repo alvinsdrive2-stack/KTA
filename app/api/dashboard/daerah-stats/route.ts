@@ -67,8 +67,11 @@ export async function GET(request: NextRequest) {
     const groupedData: Record<string, number> = {}
     const currentDate = new Date(startDate)
     while (currentDate <= now) {
-      // Use local date string (YYYY-MM-DD in local timezone)
-      const dateKey = currentDate.toISOString().split('T')[0]
+      // Use local timezone to avoid UTC shift
+      const year = currentDate.getFullYear()
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0')
+      const day = String(currentDate.getDate()).padStart(2, '0')
+      const dateKey = `${year}-${month}-${day}`
       groupedData[dateKey] = 0
       currentDate.setDate(currentDate.getDate() + 1)
     }
