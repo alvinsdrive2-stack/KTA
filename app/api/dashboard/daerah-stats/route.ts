@@ -67,14 +67,22 @@ export async function GET(request: NextRequest) {
     const groupedData: Record<string, number> = {}
     const currentDate = new Date(startDate)
     while (currentDate <= now) {
+      // Use local date string (YYYY-MM-DD in local timezone)
       const dateKey = currentDate.toISOString().split('T')[0]
       groupedData[dateKey] = 0
       currentDate.setDate(currentDate.getDate() + 1)
     }
 
-    // Count printed KTA per date
+    // Count printed KTA per date - use local timezone to avoid UTC shift
     printedKTA.forEach((kta) => {
-      const dateKey = kta.createdAt.toISOString().split('T')[0]
+      // Get the local date components to avoid UTC conversion issues
+      const localDate = new Date(kta.createdAt.getTime())
+      // Format as YYYY-MM-DD in local timezone
+      const year = localDate.getFullYear()
+      const month = String(localDate.getMonth() + 1).padStart(2, '0')
+      const day = String(localDate.getDate()).padStart(2, '0')
+      const dateKey = `${year}-${month}-${day}`
+
       if (groupedData.hasOwnProperty(dateKey)) {
         groupedData[dateKey]++
       }
