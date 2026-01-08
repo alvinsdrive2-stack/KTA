@@ -119,7 +119,7 @@ export async function GET(
       console.log('Logo original dimensions:', logoImage.width, 'x', logoImage.height)
 
       // Calculate scale to make width approximately 140px
-      const desiredWidth = 100
+      const desiredWidth = 60
       const scaleFactor = desiredWidth / logoImage.width
       const logoDims = logoImage.scale(scaleFactor)
       console.log('Logo scaled dimensions:', logoDims.width, 'x', logoDims.height)

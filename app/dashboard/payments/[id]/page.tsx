@@ -5,15 +5,18 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/useSession'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { PulseLogo } from '@/components/ui/loading-spinner'
+import { useToast } from '@/components/ui/use-toast'
 import {
   CheckCircle,
   XCircle,
   Clock,
   AlertCircle,
-  ArrowLeft
+  ArrowLeft,
+  Loader2
 } from 'lucide-react'
 
 interface BulkPaymentDetail {
@@ -52,9 +55,13 @@ export default function PaymentDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { session } = useSession()
+  const { toast } = useToast()
   const [payment, setPayment] = useState<BulkPaymentDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState('')
 
   // Use ref to track if we've already fetched
   const initialFetchDone = useRef(false)
@@ -142,6 +149,96 @@ export default function PaymentDetailPage() {
     return colors[status] || 'bg-gray-100 text-gray-800'
   }
 
+  const handleVerify = async () => {
+    if (!payment) return
+
+    setVerifying(true)
+    try {
+      const response = await fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bulkPaymentId: payment.id,
+          approved: true
+        })
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          variant: 'success',
+          title: 'Verifikasi Berhasil',
+          description: 'Pembayaran telah berhasil diverifikasi.',
+        })
+        router.push('/dashboard/payments')
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Verifikasi Gagal',
+          description: result.error || 'Gagal memverifikasi pembayaran.',
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Verifikasi Gagal',
+        description: 'Terjadi kesalahan saat memverifikasi pembayaran.',
+      })
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!payment || !rejectionReason.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Alasan Ditolak Diperlukan',
+        description: 'Silakan masukkan alasan penolakan.',
+      })
+      return
+    }
+
+    setRejecting(true)
+    try {
+      const response = await fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bulkPaymentId: payment.id,
+          approved: false,
+          reason: rejectionReason
+        }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          variant: 'success',
+          title: 'Pembayaran Ditolak',
+          description: 'Pembayaran telah berhasil ditolak.',
+        })
+        router.push('/dashboard/payments')
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Penolakan Gagal',
+          description: result.error || 'Gagal menolak pembayaran.',
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Penolakan Gagal',
+        description: 'Terjadi kesalahan saat menolak pembayaran.',
+      })
+    } finally {
+      setRejecting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -166,173 +263,235 @@ export default function PaymentDetailPage() {
   }
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* Header */}
-      <div className="flex items-center justify-between animate-slide-up-stagger stagger-1">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/dashboard/payments')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Kembali
-            </Button>
-            <h1 className="text-3xl font-bold">Detail Pembayaran</h1>
+    <>
+      <div className="space-y-6 pb-20">
+        {/* Header */}
+        <div className="flex items-center justify-between animate-slide-up-stagger stagger-1">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/dashboard/payments')}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Kembali
+              </Button>
+              <h1 className="text-3xl font-bold">Detail Pembayaran</h1>
+            </div>
+            <p className="text-gray-600">{payment.invoiceNumber}</p>
           </div>
-          <p className="text-gray-600">{payment.invoiceNumber}</p>
         </div>
-      </div>
 
-      {/* Status Badge */}
-      <div className="flex items-center gap-3 animate-slide-up-stagger stagger-2">
-        <Badge className={getStatusColor(payment.status)}>
-          {payment.status === 'PENDING' && (
-            <>
-              <Clock className="h-4 w-4 mr-1" />
-              Menunggu Konfirmasi
-            </>
-          )}
-          {payment.status === 'VERIFIED' && (
-            <>
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Terkonfirmasi
-            </>
-          )}
-          {payment.status === 'REJECTED' && (
-            <>
-              <XCircle className="h-4 w-4 mr-1" />
-              Ditolak
-            </>
-          )}
-        </Badge>
-        <span className="text-sm text-gray-600">
-          {new Date(payment.createdAt).toLocaleString('id-ID')}
-        </span>
-      </div>
+        {/* Status Badge */}
+        <div className="flex items-center gap-3 animate-slide-up-stagger stagger-2">
+          <Badge className={getStatusColor(payment.status)}>
+            {payment.status === 'PENDING' && (
+              <>
+                <Clock className="h-4 w-4 mr-1" />
+                Menunggu Konfirmasi
+              </>
+            )}
+            {payment.status === 'VERIFIED' && (
+              <>
+                <CheckCircle className="h-4 w-4 mr-1" />
+                Terkonfirmasi
+              </>
+            )}
+            {payment.status === 'REJECTED' && (
+              <>
+                <XCircle className="h-4 w-4 mr-1" />
+                Ditolak
+              </>
+            )}
+          </Badge>
+          <span className="text-sm text-gray-600">
+            {new Date(payment.createdAt).toLocaleString('id-ID')}
+          </span>
+        </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Invoice PDF */}
-        <Card className="card-3d animate-slide-up-stagger stagger-3">
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: Invoice PDF */}
+          <Card className="card-3d animate-slide-up-stagger stagger-3">
+            <CardHeader>
+              <CardTitle>Invoice</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden bg-slate-50">
+                <iframe
+                  src={`/api/payments/invoice/${payment.id}/pdf`}
+                  className="w-full h-[600px]"
+                  title="Invoice PDF"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Right: Data Pembayaran */}
+          <Card className="card-3d animate-slide-up-stagger stagger-4">
+            <CardHeader>
+              <CardTitle>Informasi Pembayaran</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-600">Daerah</span>
+                  <span className="font-medium">
+                    {payment.daerah.namaDaerah} ({payment.daerah.kodeDaerah})
+                  </span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-600">Jumlah KTA</span>
+                  <span className="font-medium">{payment.totalJumlah} KTA</span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-600">Total Pembayaran</span>
+                  <span className="font-bold text-green-600">
+                    Rp {payment.totalNominal.toLocaleString('id-ID')}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-600">Diajukan oleh</span>
+                  <span className="font-medium">{payment.submittedByUser.name}</span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-600">Tanggal Pengajuan</span>
+                  <span className="font-medium">
+                    {new Date(payment.createdAt).toLocaleString('id-ID')}
+                  </span>
+                </div>
+                <div className="pt-2">
+                  <p className="text-gray-600 mb-2">Bukti Pembayaran</p>
+                  <div className="border rounded-lg overflow-hidden bg-slate-50">
+                    <img
+                      src={payment.buktiPembayaranUrl}
+                      alt="Bukti Pembayaran"
+                      className="w-full h-auto"
+                      
+                    />
+                  </div>
+                </div>
+                {payment.verifiedByUser && (
+                  <>
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-gray-600">Dikonfirmasi oleh</span>
+                      <span className="font-medium">{payment.verifiedByUser.name}</span>
+                    </div>
+                    {payment.verifiedAt && (
+                      <div className="flex justify-between border-b pb-2">
+                        <span className="text-gray-600">Tanggal Konfirmasi</span>
+                        <span className="font-medium">
+                          {new Date(payment.verifiedAt).toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Daftar KTA */}
+        <Card className="card-3d animate-slide-up-stagger stagger-5">
           <CardHeader>
-            <CardTitle>Invoice</CardTitle>
+            <CardTitle>Daftar KTA ({payment.payments.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="border rounded-lg overflow-hidden bg-slate-50">
-              <iframe
-                src={`/api/payments/invoice/${payment.id}/pdf`}
-                className="w-full h-[600px]"
-                title="Invoice PDF"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Right: Data Pembayaran */}
-        <Card className="card-3d animate-slide-up-stagger stagger-4">
-          <CardHeader>
-            <CardTitle>Informasi Pembayaran</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">Daerah</span>
-                <span className="font-medium">
-                  {payment.daerah.namaDaerah} ({payment.daerah.kodeDaerah})
-                </span>
-              </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">Jumlah KTA</span>
-                <span className="font-medium">{payment.totalJumlah} KTA</span>
-              </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">Total Pembayaran</span>
-                <span className="font-bold text-green-600">
-                  Rp {payment.totalNominal.toLocaleString('id-ID')}
-                </span>
-              </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">Diajukan oleh</span>
-                <span className="font-medium">{payment.submittedByUser.name}</span>
-              </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">Tanggal Pengajuan</span>
-                <span className="font-medium">
-                  {new Date(payment.createdAt).toLocaleString('id-ID')}
-                </span>
-              </div>
-              <div className="pt-2">
-                <p className="text-gray-600 mb-2">Bukti Pembayaran</p>
-                <div className="border rounded-lg overflow-hidden bg-slate-50">
-                  <img
-                    src={payment.buktiPembayaranUrl}
-                    alt="Bukti Pembayaran"
-                    className="w-full h-auto"
-                    onError={(e) => {
-                      e.currentTarget.src = '/images/placeholder.png'
-                    }}
-                  />
-                </div>
-              </div>
-              {payment.verifiedByUser && (
-                <>
-                  <div className="flex justify-between border-b pb-2">
-                    <span className="text-gray-600">Dikonfirmasi oleh</span>
-                    <span className="font-medium">{payment.verifiedByUser.name}</span>
-                  </div>
-                  {payment.verifiedAt && (
-                    <div className="flex justify-between border-b pb-2">
-                      <span className="text-gray-600">Tanggal Konfirmasi</span>
-                      <span className="font-medium">
-                        {new Date(payment.verifiedAt).toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-slate-700">ID Izin</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-700">Nama</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-700">NIK</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-700">Jenjang</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-700">Jabatan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {payment.payments.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 text-slate-900">{p.ktaRequest.idIzin}</td>
+                      <td className="px-4 py-3 text-slate-700">{p.ktaRequest.nama}</td>
+                      <td className="px-4 py-3 text-slate-700">{p.ktaRequest.nik}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {p.ktaRequest.jenjang}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">{p.ktaRequest.jabatanKerja}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Daftar KTA */}
-      <Card className="card-3d animate-slide-up-stagger stagger-5">
-        <CardHeader>
-          <CardTitle>Daftar KTA ({payment.payments.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-slate-700">ID Izin</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-700">Nama</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-700">NIK</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-700">Jenjang</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-700">Jabatan</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {payment.payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-900">{p.ktaRequest.idIzin}</td>
-                    <td className="px-4 py-3 text-slate-700">{p.ktaRequest.nama}</td>
-                    <td className="px-4 py-3 text-slate-700">{p.ktaRequest.nik}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {p.ktaRequest.jenjang}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{p.ktaRequest.jabatanKerja}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      {/* Floating Bar for Actions */}
+      {payment.status === 'PENDING' && (
+        <div className="fixed bottom-0 left-0 right-0 z-50">
+          <Card className="rounded-none shadow-2xl animate-slide-up">
+            <CardContent className="py-4 px-6 lg:px-8">
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <p className="text-lg font-semibold text-slate-900">Konfirmasi Pembayaran</p>
+                  <p className="text-sm text-slate-500">
+                    {payment.totalJumlah} KTA • Rp {payment.totalNominal.toLocaleString('id-ID')}
+                  </p>
+                </div>
+
+                {/* Reject Section */}
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Alasan penolakan..."
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    disabled={rejecting}
+                    className="w-64"
+                  />
+                  <Button
+                    onClick={handleReject}
+                    disabled={rejecting || !rejectionReason.trim()}
+                    variant="destructive"
+                  >
+                    {rejecting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Tolak
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Verify Button */}
+                <Button
+                  onClick={handleVerify}
+                  disabled={verifying}
+                  className="bg-emerald-600 hover:bg-emerald-700 px-8"
+                >
+                  {verifying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Verifikasi
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </>
   )
 }
