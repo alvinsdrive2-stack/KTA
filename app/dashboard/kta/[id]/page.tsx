@@ -258,7 +258,10 @@ export default function KTADetailPage() {
       DRAFT: 'bg-slate-100 text-slate-800',
       WAITING_PAYMENT: 'bg-amber-100 text-amber-800',
       WAITING_APPROVAL: 'bg-violet-100 text-violet-800',
+      APPROVED_BY_PUSAT: 'bg-emerald-100 text-emerald-800',
       APPROVED: 'bg-emerald-100 text-emerald-800',
+      READY_TO_PRINT: 'bg-emerald-100 text-emerald-800',
+      PRINTED: 'bg-emerald-100 text-emerald-800',
       REJECTED: 'bg-red-100 text-red-800',
     }
     return colors[status] || 'bg-slate-100 text-slate-800'
@@ -269,6 +272,7 @@ export default function KTADetailPage() {
       DRAFT: 'Draft',
       WAITING_PAYMENT: 'Menunggu Konfirmasi',
       WAITING_APPROVAL: 'Menunggu Verifikasi',
+      APPROVED_BY_PUSAT: 'Ready for Print',
       APPROVED: 'Disetujui',
       READY_TO_PRINT: 'Siap Cetak',
       PRINTED: 'Sudah Cetak',
@@ -286,7 +290,7 @@ export default function KTADetailPage() {
     // Payment exists (PENDING, PAID, or VERIFIED) = 75%
     if (ktaRequest.payments && ktaRequest.payments.length > 0) progress += 25
     // Pusat verified = 100%
-    if (ktaRequest.status === 'APPROVED' || ktaRequest.status === 'READY_TO_PRINT' || ktaRequest.status === 'PRINTED') progress += 25
+    if (ktaRequest.status === 'APPROVED_BY_PUSAT' || ktaRequest.status === 'READY_TO_PRINT' || ktaRequest.status === 'PRINTED') progress += 25
 
     return progress
   }
@@ -377,7 +381,7 @@ export default function KTADetailPage() {
                 <CreditCard className="h-4 w-4" />
                 <span>Pembayaran</span>
               </div>
-              <div className={'flex items-center gap-2 ' + (ktaRequest.status === 'APPROVED' || ktaRequest.status === 'READY_TO_PRINT' || ktaRequest.status === 'PRINTED' ? 'text-emerald-600' : 'text-slate-400')}>
+              <div className={'flex items-center gap-2 ' + (ktaRequest.status === 'APPROVED_BY_PUSAT' || ktaRequest.status === 'READY_TO_PRINT' || ktaRequest.status === 'PRINTED' ? 'text-emerald-600' : 'text-slate-400')}>
                 <CheckCircle className="h-4 w-4" />
                 <span>Approval</span>
               </div>
