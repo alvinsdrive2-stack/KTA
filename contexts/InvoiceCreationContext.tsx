@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useMemo, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useMemo, ReactNode } from 'react'
 
 interface InvoiceKTA {
   id: string
@@ -24,9 +24,9 @@ const InvoiceCreationContext = createContext<InvoiceCreationContextType | undefi
 export function InvoiceCreationProvider({ children }: { children: ReactNode }) {
   const [invoiceKTAs, setInvoiceKTAs] = useState<InvoiceKTA[]>([])
 
-  const clearInvoiceKTAs = useCallback(() => {
+  const clearInvoiceKTAs = () => {
     setInvoiceKTAs([])
-  }, [])
+  }
 
   const totalCount = invoiceKTAs.length
   const totalAmount = invoiceKTAs.reduce((sum, kta) => sum + (kta.hargaFinal || 0), 0)
@@ -37,7 +37,7 @@ export function InvoiceCreationProvider({ children }: { children: ReactNode }) {
     clearInvoiceKTAs,
     totalCount,
     totalAmount,
-  }), [invoiceKTAs, setInvoiceKTAs, clearInvoiceKTAs, totalCount, totalAmount])
+  }), [invoiceKTAs])
 
   return (
     <InvoiceCreationContext.Provider value={value}>
