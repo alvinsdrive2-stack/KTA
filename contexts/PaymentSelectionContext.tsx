@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, useMemo, useCallback, ReactNode } from 'react'
 
 interface SelectedKTA {
   id: string
@@ -25,35 +25,35 @@ const PaymentSelectionContext = createContext<PaymentSelectionContextType | unde
 export function PaymentSelectionProvider({ children }: { children: ReactNode }) {
   const [selectedRequests, setSelectedRequests] = useState<SelectedKTA[]>([])
 
-  const addRequest = (request: SelectedKTA) => {
+  const addRequest = useCallback((request: SelectedKTA) => {
     setSelectedRequests(prev => {
       if (prev.find(r => r.id === request.id)) return prev
       return [...prev, request]
     })
-  }
+  }, [])
 
-  const removeRequest = (requestId: string) => {
+  const removeRequest = useCallback((requestId: string) => {
     setSelectedRequests(prev => prev.filter(r => r.id !== requestId))
-  }
+  }, [])
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setSelectedRequests([])
-  }
+  }, [])
 
   const selectedCount = selectedRequests.length
   const totalAmount = selectedRequests.reduce((sum, req) => sum + (req.hargaFinal || 0), 0)
 
+  const value = useMemo(() => ({
+    selectedRequests,
+    addRequest,
+    removeRequest,
+    clearSelection,
+    selectedCount,
+    totalAmount,
+  }), [selectedRequests, addRequest, removeRequest, clearSelection, selectedCount, totalAmount])
+
   return (
-    <PaymentSelectionContext.Provider
-      value={{
-        selectedRequests,
-        addRequest,
-        removeRequest,
-        clearSelection,
-        selectedCount,
-        totalAmount,
-      }}
-    >
+    <PaymentSelectionContext.Provider value={value}>
       {children}
     </PaymentSelectionContext.Provider>
   )
