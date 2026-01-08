@@ -73,15 +73,44 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get daerahId from logged-in user
-    let daerahId = session.user.daerahId
+    // Get daerahId from request or session
+    let daerahId = body.daerahId
+
+    // Check if user can access the requested daerah
+    const userRole = session.user.role
+    const userDaerahKode = session.user.daerah?.kodeDaerah
+
+    // PUSAT/ADMIN users or users with daerah "00" can assign to any daerah
+    const canAssignAnyDaerah = userRole === 'PUSAT' || userRole === 'ADMIN' || userDaerahKode === '00'
+
     if (!daerahId) {
-      // User doesn't have daerah assigned
-      return NextResponse.json(
-        { error: 'User tidak memiliki daerah yang ditugaskan' },
-        { status: 400 }
-      )
+      // If no daerahId specified, use user's own daerah
+      daerahId = session.user.daerahId
+
+      if (!daerahId) {
+        return NextResponse.json(
+          { error: 'User tidak memiliki daerah yang ditugaskan' },
+          { status: 400 }
+        )
+      }
+    } else {
+      // If daerahId is specified, check if user can assign to that daerah
+      if (!canAssignAnyDaerah && daerahId !== session.user.daerahId) {
+        return NextResponse.json(
+          { error: 'Anda tidak memiliki akses untuk menugaskan KTA ke daerah lain' },
+          { status: 403 }
+        )
+      }
     }
+
+    // Log assignment info
+    console.log('KTA Assignment:', {
+      userId: session.user.id,
+      userRole,
+      userDaerahKode,
+      assignedDaerahId: daerahId,
+      canAssignAnyDaerah
+    })
 
     // Check if KTA request already exists
     const existingRequest = await prisma.kTARequest.findUnique({

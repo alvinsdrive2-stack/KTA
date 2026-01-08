@@ -3,107 +3,146 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🔍 Fetching data from database...\n')
+  console.log('🔍 Sync Daerah from RegionPrice\n')
 
-  // 1. Get all Daerah
-  const daerahList = await prisma.daerah.findMany({
-    include: {
-      regionPrices: true,
+  // 1. Get all existing Daerah IDs
+  const existingDaerah = await prisma.daerah.findMany({
+    select: {
+      id: true,
+      kodeDaerah: true,
+      namaDaerah: true,
     },
   })
 
-  console.log(`📊 Total Daerah in database: ${daerahList.length}`)
-  console.log('Existing Daerah:')
-  daerahList.forEach(d => {
-    console.log(`  - ${d.kodeDaerah}: ${d.namaDaerah} (${d.regionPrices.length} region prices)`)
-  })
+  const existingDaerahMap = new Map(existingDaerah.map(d => [d.id, d]))
+  const existingKodeDaerah = new Set(existingDaerah.map(d => d.kodeDaerah))
 
-  // 2. Get all RegionPrice
+  console.log(`📊 Existing Daerah: ${existingDaerah.length}`)
+  existingDaerah.forEach(d => {
+    console.log(`  - ${d.id} (${d.kodeDaerah}): ${d.namaDaerah}`)
+  })
+  console.log()
+
+  // 2. Get all unique daerahId from RegionPrice
   const regionPrices = await prisma.regionPrice.findMany({
-    include: {
-      daerah: true,
+    select: {
+      daerahId: true,
+      tahun: true,
+      hargaKta: true,
+      isActive: true,
     },
+    orderBy: [{ tahun: 'desc' }, { daerahId: 'asc' }],
   })
 
-  console.log(`\n📊 Total RegionPrice records: ${regionPrices.length}`)
-
-  // 3. Check for orphan RegionPrices (no matching Daerah)
-  const orphanRegionPrices = regionPrices.filter(rp => !rp.daerah)
-
-  if (orphanRegionPrices.length > 0) {
-    console.log(`\n⚠️  Found ${orphanRegionPrices.length} orphan RegionPrice records (no matching Daerah):`)
-    orphanRegionPrices.forEach(rp => {
-      console.log(`  - ID: ${rp.id}, daerahId: ${rp.daerahId}, harga: ${rp.hargaKta}, tahun: ${rp.tahun}`)
-    })
-  } else {
-    console.log('\n✅ No orphan RegionPrice records found')
-  }
-
-  // 4. Get unique years from RegionPrice
-  const uniqueYears = [...new Set(regionPrices.map(rp => rp.tahun))].sort((a, b) => b - a)
-  console.log(`\n📅 Years in RegionPrice: ${uniqueYears.join(', ')}`)
-
-  // 5. Summary by year
-  console.log('\n📊 RegionPrice by year:')
-  uniqueYears.forEach(year => {
-    const count = regionPrices.filter(rp => rp.tahun === year).length
-    const totalHarga = regionPrices
-      .filter(rp => rp.tahun === year)
-      .reduce((sum, rp) => sum + rp.hargaKta, 0)
-    console.log(`  - ${year}: ${count} daerah, total harga: Rp ${totalHarga.toLocaleString('id-ID')}`)
-  })
-
-  // 6. Check for missing years
-  const currentYear = new Date().getFullYear()
-  const missingYears = []
-  for (let y = currentYear; y >= currentYear - 5; y--) {
-    if (!uniqueYears.includes(y)) {
-      missingYears.push(y)
-    }
-  }
-
-  if (missingYears.length > 0) {
-    console.log(`\n⚠️  Missing years (last 5 years): ${missingYears.join(', ')}`)
-  }
-
-  console.log('\n' + '='.repeat(80))
-
-  // Option to create missing Daerah for orphan RegionPrices
-  if (orphanRegionPrices.length > 0) {
-    console.log('\n❓ Do you want to create Daerah entries for orphan RegionPrices?')
-    console.log('   Uncomment the code below to enable auto-creation\n')
-
-    // Example code to create missing Daerah entries
-    /*
-    console.log('\n🔧 Creating missing Daerah entries...')
-
-    const createdDaerah = []
-    for (const rp of orphanRegionPrices) {
-      // Generate a unique kodeDaerah from the daerahId
-      const kodeDaerah = `AUTO-${rp.daerahId.substring(0, 8).toUpperCase()}`
-
-      try {
-        const newDaerah = await prisma.daerah.create({
-          data: {
-            id: rp.daerahId, // Use the existing daerahId
-            kodeDaerah: kodeDaerah,
-            namaDaerah: `Daerah ${kodeDaerah}`,
-            alamat: 'Auto-generated from RegionPrice',
-            isActive: true,
-          },
-        })
-        createdDaerah.push(newDaerah)
-        console.log(`  ✅ Created: ${kodeDaerah} - ${newDaerah.namaDaerah}`)
-      } catch (error) {
-        console.error(`  ❌ Failed to create daerah for daerahId ${rp.daerahId}:`, error)
+  // Group by daerahId to get unique regions with their latest price
+  const regionMap = new Map<string, any>()
+  regionPrices.forEach(rp => {
+    if (!regionMap.has(rp.daerahId)) {
+      regionMap.set(rp.daerahId, {
+        daerahId: rp.daerahId,
+        hargaKta: rp.hargaKta,
+        tahun: rp.tahun,
+        isActive: rp.isActive,
+        count: 1,
+      })
+    } else {
+      const existing = regionMap.get(rp.daerahId)
+      existing.count++
+      // Keep the latest year's price
+      if (rp.tahun > existing.tahun) {
+        existing.hargaKta = rp.hargaKta
+        existing.tahun = rp.tahun
       }
     }
+  })
 
-    console.log(`\n✅ Created ${createdDaerah.length} new Daerah entries`)
-    */
+  const uniqueRegions = Array.from(regionMap.values())
+  console.log(`📊 Unique daerahId in RegionPrice: ${uniqueRegions.length}`)
+
+  // 3. Show all regions from RegionPrice
+  console.log('\n🌍 Regions in RegionPrice:')
+  uniqueRegions.forEach(r => {
+    const exists = existingDaerahMap.has(r.daerahId)
+    console.log(`  ${exists ? '✅' : '❌'} ${r.daerahId} - Rp ${r.hargaKta.toLocaleString('id-ID')} (${r.tahun}, ${r.count} records)`)
+  })
+
+  // 4. Find regions to create (daerahId not in existing Daerah)
+  const regionsToCreate = uniqueRegions.filter(r => !existingDaerahMap.has(r.daerahId))
+
+  console.log(`\n${'='.repeat(80)}`)
+  console.log(`\n📋 Summary:`)
+  console.log(`  - Existing Daerah: ${existingDaerah.length}`)
+  console.log(`  - Unique daerahId in RegionPrice: ${uniqueRegions.length}`)
+  console.log(`  - Need to create: ${regionsToCreate.length}`)
+
+  if (regionsToCreate.length === 0) {
+    console.log('\n✅ All daerahId from RegionPrice already exist in Daerah table!')
+    return
   }
 
-  console.log('\n✨ Done!')
+  console.log('\n🔧 Daerah records to create:')
+  regionsToCreate.forEach(r => {
+    console.log(`  - ${r.daerahId}`)
+  })
+
+  // 5. CREATE
+  console.log(`\n${'='.repeat(80)}`)
+  console.log('\n🔧 Creating Daerah records...\n')
+
+  const created = []
+  const skipped = []
+
+  for (const region of regionsToCreate) {
+    try {
+      // Double check if already exists
+      const alreadyExists = await prisma.daerah.findUnique({
+        where: { id: region.daerahId }
+      })
+
+      if (alreadyExists) {
+        skipped.push(region.daerahId)
+        console.log(`  ⚠️  Skip: ${region.daerahId} (already exists)`)
+        continue
+      }
+
+      // Check if kodeDaerah already exists
+      const proposedKode = region.daerahId.substring(0, 12).toUpperCase()
+      if (existingKodeDaerah.has(proposedKode)) {
+        console.log(`  ⚠️  Skip: ${region.daerahId} (kodeDaerah '${proposedKode}' already exists)`)
+        skipped.push(region.daerahId)
+        continue
+      }
+
+      const newDaerah = await prisma.daerah.create({
+        data: {
+          id: region.daerahId,
+          kodeDaerah: proposedKode,
+          namaDaerah: `Daerah ${proposedKode}`,
+          alamat: null,
+          telepon: null,
+          email: null,
+          isActive: region.isActive ?? true,
+          kodePropinsi: null,
+          diskonPersen: 0,
+        },
+      })
+
+      created.push(newDaerah)
+      console.log(`  ✅ Created: ${newDaerah.kodeDaerah} - ${newDaerah.namaDaerah}`)
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        skipped.push(region.daerahId)
+        console.log(`  ⚠️  Skip: ${region.daerahId} (already exists - duplicate)`)
+      } else {
+        console.error(`  ❌ Failed: ${region.daerahId} - ${error.message}`)
+      }
+    }
+  }
+
+  console.log(`\n${'='.repeat(80)}`)
+  console.log(`\n✅ Successfully created: ${created.length}`)
+  console.log(`⚠️  Skipped: ${skipped.length}`)
+  console.log(`📊 Total Daerah now: ${existingDaerah.length + created.length}`)
 }
 
 main()

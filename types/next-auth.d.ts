@@ -6,12 +6,22 @@ declare module "next-auth" {
       id: string
       role: string
       daerahId?: string | null
+      daerah?: {
+        id: string
+        kodeDaerah: string
+        namaDaerah: string
+      } | null
     } & DefaultSession["user"]
   }
 
   interface User {
     role: string
     daerahId?: string | null
+    daerah?: {
+      id: string
+      kodeDaerah: string
+      namaDaerah: string
+    } | null
   }
 }
 
@@ -19,5 +29,10 @@ declare module "next-auth/jwt" {
   interface JWT {
     role: string
     daerahId?: string | null
+    daerah?: {
+      id: string
+      kodeDaerah: string
+      namaDaerah: string
+    } | null
   }
 }

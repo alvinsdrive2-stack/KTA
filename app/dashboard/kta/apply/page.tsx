@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { Separator as UISeparator } from '@/components/ui/separator'
 import { useSidebar } from '@/contexts/sidebar-context'
+import { useSession } from '@/hooks/useSession'
 import { cn } from '@/lib/utils'
 
 const formSchema = z.object({
@@ -27,10 +28,15 @@ type FormData = z.infer<typeof formSchema>
 export default function KTAApplyPage() {
   const router = useRouter()
   const { setSidebarCollapsed } = useSidebar()
+  const { session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sikiData, setSikiData] = useState<any>(null)
   const [ktaRequestId, setKtaRequestId] = useState<string | null>(null)
+
+  // Daerah states
+  const [daerahList, setDaerahList] = useState<any[]>([])
+  const [selectedDaerahId, setSelectedDaerahId] = useState<string>('')
 
   // Pricing states
   const [diskonPersen, setDiskonPersen] = useState(0)
@@ -71,6 +77,38 @@ export default function KTAApplyPage() {
 
     fetchDiskon()
   }, [])
+
+  // Fetch daerah list for PUSAT/ADMIN users
+  useEffect(() => {
+    const fetchDaerahList = async () => {
+      try {
+        const response = await fetch('/api/daerah')
+        const data = await response.json()
+        if (data.success) {
+          setDaerahList(data.daerah || [])
+        }
+      } catch (error) {
+        console.error('Failed to fetch daerah list:', error)
+      }
+    }
+
+    const userRole = session?.user?.role
+    const userDaerahKode = session?.user?.daerah?.kodeDaerah
+    const canAssignAnyDaerah = userRole === 'PUSAT' || userRole === 'ADMIN' || userDaerahKode === '00'
+
+    if (canAssignAnyDaerah) {
+      fetchDaerahList()
+      // Set default to user's daerah
+      if (session?.user?.daerahId) {
+        setSelectedDaerahId(session.user.daerahId)
+      }
+    }
+  }, [session])
+
+  // Check if user can assign to any daerah
+  const canAssignAnyDaerah = session?.user?.role === 'PUSAT' ||
+                             session?.user?.role === 'ADMIN' ||
+                             session?.user?.daerah?.kodeDaerah === '00'
 
   // Calculate price when jenjang or diskon changes
   useEffect(() => {
@@ -198,7 +236,8 @@ export default function KTAApplyPage() {
         },
         body: JSON.stringify({
           idIzin: form.getValues().idIzin,
-          sikiData: sikiData
+          sikiData: sikiData,
+          daerahId: canAssignAnyDaerah ? selectedDaerahId : undefined
         }),
       })
 
@@ -284,6 +323,30 @@ export default function KTAApplyPage() {
                 </p>
               )}
             </div>
+
+            {/* Daerah Selection - Only for PUSAT/ADMIN/Nasional users */}
+            {canAssignAnyDaerah && daerahList.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="daerah" className="text-slate-700">Daerah</Label>
+                <select
+                  id="daerah"
+                  value={selectedDaerahId}
+                  onChange={(e) => setSelectedDaerahId(e.target.value)}
+                  disabled={isLoading || !!sikiData}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
+                >
+                  <option value="">Pilih Daerah</option>
+                  {daerahList.map((daerah) => (
+                    <option key={daerah.id} value={daerah.id}>
+                      {daerah.namaDaerah}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500">
+                  Pilih daerah untuk KTA ini
+                </p>
+              </div>
+            )}
 
             {!sikiData && (
               <Button
