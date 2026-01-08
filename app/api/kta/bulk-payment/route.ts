@@ -69,26 +69,14 @@ export async function POST(request: NextRequest) {
     const filePath = path.join(uploadDir, fileName)
     await writeFile(filePath, buffer)
 
-    // Get current year
-    const currentYear = new Date().getFullYear()
+    // Calculate total amount from each request's hargaFinal
+    const totalAmount = ktaRequests.reduce((sum, req) => sum + (req.hargaFinal || 0), 0)
 
-    // Get region price for this daerah
-    const regionPrice = await prisma.regionPrice.findFirst({
-      where: {
-        daerahId: session.user.daerahId!,
-        tahun: currentYear,
-        isActive: true
-      }
-    })
-
-    if (!regionPrice) {
+    if (totalAmount === 0) {
       return NextResponse.json({
-        error: 'Harga untuk daerah Anda belum ditetapkan. Silakan hubungi administrator.'
+        error: 'Harga untuk KTA belum ditetapkan. Silakan hubungi administrator.'
       }, { status: 400 })
     }
-
-    // Calculate payment amount based on region price
-    const totalAmount = ktaRequests.length * regionPrice.hargaKta
 
     // Generate invoice number
     const invoiceNumber = `INV-${session.user.daerahId}-${timestamp}`
@@ -106,13 +94,13 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Create individual payment records for each KTA request
+    // Create individual payment records for each KTA request using their hargaFinal
     const paymentPromises = ktaRequests.map(request =>
       prisma.payment.create({
         data: {
           ktaRequestId: request.id,
           bulkPaymentId: bulkPayment.id,
-          jumlah: regionPrice.hargaKta, // Use region price
+          jumlah: request.hargaFinal || 0, // Use hargaFinal from each request
           statusPembayaran: 'PENDING',
           invoiceNumber,
           rekeningTujuan: 'BNI - 1234567890 - a.n. LSP GATENSI NASIONAL'

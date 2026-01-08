@@ -9,9 +9,12 @@ import {
   CreditCard,
   Building,
   Receipt,
-  ChevronRight
+  ChevronRight,
+  Download,
+  History
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSession } from '@/hooks/useSession'
 
 interface DashboardNavProps {
   isPusat: boolean
@@ -39,16 +42,16 @@ const navItems: NavItem[] = [
     roles: ['DAERAH', 'PUSAT', 'ADMIN'],
     badge: null,
   },
-  {
-    title: 'Data KTA',
-    href: '/dashboard/kta',
-    icon: FileText,
-    roles: ['DAERAH', 'PUSAT', 'ADMIN'],
-    badge: null,
-  },
+        {
+        title: 'Data Permohonan',
+        href: '/dashboard/permohonan',
+        icon: FileText,
+        roles: ['DAERAH', 'PUSAT', 'ADMIN'],
+        badge: null,
+      },
   {
     title: 'Pembayaran',
-    href: '/dashboard/payments',
+    href: '/dashboard/payments/daerah',
     icon: CreditCard,
     roles: ['DAERAH'],
     badge: null,
@@ -63,6 +66,33 @@ const navItems: NavItem[] = [
 ]
 
 const navSections: NavSection[] = [
+  {
+    title: 'Data',
+    roles: ['DAERAH', 'PUSAT', 'ADMIN'],
+    items: [
+
+      {
+        title: 'Data KTA',
+        href: '/dashboard/kta',
+        icon: Download,
+        roles: ['DAERAH', 'PUSAT', 'ADMIN'],
+        badge: null,
+      }
+    ]
+  },
+  {
+    title: 'Riwayat',
+    roles: ['DAERAH'],
+    items: [
+      {
+        title: 'Riwayat Invoice',
+        href: '/dashboard/payments/daerah/invoices',
+        icon: History,
+        roles: ['DAERAH'],
+        badge: null,
+      }
+    ]
+  },
   {
     title: 'Daerah',
     roles: ['PUSAT', 'ADMIN'],
@@ -82,7 +112,7 @@ const navSections: NavSection[] = [
     items: [
       {
         title: 'Laporan',
-        href: '/dashboard/reports',
+        href: '/dashboard/keuangan',
         icon: Receipt,
         roles: ['PUSAT', 'ADMIN'],
         badge: null,
@@ -93,7 +123,42 @@ const navSections: NavSection[] = [
 
 export function DashboardNav({ isPusat }: DashboardNavProps) {
   const pathname = usePathname()
+  const { session } = useSession()
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
+  const [verifiedCount, setVerifiedCount] = useState(0)
+
+  // Fetch verified invoice count for DAERAH users
+  useEffect(() => {
+    if (!isPusat && session?.user?.role === 'DAERAH') {
+      fetchVerifiedCount()
+    }
+  }, [isPusat, session])
+
+  const fetchVerifiedCount = async () => {
+    try {
+      const response = await fetch('/api/payments/bulk?status=VERIFIED')
+      const data = await response.json()
+      if (data.success) {
+        setVerifiedCount(data.data.length)
+      }
+    } catch (error) {
+      console.error('Error fetching verified count:', error)
+    }
+  }
+
+  // Update badge for Riwayat Invoice based on verified count
+  const navSectionsWithBadges = navSections.map(section => ({
+    ...section,
+    items: section.items.map(item => {
+      if (item.title === 'Riwayat Invoice' && !isPusat) {
+        return {
+          ...item,
+          badge: verifiedCount > 0 ? verifiedCount.toString() : null
+        }
+      }
+      return item
+    })
+  }))
 
   const filteredItems = navItems.filter(item => {
     if (isPusat) {
@@ -102,11 +167,11 @@ export function DashboardNav({ isPusat }: DashboardNavProps) {
     return item.roles.includes('DAERAH')
   })
 
-  const filteredSections = navSections.filter(section => {
+  const filteredSections = navSectionsWithBadges.filter(section => {
     if (isPusat) {
       return section.roles.includes('PUSAT') || section.roles.includes('ADMIN')
     }
-    return false
+    return section.roles.includes('DAERAH')
   }).map(section => ({
     ...section,
     items: section.items.filter(item => {
@@ -117,10 +182,26 @@ export function DashboardNav({ isPusat }: DashboardNavProps) {
     })
   })).filter(section => section.items.length > 0)
 
+  // Combine all nav items for active checking
+  const allNavItems = [
+    ...filteredItems,
+    ...filteredSections.flatMap(s => s.items)
+  ]
+
   const renderNavItem = (item: NavItem, index: number, isSubmenuItem = false) => {
-    const isActive = item.href === '/dashboard'
-      ? pathname === '/dashboard'
-      : pathname === item.href || pathname?.startsWith(item.href + '/')
+    // Find the best matching active item (prefer exact match, then longest path match)
+    let activeItem = allNavItems.find(nav => pathname === nav.href)
+
+    if (!activeItem) {
+      // If no exact match, find the longest matching prefix
+      const matchingItems = allNavItems.filter(nav =>
+        nav.href !== '/dashboard' && pathname?.startsWith(nav.href + '/')
+      ).sort((a, b) => (b.href?.length || 0) - (a.href?.length || 0))
+
+      activeItem = matchingItems[0]
+    }
+
+    const isActive = activeItem?.href === item.href
 
     return (
       <Link

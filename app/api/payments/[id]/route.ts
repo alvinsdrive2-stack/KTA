@@ -46,6 +46,7 @@ export async function GET(
                 idIzin: true,
                 nama: true,
                 nik: true,
+                jenjang: true,
                 jabatanKerja: true,
               }
             }

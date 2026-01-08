@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   title: 'KTA Management System',
   description: 'Sistem Manajemen Kartu Tanda Anggota',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/logo2inv.png',
   },
 }
 

@@ -4,6 +4,7 @@ type ToastProps = {
   id?: string
   title?: string
   description?: string
+  variant?: "default" | "destructive" | "success"
   action?: {
     label: string
     onClick: () => void

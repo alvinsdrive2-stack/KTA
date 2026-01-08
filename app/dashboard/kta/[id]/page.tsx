@@ -22,10 +22,20 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
+  Trash2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useSidebar } from '@/contexts/sidebar-context'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { useToast } from '@/components/ui/use-toast'
 
 interface KTARequest {
   id: string
@@ -73,11 +83,14 @@ interface KTARequest {
 export default function KTADetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { toast } = useToast()
   const [ktaRequest, setKtaRequest] = useState<KTARequest | null>(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState('')
   const [refreshingSiki, setRefreshingSiki] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Preview states
   const [showKtpPreview, setShowKtpPreview] = useState(false)
@@ -185,6 +198,36 @@ export default function KTADetailPage() {
     }
   }
 
+  const handleDelete = async () => {
+    setDeleting(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/kta/${params.id}`, {
+        method: 'DELETE',
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          variant: 'success',
+          title: 'Berhasil',
+          description: 'Permohonan KTA berhasil dihapus',
+        })
+        router.push('/dashboard/kta')
+      } else {
+        setError(result.error || 'Gagal menghapus permohonan')
+        setDeleteDialogOpen(false)
+      }
+    } catch (error) {
+      setError('Gagal menghapus permohonan')
+      setDeleteDialogOpen(false)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const togglePreviews = () => {
     const newState = !showKtpPreview
     setShowKtpPreview(newState)
@@ -221,14 +264,29 @@ export default function KTADetailPage() {
     return colors[status] || 'bg-slate-100 text-slate-800'
   }
 
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      DRAFT: 'Draft',
+      WAITING_PAYMENT: 'Menunggu Konfirmasi',
+      WAITING_APPROVAL: 'Menunggu Verifikasi',
+      APPROVED: 'Disetujui',
+      READY_TO_PRINT: 'Siap Cetak',
+      PRINTED: 'Sudah Cetak',
+      REJECTED: 'Ditolak',
+    }
+    return labels[status] || status.replace(/_/g, ' ')
+  }
+
   const getProgressPercentage = () => {
     if (!ktaRequest) return 0
 
     let progress = 0
     if (ktaRequest.ktpUrl) progress += 25
     if (ktaRequest.fotoUrl) progress += 25
-    if (ktaRequest.payments?.[0]?.statusPembayaran === 'PAID') progress += 25
-    if (['WAITING_APPROVAL', 'APPROVED'].includes(ktaRequest.status)) progress += 25
+    // Payment exists (PENDING, PAID, or VERIFIED) = 75%
+    if (ktaRequest.payments && ktaRequest.payments.length > 0) progress += 25
+    // Pusat verified = 100%
+    if (ktaRequest.status === 'APPROVED' || ktaRequest.status === 'READY_TO_PRINT' || ktaRequest.status === 'PRINTED') progress += 25
 
     return progress
   }
@@ -277,9 +335,23 @@ export default function KTADetailPage() {
               <p className="text-slate-500 text-sm">ID Izin: {ktaRequest.idIzin}</p>
             </div>
           </div>
-          <Badge className={getStatusColor(ktaRequest.status)}>
-            {ktaRequest.status.replace(/_/g, ' ')}
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Badge className={getStatusColor(ktaRequest.status)}>
+              {getStatusLabel(ktaRequest.status)}
+            </Badge>
+            {/* Only show delete button for certain statuses */}
+            {['DRAFT', 'FETCHED_FROM_SIKI', 'EDITED', 'WAITING_PAYMENT'].includes(ktaRequest.status) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Hapus
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Progress - 3D Style */}
@@ -301,11 +373,11 @@ export default function KTADetailPage() {
                 <Upload className="h-4 w-4" />
                 <span>Pas Foto</span>
               </div>
-              <div className={'flex items-center gap-2 ' + (ktaRequest.payments?.[0]?.statusPembayaran === 'PAID' ? 'text-emerald-600' : 'text-slate-400')}>
+              <div className={'flex items-center gap-2 ' + (ktaRequest.payments && ktaRequest.payments.length > 0 ? 'text-emerald-600' : 'text-slate-400')}>
                 <CreditCard className="h-4 w-4" />
                 <span>Pembayaran</span>
               </div>
-              <div className={'flex items-center gap-2 ' + (['WAITING_APPROVAL', 'APPROVED'].includes(ktaRequest.status) ? 'text-emerald-600' : 'text-slate-400')}>
+              <div className={'flex items-center gap-2 ' + (ktaRequest.status === 'APPROVED' || ktaRequest.status === 'READY_TO_PRINT' || ktaRequest.status === 'PRINTED' ? 'text-emerald-600' : 'text-slate-400')}>
                 <CheckCircle className="h-4 w-4" />
                 <span>Approval</span>
               </div>
@@ -469,7 +541,7 @@ export default function KTADetailPage() {
                       {ktaRequest.payments[0].statusPembayaran === 'PENDING' && (
                         <Badge className="bg-amber-100 text-amber-800">
                           <Clock className="h-3 w-3 mr-1" />
-                          Menunggu Pembayaran
+                          Menunggu Konfirmasi
                         </Badge>
                       )}
                       {ktaRequest.payments[0].statusPembayaran === 'PAID' && (
@@ -622,6 +694,35 @@ export default function KTADetailPage() {
           </div>
         </>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-slate-900">Hapus Permohonan KTA</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus permohonan KTA atas nama <strong>{ktaRequest?.nama}</strong>?<br />
+              Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleting}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? 'Menghapus...' : 'Ya, Hapus'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

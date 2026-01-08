@@ -9,11 +9,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle, Search, User, Mail, Phone, MapPin, Calendar, CreditCard, Eye, Maximize2, X, ZoomIn, ZoomOut, RotateCw, Download } from 'lucide-react'
+import { AlertCircle, Search, User, Mail, Phone, MapPin, Calendar, CreditCard, Eye, Maximize2, X, ZoomIn, ZoomOut, RotateCw, Download, Separator } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import Image from 'next/image'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { PulseLogo } from '@/components/ui/loading-spinner'
+import { Separator as UISeparator } from '@/components/ui/separator'
+import { useSidebar } from '@/contexts/sidebar-context'
+import { cn } from '@/lib/utils'
 
 const formSchema = z.object({
   idIzin: z.string().min(1, 'ID Izin harus diisi'),
@@ -23,11 +26,16 @@ type FormData = z.infer<typeof formSchema>
 
 export default function KTAApplyPage() {
   const router = useRouter()
+  const { setSidebarCollapsed } = useSidebar()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sikiData, setSikiData] = useState<any>(null)
   const [ktaRequestId, setKtaRequestId] = useState<string | null>(null)
-  const [regionPrice, setRegionPrice] = useState<number | null>(null)
+
+  // Pricing states
+  const [diskonPersen, setDiskonPersen] = useState(0)
+  const [hargaBase, setHargaBase] = useState(0)
+  const [hargaFinal, setHargaFinal] = useState(0)
 
   // Modal states
   const [ktpModalOpen, setKtpModalOpen] = useState(false)
@@ -47,22 +55,32 @@ export default function KTAApplyPage() {
     },
   })
 
-  // Fetch region price on component mount
+  // Fetch daerah diskon on component mount
   useEffect(() => {
-    const fetchRegionPrice = async () => {
+    const fetchDiskon = async () => {
       try {
-        const response = await fetch('/api/daerah/price')
+        const response = await fetch('/api/daerah/my-diskon')
         const data = await response.json()
         if (data.success) {
-          setRegionPrice(data.price)
+          setDiskonPersen(data.diskonPersen)
         }
       } catch (error) {
-        console.error('Failed to fetch region price:', error)
+        console.error('Failed to fetch diskon:', error)
       }
     }
 
-    fetchRegionPrice()
+    fetchDiskon()
   }, [])
+
+  // Calculate price when jenjang or diskon changes
+  useEffect(() => {
+    if (sikiData?.jenjang) {
+      const jenjangNum = parseInt(sikiData.jenjang, 10)
+      const base = jenjangNum >= 7 ? 300000 : 100000
+      setHargaBase(base)
+      setHargaFinal(base - (base * diskonPersen / 100))
+    }
+  }, [sikiData?.jenjang, diskonPersen])
 
   const onSearch = async (data: FormData) => {
     setIsLoading(true)
@@ -144,6 +162,14 @@ export default function KTAApplyPage() {
     }
   }
 
+  const closeAllPreviews = () => {
+    setKtpModalOpen(false)
+    setFotoModalOpen(false)
+    setSidebarCollapsed(false)
+    setKtpZoom(1)
+    setFotoZoom(1)
+  }
+
   const handleDownload = (url: string, type: string) => {
     const link = document.createElement('a')
     link.href = url
@@ -179,7 +205,7 @@ export default function KTAApplyPage() {
       const result = await response.json()
 
       if (response.ok) {
-        router.push('/dashboard/kta')
+        router.push(`/dashboard/permohonan?success=true&nama=${encodeURIComponent(sikiData.nama)}`)
       } else {
         // More specific error messages
         let errorMessage = result.error || 'Gagal menyimpan permohonan'
@@ -208,7 +234,10 @@ export default function KTAApplyPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className={cn(
+      'space-y-5 transition-all duration-300',
+      (ktpModalOpen || fotoModalOpen) && 'pr-[480px]'
+    )}>
       {/* Header - 3D Style */}
       <div className="animate-slide-up-stagger stagger-1">
         <h1 className="text-2xl font-semibold text-slate-900">Permohonan KTA Baru</h1>
@@ -289,9 +318,11 @@ export default function KTAApplyPage() {
               <Alert className="bg-sky-50 border-sky-200">
                 <AlertCircle className="h-4 w-4 text-sky-600" />
                 <AlertDescription className="text-sky-800 text-sm">
-                  Data diambil dari SIKI. Anda dapat melakukan perubahan jika diperlukan.
+                  Data diambil dari SIKI. Data bersifat read-only dan tidak dapat diubah.
                 </AlertDescription>
               </Alert>
+
+              {/* ID Izin - Read-only display */}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -299,8 +330,8 @@ export default function KTAApplyPage() {
                   <Input
                     id="nik"
                     value={sikiData.nik}
-                    onChange={(e) => setSikiData({...sikiData, nik: e.target.value})}
-                    className="mt-1 bg-white"
+                    readOnly
+                    className="mt-1 bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -308,8 +339,8 @@ export default function KTAApplyPage() {
                   <Input
                     id="nama"
                     value={sikiData.nama}
-                    onChange={(e) => setSikiData({...sikiData, nama: e.target.value})}
-                    className="mt-1 bg-white"
+                    readOnly
+                    className="mt-1 bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -317,8 +348,8 @@ export default function KTAApplyPage() {
                   <Input
                     id="jabatan"
                     value={sikiData.jabatan || ''}
-                    onChange={(e) => setSikiData({...sikiData, jabatan: e.target.value})}
-                    className="mt-1 bg-white"
+                    readOnly
+                    className="mt-1 bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -326,34 +357,27 @@ export default function KTAApplyPage() {
                   <Input
                     id="subklasifikasi"
                     value={sikiData.subklasifikasi || ''}
-                    onChange={(e) => setSikiData({...sikiData, subklasifikasi: e.target.value})}
-                    className="mt-1 bg-white"
+                    readOnly
+                    className="mt-1 bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
                 </div>
                 <div>
                   <Label htmlFor="jenjang" className="text-slate-700">Jenjang</Label>
-                  <select
+                  <Input
                     id="jenjang"
                     value={sikiData.jenjang || ''}
-                    onChange={(e) => setSikiData({...sikiData, jenjang: e.target.value})}
-                    className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 bg-white"
-                  >
-                    <option value="">Pilih Jenjang</option>
-                    <option value="1">1 - Terampil</option>
-                    <option value="2">2 - Mahir</option>
-                    <option value="3">3 - Penyelia</option>
-                    <option value="4">4 - Ahli Muda</option>
-                    <option value="5">5 - Ahli Madya</option>
-                    <option value="6">6 - Ahli Utama</option>
-                  </select>
+                    readOnly
+                    className="mt-1 bg-slate-100 text-slate-500 cursor-not-allowed"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Jenjang diambil dari data SIKI</p>
                 </div>
                 <div>
                   <Label htmlFor="telp" className="text-slate-700">No. Telepon</Label>
                   <Input
                     id="telp"
                     value={sikiData.telp || ''}
-                    onChange={(e) => setSikiData({...sikiData, telp: e.target.value})}
-                    className="mt-1 bg-white"
+                    readOnly
+                    className="mt-1 bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -362,8 +386,8 @@ export default function KTAApplyPage() {
                     id="email"
                     type="email"
                     value={sikiData.email || ''}
-                    onChange={(e) => setSikiData({...sikiData, email: e.target.value})}
-                    className="mt-1 bg-white"
+                    readOnly
+                    className="mt-1 bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -371,9 +395,9 @@ export default function KTAApplyPage() {
                   <textarea
                     id="alamat"
                     value={sikiData.alamat || ''}
-                    onChange={(e) => setSikiData({...sikiData, alamat: e.target.value})}
+                    readOnly
                     rows={3}
-                    className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 bg-white"
+                    className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -383,8 +407,8 @@ export default function KTAApplyPage() {
                 <div>
                   <Label className="text-sm font-medium text-slate-700">KTP</Label>
                   {sikiData.ktpUrl ? (
-                    <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <p className="text-xs text-slate-600">Dokumen KTP tersedia</p>
+                    <div className="mt-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                      <p className="text-sm text-emerald-700">Dokumen KTP tersedia</p>
                     </div>
                   ) : (
                     <p className="mt-2 text-sm text-slate-500">KTP tidak tersedia</p>
@@ -393,13 +417,30 @@ export default function KTAApplyPage() {
                 <div>
                   <Label className="text-sm font-medium text-slate-700">Pas Foto</Label>
                   {sikiData.fotoUrl ? (
-                    <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <p className="text-xs text-slate-600">Pas Foto tersedia</p>
+                    <div className="mt-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                      <p className="text-sm text-emerald-700">Pas Foto tersedia</p>
                     </div>
                   ) : (
                     <p className="mt-2 text-sm text-slate-500">Pas foto tidak tersedia</p>
                   )}
                 </div>
+                {(sikiData.ktpUrl || sikiData.fotoUrl) && (
+                  <div className="md:col-span-2 flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-slate-300"
+                      onClick={() => {
+                        setKtpModalOpen(true)
+                        setFotoModalOpen(true)
+                        setSidebarCollapsed(true)
+                      }}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Bandingkan Dokumen
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -413,13 +454,46 @@ export default function KTAApplyPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-5">
-              <div className="space-y-3">
+              <div className="space-y-4">
+                {/* Jenjang Info */}
                 <div>
-                  <Label className="text-sm font-medium text-slate-700">Biaya Administrasi</Label>
-                  <p className="mt-1 text-2xl font-bold text-slate-900">
-                    Rp {regionPrice?.toLocaleString('id-ID') || '...'}
+                  <Label className="text-sm font-medium text-slate-700">Jenjang</Label>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                    {sikiData.jenjang || '-'}
                   </p>
                 </div>
+
+                {/* Price Breakdown */}
+                <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Harga Base</span>
+                    <span className="font-medium">Rp {hargaBase.toLocaleString('id-ID')}</span>
+                  </div>
+
+                  {diskonPersen > 0 && (
+                    <div className="flex justify-between text-sm items-center">
+                      <span className="text-slate-600">Diskon</span>
+                      <span className="font-medium text-green-600">-Rp {(hargaBase - hargaFinal).toLocaleString('id-ID')}</span>
+                    </div>
+                  )}
+
+                  <UISeparator />
+
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-slate-900">Total Bayar</span>
+                    <span className="text-xl font-bold text-blue-600">
+                      Rp {hargaFinal.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </div>
+
+                <Alert className="bg-blue-50 border-blue-200">
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800 text-sm">
+                    Harga berdasarkan jenjang: 1-6 = Rp 100.000, 7-9 = Rp 300.000
+                  </AlertDescription>
+                </Alert>
+
                 <Alert className="bg-amber-50 border-amber-200">
                   <AlertCircle className="h-4 w-4 text-amber-600" />
                   <AlertDescription className="text-amber-800 text-sm">
@@ -430,34 +504,134 @@ export default function KTAApplyPage() {
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 animate-slide-up-stagger stagger-5">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setSikiData(null)
-                setKtaRequestId(null)
-                form.reset()
-              }}
-              disabled={isLoading}
-              className="border-slate-300"
-            >
-              Cari Ulang
-            </Button>
-            <Button
-              onClick={onSubmit}
-              disabled={isLoading}
-              className="flex-1 bg-slate-800 text-slate-100 hover:bg-slate-700 shadow-md"
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <PulseLogo className="scale-50" />
-                </span>
-              ) : (
-                'Ajukan Permohonan'
-              )}
-            </Button>
+          {/* Action Buttons - Floating Bottom */}
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-2xl z-50 animate-slide-up">
+            <div className="max-w-5xl mx-auto px-6 py-4">
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setSikiData(null)
+                    setKtaRequestId(null)
+                    form.reset()
+                  }}
+                  disabled={isLoading}
+                  className="border-slate-300"
+                >
+                  Cari Ulang
+                </Button>
+                <Button
+                  onClick={onSubmit}
+                  disabled={isLoading}
+                  className="flex-1 bg-slate-800 text-slate-100 hover:bg-slate-700 shadow-md"
+                >
+                  {isLoading ? (
+                    <span className="flex items-center justify-center">
+                      <PulseLogo className="scale-50" />
+                    </span>
+                  ) : (
+                    'Ajukan Permohonan'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Spacer for fixed bottom bar */}
+          <div className="h-24" />
+        </>
+      )}
+
+      {/* Floating Preview Panels */}
+      {(ktpModalOpen || fotoModalOpen) && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-y-0 left-0 right-[444px] z-30"
+            onClick={closeAllPreviews}
+          />
+
+          {/* Combined Preview Container */}
+          <div className="fixed top-6 bottom-6 right-6 w-[420px] flex flex-col gap-0 z-40">
+            {/* KTP Preview Panel - Top */}
+            {ktpModalOpen && sikiData.ktpUrl && (
+              <div className="flex-1 bg-white rounded-t-xl shadow-2xl overflow-hidden flex flex-col">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+                  <h3 className="font-semibold text-slate-900 text-sm">Scan KTP</h3>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('ktp', 'in')}>
+                      <ZoomIn className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('ktp', 'out')}>
+                      <ZoomOut className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex-1 p-3 bg-slate-100 overflow-auto">
+                  <div className="bg-white rounded-lg shadow-sm overflow-hidden h-full" style={{ transform: `scale(${ktpZoom})`, transformOrigin: 'top center' }}>
+                    {sikiData.ktpUrl.toLowerCase().endsWith('.pdf') ? (
+                      <iframe
+                        src={sikiData.ktpUrl}
+                        className="w-full h-full"
+                        title="Scan KTP PDF"
+                      />
+                    ) : (
+                      <img
+                        src={sikiData.ktpUrl}
+                        alt="Scan KTP"
+                        className="w-full h-auto object-contain"
+                      />
+                    )}
+                  </div>
+                </div>
+                <div className="px-3 py-2 border-t border-slate-200 bg-slate-50 flex justify-center">
+                  <p className="text-xs text-slate-500">{Math.round(ktpZoom * 100)}%</p>
+                </div>
+              </div>
+            )}
+
+            {/* Divider */}
+            {ktpModalOpen && fotoModalOpen && (
+              <div className="h-0" />
+            )}
+
+            {/* Pas Foto Preview Panel - Bottom */}
+            {fotoModalOpen && sikiData.fotoUrl && (
+              <div className="flex-1 bg-white rounded-b-xl shadow-2xl overflow-hidden flex flex-col">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+                  <h3 className="font-semibold text-slate-900 text-sm">Pas Foto</h3>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('foto', 'in')}>
+                      <ZoomIn className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('foto', 'out')}>
+                      <ZoomOut className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={closeAllPreviews}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex-1 p-3 bg-slate-100 overflow-auto">
+                  <div className="bg-white rounded-lg shadow-sm overflow-hidden h-full flex justify-center" style={{ transform: `scale(${fotoZoom})`, transformOrigin: 'top center' }}>
+                    <img
+                      src={sikiData.fotoUrl}
+                      alt="Pas Foto"
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                </div>
+                <div className="px-3 py-2 border-t border-slate-200 bg-slate-50 flex justify-center">
+                  <p className="text-xs text-slate-500">{Math.round(fotoZoom * 100)}%</p>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
