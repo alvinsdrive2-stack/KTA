@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useSession } from '@/hooks/useSession'
+import { useRenderCount } from '@/hooks/useRenderCount'
 
 interface DashboardNavProps {
   isPusat: boolean
@@ -126,6 +127,7 @@ export function DashboardNav({ isPusat }: DashboardNavProps) {
   const { session } = useSession()
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [verifiedCount, setVerifiedCount] = useState(0)
+  useRenderCount('DashboardNav')
 
   // Extract role to avoid infinite re-renders
   const userRole = session?.user?.role

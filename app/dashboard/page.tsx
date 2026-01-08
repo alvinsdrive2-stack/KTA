@@ -16,6 +16,7 @@ import {
   DaerahComparisonCard,
   DaerahPrintedChart
 } from '@/components/dashboard/dashboard-charts'
+import { useRenderCount } from '@/hooks/useRenderCount'
 
 interface KTARequest {
   id: string
@@ -62,6 +63,7 @@ export default function DashboardPage() {
   const { data: session, status: sessionStatus } = useSession()
   const userRole = session?.user?.role as string
   const sessionLoading = sessionStatus === 'loading'
+  useRenderCount('DashboardPage')
 
   const [ktaRequests, setKtaRequests] = useState<KTARequest[]>([])
   const [stats, setStats] = useState({

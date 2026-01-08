@@ -16,6 +16,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useSession } from '@/hooks/useSession'
 import { useToast } from '@/components/ui/use-toast'
 import { getDaerahLogoUrl } from '@/lib/daerah-logo'
+import { ErrorBoundary } from '@/components/debug/error-boundary'
+import { useRenderCount } from '@/hooks/useRenderCount'
 
 interface DashboardClientProps {
   children: React.ReactNode
@@ -28,6 +30,7 @@ function PaymentFloatingBar() {
   const pathname = usePathname()
   const { selectedCount, totalAmount, selectedRequests, clearSelection } = usePaymentSelection()
   const { sidebarCollapsed } = useSidebar()
+  useRenderCount('PaymentFloatingBar')
 
   // Only show on payments/daerah page
   const shouldShow = pathname?.includes('/payments/daerah') && selectedCount > 0 && !pathname?.includes('/invoice')
@@ -88,6 +91,7 @@ function InvoiceCreationBar() {
   const { sidebarCollapsed } = useSidebar()
   const { totalCount, totalAmount, clearInvoiceKTAs } = useInvoiceCreation()
   const [creating, setCreating] = useState(false)
+  useRenderCount('InvoiceCreationBar')
 
   const shouldShow = pathname?.includes('/payments/daerah/invoice') && totalCount > 0
 
@@ -176,6 +180,7 @@ function VerificationFloatingBar() {
   const [showRejection, setShowRejection] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const { toast } = useToast()
+  useRenderCount('VerificationFloatingBar')
 
   // Only show on /dashboard/payments/[id] pages for PUSAT/ADMIN
   const paymentId = pathname?.match(/\/dashboard\/payments\/([^/]+)/)?.[1]
@@ -359,6 +364,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { sidebarCollapsed, setSidebarCollapsed } = useSidebar()
   const [daerahLogoError, setDaerahLogoError] = useState(false)
+  useRenderCount('DashboardContent')
 
   // Extract daerahId to avoid infinite re-renders
   const daerahId = session?.user?.daerah?.id
@@ -596,15 +602,17 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
 
 export function DashboardClient(props: DashboardClientProps) {
   return (
-    <PaymentSelectionProvider>
-      <InvoiceCreationProvider>
-        <SidebarProvider>
-          <DashboardContent {...props} />
-          <PaymentFloatingBar />
-          <InvoiceCreationBar />
-          <VerificationFloatingBar />
-        </SidebarProvider>
-      </InvoiceCreationProvider>
-    </PaymentSelectionProvider>
+    <ErrorBoundary>
+      <PaymentSelectionProvider>
+        <InvoiceCreationProvider>
+          <SidebarProvider>
+            <DashboardContent {...props} />
+            <PaymentFloatingBar />
+            <InvoiceCreationBar />
+            <VerificationFloatingBar />
+          </SidebarProvider>
+        </InvoiceCreationProvider>
+      </PaymentSelectionProvider>
+    </ErrorBoundary>
   )
 }
