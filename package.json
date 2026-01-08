@@ -9,7 +9,11 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:seed-provinces": "tsx prisma/seed-provinces.ts",
-    "db:sync-daerah": "tsx scripts/sync-daerah-from-region-prices.ts"
+    "db:seed-daerah": "tsx prisma/seed-daerah.ts",
+    "db:check": "tsx scripts/check-db-connection.ts",
+    "db:view-data": "tsx scripts/view-daerah-and-region-prices.ts",
+    "db:sync-daerah": "tsx scripts/sync-daerah-from-region-prices.ts",
+    "db:direct-check": "tsx scripts/direct-supabase-check.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

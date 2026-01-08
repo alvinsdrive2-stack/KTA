@@ -368,6 +368,20 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
 
   // Extract daerahId to avoid infinite re-renders
   const daerahId = session?.user?.daerah?.id
+  const daerahData = session?.user?.daerah
+
+  // Debug: Log daerah data
+  useEffect(() => {
+    if (daerahData) {
+      console.log('🔍 DEBUG DAERAH DATA:')
+      console.log('  ID:', daerahData.id)
+      console.log('  Kode Daerah:', daerahData.kodeDaerah)
+      console.log('  Nama Daerah:', daerahData.namaDaerah)
+      console.log('  Full object:', JSON.stringify(daerahData, null, 2))
+    } else {
+      console.log('⚠️  No daerah data in session')
+    }
+  }, [daerahData])
 
   // Reset logo error when daerah changes
   useEffect(() => {
@@ -416,7 +430,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
           <div className="absolute bottom-0 left-0 w-40 h-40 bg-gradient-to-tr from-blue-600/5 to-transparent rounded-full translate-y-1/2 -translate-x-1/4 sidebar-orb-2"></div>
 
           {/* Logo - Primary Blue Header with Indonesia Map */}
-          <div className="relative h-24 flex items-center justify-center bg-gradient-to-br from-blue-700 to-blue-100 shadow-md z-10 overflow-hidden">
+          <div className="relative h-24 flex items-center justify-center bg-gradient-to-br from-blue-700 to-blue-600 shadow-md z-10 overflow-hidden">
             {/* Blue Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-700 to-blue-400"></div>
 

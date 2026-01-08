@@ -1,5 +1,3 @@
-import * as https from 'https'
-import * as http from 'http'
 import { extractProvinceFromAddress, getProvinceNameByKode } from './province-mapping'
 
 interface SIKIData {
@@ -37,6 +35,15 @@ export class SIKIApiClient {
 
   async getPermohonanSKK(idIzin: string): Promise<SIKIResponse> {
     try {
+      // Check if token is available
+      if (!this.token || this.token.trim() === '') {
+        console.error('SIKI_API_TOKEN is not set or empty')
+        return {
+          success: false,
+          message: 'SIKI API token is not configured. Please set SIKI_API_TOKEN environment variable.'
+        }
+      }
+
       // Return mock data in test mode
       if (this.testMode) {
         console.log('Using mock data for SIKI API in test mode')
@@ -57,121 +64,128 @@ export class SIKIApiClient {
           }
         }
       }
-      // Create a custom https agent that ignores self-signed certificates
-      const httpsAgent = new https.Agent({
-        rejectUnauthorized: false,
-      })
 
       const url = `${this.baseUrl}/permohonan-skk/${idIzin}`
 
-      // Using native https module instead of fetch
-      return new Promise((resolve, reject) => {
-        const request = https.get(url, {
+      console.log('Fetching SIKI data from:', url)
+      console.log('Token (first 10 chars):', this.token.substring(0, 10) + '...')
+
+      // Use fetch API (more compatible with Vercel)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+
+      try {
+        const response = await fetch(url, {
           headers: {
             'token': this.token,
             'Content-Type': 'application/json',
           },
-          agent: httpsAgent,
-        }, (response) => {
-          let data = ''
+          signal: controller.signal,
+        })
 
-          response.on('data', (chunk) => {
-            data += chunk
+        clearTimeout(timeoutId)
+
+        console.log('SIKI API Response status:', response.status)
+        console.log('SIKI API Response headers:', Object.fromEntries(response.headers.entries()))
+
+        // Get raw text first for debugging
+        const rawText = await response.text()
+        console.log('SIKI API Response length:', rawText.length)
+        console.log('SIKI API Response preview:', rawText.substring(0, 200))
+
+        // Check for Unauthorized response
+        if (response.status === 401 || rawText.includes('Unauthorized')) {
+          console.error('SIKI API returned Unauthorized - token may be invalid or expired')
+          return {
+            success: false,
+            message: 'SIKI API authentication failed. The API token may be invalid or expired. Please check SIKI_API_TOKEN environment variable.'
+          }
+        }
+
+        // Check if response is HTML (likely a block page)
+        if (rawText.trim().startsWith('<!DOCTYPE') || rawText.trim().startsWith('<html')) {
+          console.error('SIKI API returned HTML instead of JSON')
+          return {
+            success: false,
+            message: 'Access to SIKI API is blocked. The server returned an HTML response instead of JSON. This may be due to firewall or IP restrictions.'
+          }
+        }
+
+        // Parse JSON
+        let jsonData
+        try {
+          jsonData = JSON.parse(rawText)
+        } catch (parseError) {
+          console.error('Failed to parse SIKI API response as JSON:', rawText.substring(0, 500))
+          return {
+            success: false,
+            message: 'Failed to parse SIKI API response. Server returned non-JSON data.'
+          }
+        }
+
+        if (response.status !== 200) {
+          return {
+            success: false,
+            message: jsonData.message || `HTTP error! status: ${response.status}`
+          }
+        }
+
+        // Transform response data to match our schema
+        if (jsonData && jsonData.status === 'success' && jsonData.personal && jsonData.personal.length > 0) {
+          const personal = jsonData.personal[0]
+          const klasifikasi = jsonData.klasifikasi_kualifikasi && jsonData.klasifikasi_kualifikasi.length > 0
+            ? jsonData.klasifikasi_kualifikasi[0]
+            : {}
+
+          // Extract province from address
+          const alamat = personal.alamat || ''
+          const kodePropinsi = extractProvinceFromAddress(alamat)
+          const namaProvinsi = kodePropinsi ? getProvinceNameByKode(kodePropinsi) : null
+
+          console.log(`Province extraction for ${personal.nama}:`, {
+            alamat,
+            kodePropinsi,
+            namaProvinsi
           })
 
-          response.on('end', () => {
-            try {
-              // Check if response is HTML (likely a block page)
-              if (data.trim().startsWith('<!DOCTYPE') || data.trim().startsWith('<html')) {
-                resolve({
-                  success: false,
-                  message: 'Access to SIKI API is blocked by firewall/security system. Please contact your network administrator to whitelist siki.pu.go.id'
-                })
-                return
-              }
-
-              const jsonData = JSON.parse(data)
-
-              if (response.statusCode !== 200) {
-                resolve({
-                  success: false,
-                  message: jsonData.message || `HTTP error! status: ${response.statusCode}`
-                })
-                return
-              }
-
-              // Transform response data to match our schema
-              if (jsonData && jsonData.status === 'success' && jsonData.personal && jsonData.personal.length > 0) {
-                const personal = jsonData.personal[0]
-                const klasifikasi = jsonData.klasifikasi_kualifikasi && jsonData.klasifikasi_kualifikasi.length > 0
-                  ? jsonData.klasifikasi_kualifikasi[0]
-                  : {}
-
-                // Extract province from address
-                const alamat = personal.alamat || ''
-                const kodePropinsi = extractProvinceFromAddress(alamat)
-                const namaProvinsi = kodePropinsi ? getProvinceNameByKode(kodePropinsi) : null
-
-                console.log(`Province extraction for ${personal.nama}:`, {
-                  alamat,
-                  kodePropinsi,
-                  namaProvinsi
-                })
-
-                resolve({
-                  success: true,
-                  data: {
-                    nik: personal.nik || '',
-                    nama: personal.nama || '',
-                    jabatan: klasifikasi.jabatan_kerja || '',
-                    subklasifikasi: klasifikasi.subklasifikasi || '',
-                    jenjang: klasifikasi.jenjang || '',
-                    telp: personal.telepon || '',
-                    email: personal.email || '',
-                    alamat: alamat,
-                    tgl_daftar: personal.created || new Date().toISOString(),
-                    ktpUrl: personal.ktp || null,
-                    fotoUrl: personal.pas_foto || null,
-                    kodePropinsi: kodePropinsi || undefined,
-                    namaProvinsi: namaProvinsi || undefined,
-                  }
-                })
-              } else {
-                resolve({
-                  success: false,
-                  message: 'Data not found'
-                })
-              }
-            } catch (parseError) {
-              if (data.includes('FortiGuard') || data.includes('blocked')) {
-                resolve({
-                  success: false,
-                  message: 'Access to SIKI API is blocked by FortiGuard firewall. Please whitelist siki.pu.go.id in your security settings.'
-                })
-              } else {
-                resolve({
-                  success: false,
-                  message: `Failed to parse SIKI API response. Server returned non-JSON data.`
-                })
-              }
+          return {
+            success: true,
+            data: {
+              nik: personal.nik || '',
+              nama: personal.nama || '',
+              jabatan: klasifikasi.jabatan_kerja || '',
+              subklasifikasi: klasifikasi.subklasifikasi || '',
+              jenjang: klasifikasi.jenjang || '',
+              telp: personal.telepon || '',
+              email: personal.email || '',
+              alamat: alamat,
+              tgl_daftar: personal.created || new Date().toISOString(),
+              ktpUrl: personal.ktp || null,
+              fotoUrl: personal.pas_foto || null,
+              kodePropinsi: kodePropinsi || undefined,
+              namaProvinsi: namaProvinsi || undefined,
             }
-          })
-        })
-
-        request.on('error', (error) => {
-          reject(error)
-        })
-
-        request.setTimeout(10000, () => {
-          request.destroy()
-          reject(new Error('Request timeout'))
-        })
-      })
+          }
+        } else {
+          return {
+            success: false,
+            message: 'Data not found in SIKI'
+          }
+        }
+      } catch (fetchError: any) {
+        if (fetchError.name === 'AbortError') {
+          return {
+            success: false,
+            message: 'SIKI API request timeout. The server took too long to respond.'
+          }
+        }
+        throw fetchError
+      }
     } catch (error) {
       console.error('SIKI API Error:', error)
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error occurred while fetching SIKI data'
       }
     }
   }

@@ -48,6 +48,11 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           daerahId: user.daerahId,
+          daerah: user.daerah ? {
+            id: user.daerah.id,
+            kodeDaerah: user.daerah.kodeDaerah,
+            namaDaerah: user.daerah.namaDaerah,
+          } : null,
         }
       }
     })
@@ -62,6 +67,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = user.role
         token.daerahId = user.daerahId
+        token.daerah = user.daerah
         token.name = user.name
         token.email = user.email
       }
@@ -75,7 +81,8 @@ export const authOptions: NextAuthOptions = {
           name: token.name,
           email: token.email,
           role: token.role,
-          daerahId: token.daerahId
+          daerahId: token.daerahId,
+          daerah: token.daerah
         }
       }
       return session
