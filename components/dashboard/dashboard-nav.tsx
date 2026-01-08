@@ -127,12 +127,15 @@ export function DashboardNav({ isPusat }: DashboardNavProps) {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [verifiedCount, setVerifiedCount] = useState(0)
 
+  // Extract role to avoid infinite re-renders
+  const userRole = session?.user?.role
+
   // Fetch verified invoice count for DAERAH users
   useEffect(() => {
-    if (!isPusat && session?.user?.role === 'DAERAH') {
+    if (!isPusat && userRole === 'DAERAH') {
       fetchVerifiedCount()
     }
-  }, [isPusat, session])
+  }, [isPusat, userRole])
 
   const fetchVerifiedCount = async () => {
     try {
