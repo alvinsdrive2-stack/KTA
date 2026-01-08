@@ -99,7 +99,7 @@ export default function DashboardPage() {
   })
 
   const hasFetchedRef = useRef(false)
-  const hasFetchedChartsRef = useRef(false)
+  const [hasFetchedCharts, setHasFetchedCharts] = useState(false)
 
   const displayLimit = 5
   const displayRequests = ktaRequests.slice(0, displayLimit)
@@ -118,7 +118,9 @@ export default function DashboardPage() {
     printedKTA: data.filter((kta) => kta.status === 'PRINTED').length,
   })
 
-  const loadFromCache = (): DashboardCache | null => {
+  // Load from cache with useState lazy initializer (runs once on mount)
+  const [cachedData, setCachedData] = useState<DashboardCache | null>(() => {
+    // Only access localStorage in state initializer (client-only)
     if (typeof window === 'undefined') return null
     try {
       const cached = localStorage.getItem(CACHE_KEY)
@@ -133,28 +135,19 @@ export default function DashboardPage() {
     } catch {
       return null
     }
-  }
-
-  const saveToCache = (data: KTARequest[], stats: DashboardCache['stats']) => {
-    if (typeof window === 'undefined') return
-    try {
-      const cache: DashboardCache = { data, stats, timestamp: Date.now() }
-      localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
-    } catch (e) {}
-  }
+  })
 
   const fetchDashboardData = async (useCache = true) => {
-    if (useCache && !hasFetchedRef.current) {
-      const cached = loadFromCache()
-      if (cached) {
-        setKtaRequests(cached.data)
-        setStats(cached.stats)
-        setLoading(false)
-        hasFetchedRef.current = true
-        fetchDashboardData(false).catch(() => {})
-        // Don't call fetchRoleBasedCharts here - let the useEffect handle it when session is ready
-        return
-      }
+    // Use cached data from state if available
+    if (useCache && !hasFetchedRef.current && cachedData) {
+      setKtaRequests(cachedData.data)
+      setStats(cachedData.stats)
+      setLoading(false)
+      hasFetchedRef.current = true
+      setCachedData(null) // Clear cache after using
+      fetchDashboardData(false).catch(() => {})
+      // Don't call fetchRoleBasedCharts here - let the useEffect handle it when session is ready
+      return
     }
 
     try {
@@ -167,7 +160,7 @@ export default function DashboardPage() {
         const newStats = calculateStats(filteredKTA)
         setKtaRequests(filteredKTA)
         setStats(newStats)
-        saveToCache(filteredKTA, newStats)
+        // Cache saving is now handled in a separate useEffect
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -244,29 +237,44 @@ export default function DashboardPage() {
     fetchDashboardData()
   }, [])
 
+  // Save data to cache when it changes (client-only operation)
+  useEffect(() => {
+    if (ktaRequests.length > 0) {
+      const newStats = calculateStats(ktaRequests)
+      try {
+        if (typeof window !== 'undefined') {
+          const cache: DashboardCache = { data: ktaRequests, stats: newStats, timestamp: Date.now() }
+          localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
+        }
+      } catch {
+        // Ignore storage errors (quota exceeded, private mode, etc.)
+      }
+    }
+  }, [ktaRequests])
+
   // Fetch charts when both session and dashboard data are ready
   useEffect(() => {
-    if (!sessionLoading && userRole && hasFetchedRef.current && !hasFetchedChartsRef.current) {
+    if (!sessionLoading && userRole && hasFetchedRef.current && !hasFetchedCharts) {
       fetchRoleBasedCharts()
-      hasFetchedChartsRef.current = true
+      setHasFetchedCharts(true)
     }
-  }, [sessionLoading, userRole, hasFetchedRef.current])
+  }, [sessionLoading, userRole, hasFetchedCharts])
 
   useEffect(() => {
-    if (hasFetchedRef.current && hasFetchedChartsRef.current) {
+    if (hasFetchedRef.current && hasFetchedCharts) {
       if (userRole === 'PUSAT' || userRole === 'ADMIN') {
         fetchDailySubmissions(timePeriod)
       } else if (userRole === 'DAERAH') {
         fetchDaerahStats(daerahPeriod)
       }
     }
-  }, [timePeriod, daerahPeriod])
+  }, [timePeriod, daerahPeriod, hasFetchedCharts, userRole])
 
   useEffect(() => {
-    if (hasFetchedRef.current && hasFetchedChartsRef.current && (userRole === 'PUSAT' || userRole === 'ADMIN')) {
+    if (hasFetchedRef.current && hasFetchedCharts && (userRole === 'PUSAT' || userRole === 'ADMIN')) {
       fetchRegionSubmissions(regionTimePeriod)
     }
-  }, [regionTimePeriod])
+  }, [regionTimePeriod, hasFetchedCharts, userRole])
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, 'pending' | 'approved' | 'rejected' | 'processing' | 'completed'> = {
@@ -299,11 +307,13 @@ export default function DashboardPage() {
   }
 
   const handleRefresh = () => {
+    // Clear cache state and localStorage
+    setCachedData(null)
     if (typeof window !== 'undefined') {
       localStorage.removeItem(CACHE_KEY)
     }
     hasFetchedRef.current = false
-    hasFetchedChartsRef.current = false
+    setHasFetchedCharts(false)
     fetchDashboardData(false)
   }
 

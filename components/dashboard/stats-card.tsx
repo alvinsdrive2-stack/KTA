@@ -70,7 +70,8 @@ const colorStyles = {
 }
 
 function AnimatedCounter({ end, duration = 1200 }: { end: number; duration?: number }) {
-  const [count, setCount] = useState(0)
+  // Initialize with final value for SSR - prevents hydration mismatch
+  const [count, setCount] = useState(end)
   const [isVisible, setIsVisible] = useState(false)
   const ref = useRef<HTMLSpanElement>(null)
 
@@ -79,6 +80,8 @@ function AnimatedCounter({ end, duration = 1200 }: { end: number; duration?: num
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true)
+          // Disconnect after triggering animation
+          observer.disconnect()
         }
       },
       { threshold: 0.1 }
@@ -92,7 +95,11 @@ function AnimatedCounter({ end, duration = 1200 }: { end: number; duration?: num
   }, [])
 
   useEffect(() => {
-    if (!isVisible) return
+    if (!isVisible) {
+      // Reset to 0 when becoming visible to start animation
+      setCount(0)
+      return
+    }
 
     let startTime: number | null = null
     const animateCount = (currentTime: number) => {
@@ -111,7 +118,7 @@ function AnimatedCounter({ end, duration = 1200 }: { end: number; duration?: num
     requestAnimationFrame(animateCount)
   }, [isVisible, end, duration])
 
-  return <span ref={ref}>{count.toLocaleString('id-ID')}</span>
+  return <span ref={ref} suppressHydrationWarning>{count.toLocaleString('id-ID')}</span>
 }
 
 export function StatsCard({

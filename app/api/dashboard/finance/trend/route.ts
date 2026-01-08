@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 export type PeriodFilter = '1month' | '3months' | '6months' | 'ytd'
 
 function getDateRange(filter: PeriodFilter): { start: Date, end: Date } {

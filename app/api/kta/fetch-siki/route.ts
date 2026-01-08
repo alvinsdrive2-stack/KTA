@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { sikiApi } from '@/lib/siki-api'
 import { authMiddleware } from '@/lib/auth-helpers'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
