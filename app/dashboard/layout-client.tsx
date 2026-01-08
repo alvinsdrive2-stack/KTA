@@ -19,7 +19,6 @@ import { getDaerahLogoUrl } from '@/lib/daerah-logo'
 
 interface DashboardClientProps {
   children: React.ReactNode
-  session: any
   isPusat: boolean
 }
 
@@ -167,9 +166,10 @@ function InvoiceCreationBar() {
 }
 
 // Verification Floating Bar Component
-function VerificationFloatingBar({ session }: { session: any }) {
+function VerificationFloatingBar() {
   const router = useRouter()
   const pathname = usePathname()
+  const { session } = useSession()
   const { sidebarCollapsed } = useSidebar()
   const [payment, setPayment] = useState<any>(null)
   const [verifying, setVerifying] = useState(false)
@@ -353,7 +353,8 @@ function VerificationFloatingBar({ session }: { session: any }) {
   )
 }
 
-function DashboardContent({ children, session, isPusat }: DashboardClientProps) {
+function DashboardContent({ children, isPusat }: DashboardClientProps) {
+  const { session } = useSession()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { sidebarCollapsed, setSidebarCollapsed } = useSidebar()
@@ -601,7 +602,7 @@ export function DashboardClient(props: DashboardClientProps) {
           <DashboardContent {...props} />
           <PaymentFloatingBar />
           <InvoiceCreationBar />
-          <VerificationFloatingBar session={props.session} />
+          <VerificationFloatingBar />
         </SidebarProvider>
       </InvoiceCreationProvider>
     </PaymentSelectionProvider>
