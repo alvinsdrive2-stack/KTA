@@ -253,12 +253,13 @@ export default function DashboardPage() {
   }, [ktaRequests])
 
   // Fetch charts when both session and dashboard data are ready
+  // Use sessionStatus directly to avoid race condition with userRole
   useEffect(() => {
-    if (!sessionLoading && userRole && hasFetchedRef.current && !hasFetchedCharts) {
+    if (sessionStatus === 'authenticated' && userRole && hasFetchedRef.current && !hasFetchedCharts) {
       fetchRoleBasedCharts()
       setHasFetchedCharts(true)
     }
-  }, [sessionLoading, userRole, hasFetchedCharts])
+  }, [sessionStatus, userRole, hasFetchedCharts])
 
   useEffect(() => {
     if (hasFetchedRef.current && hasFetchedCharts) {
