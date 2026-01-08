@@ -11,19 +11,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only DAERAH users can access their bulk payments
-    if (session.user.role !== 'DAERAH') {
+    // Only DAERAH or PUSAT users can access bulk payments
+    if (session.user.role !== 'DAERAH' && session.user.role !== 'PUSAT' && session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)
     const all = searchParams.get('all') === 'true'
     const status = searchParams.get('status')
+    const pusatParam = searchParams.get('pusat') === 'true'
 
     // Build where clause
-    const where: any = {
-      daerahId: session.user.daerahId!
+    const where: any = {}
+
+    // For DAERAH users, only get their own bulk payments
+    if (session.user.role === 'DAERAH') {
+      where.daerahId = session.user.daerahId!
     }
+    // For PUSAT/ADMIN users, get all bulk payments (no daerahId filter)
 
     // Filter by status if provided
     if (status) {

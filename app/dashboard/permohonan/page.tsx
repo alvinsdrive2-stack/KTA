@@ -144,7 +144,7 @@ export default function PermohonanPage() {
       EDITED: 'Diedit',
       WAITING_PAYMENT: 'Menunggu Konfirmasi',
       READY_FOR_PUSAT: 'Siap ke Pusat',
-      APPROVED_BY_PUSAT: 'Disetujui Pusat',
+      APPROVED_BY_PUSAT: 'Ready for Print',
       READY_TO_PRINT: 'Siap Cetak',
       PRINTED: 'Sudah Cetak',
       REJECTED: 'Ditolak',
@@ -231,7 +231,7 @@ export default function PermohonanPage() {
                 <SelectItem value="DRAFT">Draft</SelectItem>
                 <SelectItem value="FETCHED_FROM_SIKI">Diambil dari SIKI</SelectItem>
                 <SelectItem value="WAITING_PAYMENT">Menunggu Pembayaran</SelectItem>
-                <SelectItem value="APPROVED_BY_PUSAT">Disetujui Pusat</SelectItem>
+                <SelectItem value="APPROVED_BY_PUSAT">Ready for Print</SelectItem>
                 <SelectItem value="PRINTED">Sudah Cetak</SelectItem>
               </SelectContent>
             </Select>

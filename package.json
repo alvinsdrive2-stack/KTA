@@ -10,6 +10,7 @@
     "postinstall": "prisma generate",
     "db:seed-provinces": "tsx prisma/seed-provinces.ts",
     "db:seed-daerah": "tsx prisma/seed-daerah.ts",
+    "db:sync-subklasifikasi": "tsx scripts/sync-subklasifikasi.ts",
     "db:check": "tsx scripts/check-db-connection.ts",
     "db:view-data": "tsx scripts/view-daerah-and-region-prices.ts",
     "db:sync-daerah": "tsx scripts/sync-daerah-from-region-prices.ts",

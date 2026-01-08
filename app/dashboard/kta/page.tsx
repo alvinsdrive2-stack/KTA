@@ -114,7 +114,7 @@ export default function KTAPage() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      APPROVED_BY_PUSAT: 'Terverifikasi',
+      APPROVED_BY_PUSAT: 'Ready for Print',
       READY_TO_PRINT: 'Siap Cetak',
       PRINTED: 'Sudah Cetak',
     }
