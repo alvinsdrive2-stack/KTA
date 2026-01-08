@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 
+export const dynamic = 'force-dynamic'
+
 // GET - Get all daerah with diskon (for admin)
 export async function GET(request: NextRequest) {
   try {

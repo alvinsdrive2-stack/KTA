@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 
+export const dynamic = 'force-dynamic'
+
 // Helper function to get base price by jenjang
 function getHargaBaseByJenjang(jenjang: string): number {
   const jenjangNum = parseInt(jenjang, 10)

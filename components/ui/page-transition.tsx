@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { PulseLogo } from './loading-spinner'
 
 interface PageTransitionProps {
   children: React.ReactNode
@@ -9,39 +8,18 @@ interface PageTransitionProps {
 }
 
 export function PageTransition({ children, className = '' }: PageTransitionProps) {
-  const [isLoading, setIsLoading] = useState(true)
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
-    // Initial animation sequence
-    const timer1 = setTimeout(() => {
-      setIsVisible(true)
-    }, 50)
-
-    const timer2 = setTimeout(() => {
-      setIsLoading(false)
-    }, 600)
-
-    return () => {
-      clearTimeout(timer1)
-      clearTimeout(timer2)
-    }
+    // Fade-in animation on client mount
+    const timer = setTimeout(() => setIsVisible(true), 50)
+    return () => clearTimeout(timer)
   }, [])
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <PulseLogo text="Memuat..." />
-      </div>
-    )
-  }
 
   return (
     <div
       className={`animate-slide-up ${className}`}
-      style={{
-        opacity: isVisible ? 1 : 0,
-      }}
+      style={{ opacity: isVisible ? 1 : 0 }}
     >
       {children}
     </div>
@@ -61,10 +39,7 @@ export function CardTransition({
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsVisible(true)
-    }, delay)
-
+    const timer = setTimeout(() => setIsVisible(true), delay)
     return () => clearTimeout(timer)
   }, [delay])
 
@@ -95,10 +70,7 @@ export function StaggerChildren({
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsVisible(true)
-    }, 50)
-
+    const timer = setTimeout(() => setIsVisible(true), 50)
     return () => clearTimeout(timer)
   }, [])
 

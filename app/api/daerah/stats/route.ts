@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 
+export const dynamic = 'force-dynamic'
+
 // Get statistics for all daerah (admin only)
 export async function GET(request: NextRequest) {
   try {
