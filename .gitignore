@@ -15,3 +15,16 @@ coverage
 tsconfig.tsbuildinfo
 
 .vercel
+
+# Invalid Windows device names that may accidentally get created
+nul
+con
+prn
+aux
+com1
+com2
+com3
+com4
+lpt1
+lpt2
+lpt3
