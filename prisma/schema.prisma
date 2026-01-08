@@ -107,6 +107,7 @@ model KTARequest {
   pusatApprovedAt    DateTime?
   kartuGeneratedPath String?
   qrCodePath         String?
+  nomorKTA           String?         @unique
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   fotoUrl            String?

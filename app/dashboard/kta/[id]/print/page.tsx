@@ -46,7 +46,7 @@ export default function KTAPrintPage() {
       if (response.ok && result.success) {
         setKtaRequest(result.data)
       } else {
-        setError(result.error || 'KTA not ready for printing')
+        setError(result.error || 'KTA not Terkonfirmasiing')
       }
     } catch (error) {
       setError('Failed to fetch KTA data')

@@ -16,7 +16,6 @@ import {
   DaerahComparisonCard,
   DaerahPrintedChart
 } from '@/components/dashboard/dashboard-charts'
-import { useRenderCount } from '@/hooks/useRenderCount'
 
 interface KTARequest {
   id: string
@@ -63,7 +62,6 @@ export default function DashboardPage() {
   const { data: session, status: sessionStatus } = useSession()
   const userRole = session?.user?.role as string
   const sessionLoading = sessionStatus === 'loading'
-  useRenderCount('DashboardPage')
 
   const [ktaRequests, setKtaRequests] = useState<KTARequest[]>([])
   const [stats, setStats] = useState({
@@ -302,7 +300,7 @@ export default function DashboardPage() {
       EDITED: 'Diedit',
       WAITING_PAYMENT: 'Menunggu Konfirmasi',
       READY_FOR_PUSAT: 'Siap Verifikasi Pusat',
-      APPROVED_BY_PUSAT: 'Ready for Print',
+      APPROVED_BY_PUSAT: 'Terkonfirmasi',
       READY_TO_PRINT: 'Siap Cetak',
       PRINTED: 'Sudah Dicetak',
       REJECTED: 'Ditolak',

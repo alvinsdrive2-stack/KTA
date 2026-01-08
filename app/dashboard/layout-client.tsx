@@ -1,7 +1,7 @@
 'use client'
 
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
-import { ShieldCheck, LogOut, Bell, Search, Menu, X, ChevronLeft, ChevronRight, HardHat, ArrowRight, FileText, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { ShieldCheck, LogOut, Bell, Search, Menu, X, ChevronLeft, ChevronRight, HardHat, ArrowRight, FileText, CheckCircle, XCircle, Loader2, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CurrentDate } from '@/components/ui/current-date'
 import { signOut } from 'next-auth/react'
@@ -10,6 +10,7 @@ import Image from 'next/image'
 import { SidebarProvider, useSidebar } from '@/contexts/sidebar-context'
 import { PaymentSelectionProvider, usePaymentSelection } from '@/contexts/PaymentSelectionContext'
 import { InvoiceCreationProvider, useInvoiceCreation } from '@/contexts/InvoiceCreationContext'
+import { KTASelectionProvider } from '@/contexts/KTASelectionContext'
 import { Card } from '@/components/ui/card'
 import { CardContent } from '@/components/ui/card'
 import { useRouter, usePathname } from 'next/navigation'
@@ -17,7 +18,6 @@ import { useSession } from '@/hooks/useSession'
 import { useToast } from '@/components/ui/use-toast'
 import { getDaerahLogoUrl } from '@/lib/daerah-logo'
 import { ErrorBoundary } from '@/components/debug/error-boundary'
-import { useRenderCount } from '@/hooks/useRenderCount'
 
 interface DashboardClientProps {
   children: React.ReactNode
@@ -30,7 +30,6 @@ function PaymentFloatingBar() {
   const pathname = usePathname()
   const { selectedCount, totalAmount, selectedRequests, clearSelection } = usePaymentSelection()
   const { sidebarCollapsed } = useSidebar()
-  useRenderCount('PaymentFloatingBar')
 
   // Only show on payments/daerah or payments/pusat page
   const shouldShow = (pathname?.includes('/payments/daerah') || pathname?.includes('/payments/pusat')) && selectedCount > 0 && !pathname?.includes('/invoice')
@@ -96,7 +95,6 @@ function InvoiceCreationBar() {
   const { sidebarCollapsed } = useSidebar()
   const { totalCount, totalAmount, clearInvoiceKTAs } = useInvoiceCreation()
   const [creating, setCreating] = useState(false)
-  useRenderCount('InvoiceCreationBar')
 
   // Show for both daerah and pusat invoice pages
   const shouldShow = (pathname?.includes('/payments/daerah/invoice') || pathname?.includes('/payments/pusat/invoice')) && totalCount > 0 && !pathname?.match(/\/invoice\/[^/]+$/)
@@ -188,16 +186,18 @@ function VerificationFloatingBar() {
   const { sidebarCollapsed } = useSidebar()
   const [payment, setPayment] = useState<any>(null)
   const [verifying, setVerifying] = useState(false)
+  const [downloadingZip, setDownloadingZip] = useState(false)
   const [showRejection, setShowRejection] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const { toast } = useToast()
-  useRenderCount('VerificationFloatingBar')
 
-  // Only show on /dashboard/payments/[id] pages for PUSAT/ADMIN
+  // Only show on /dashboard/payments/[id] pages for PUSAT/ADMIN (NOT on /payments/pusat or /payments/daerah list pages)
   const paymentId = pathname?.match(/\/dashboard\/payments\/([^/]+)/)?.[1]
-  const shouldShow = paymentId && session?.user?.role && ['PUSAT', 'ADMIN'].includes(session.user.role)
+  const isListPage = pathname?.includes('/payments/pusat') || pathname?.includes('/payments/daerah')
+  const shouldShow = paymentId && session?.user?.role && ['PUSAT', 'ADMIN'].includes(session.user.role) && !isListPage && !pathname?.includes('/invoice')
 
   useEffect(() => {
+    console.log(`🔍 VerificationFloatingBar: pathname=${pathname}, paymentId=${paymentId}, shouldShow=${shouldShow}`)
     if (shouldShow && paymentId) {
       fetchPaymentDetail()
     }
@@ -205,15 +205,69 @@ function VerificationFloatingBar() {
 
   const fetchPaymentDetail = async () => {
     try {
+      console.log(`📡 Fetching payment detail for: ${paymentId}`)
       const response = await fetch(`/api/payments/${paymentId}`)
       const data = await response.json()
-      if (data.success && data.data.status === 'PAID') {
+      console.log('📦 Payment detail response:', data)
+
+      if (data.success && (data.data.status === 'PENDING' || data.data.status === 'PAID' || data.data.status === 'VERIFIED')) {
+        console.log(`✅ Payment loaded: ${data.data.invoiceNumber} - Status: ${data.data.status}`)
         setPayment(data.data)
       } else {
+        console.log('⚠️ Payment not valid for verification:', data.success ? `Status: ${data.data.status}` : 'No success')
         setPayment(null)
       }
     } catch (error) {
-      console.error('Error fetching payment:', error)
+      console.error('❌ Error fetching payment:', error)
+    }
+  }
+
+  const handleDownloadAllKTA = async () => {
+    if (!payment?.payments) return
+
+    setDownloadingZip(true)
+    try {
+      const ktaIds = payment.payments.map((p: any) => p.ktaRequestId)
+
+      const response = await fetch('/api/kta/bulk-download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ktaIds })
+      })
+
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `KTA-${payment.invoiceNumber}.zip`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+
+        toast({
+          variant: 'success',
+          title: 'Download Berhasil',
+          description: `Berhasil mendownload ${payment.payments.length} KTA.`,
+        })
+      } else {
+        const error = await response.json()
+        toast({
+          variant: 'destructive',
+          title: 'Download Gagal',
+          description: error.error || 'Gagal mendownload KTA.',
+        })
+      }
+    } catch (error) {
+      console.error('Bulk download error:', error)
+      toast({
+        variant: 'destructive',
+        title: 'Download Gagal',
+        description: 'Terjadi kesalahan saat mendownload KTA.',
+      })
+    } finally {
+      setDownloadingZip(false)
     }
   }
 
@@ -227,6 +281,7 @@ function VerificationFloatingBar() {
       return
     }
 
+    console.log(`🔐 Calling verify API: bulkPaymentId=${payment.id}, approved=${approved}`)
     setVerifying(true)
     try {
       const response = await fetch('/api/payments/verify', {
@@ -241,14 +296,27 @@ function VerificationFloatingBar() {
 
       const result = await response.json()
 
+      console.log('📡 Verify API response:', result)
+
       if (response.ok && result.success) {
         toast({
           variant: 'success',
           title: approved ? 'Pembayaran Disetujui' : 'Pembayaran Ditolak',
-          description: approved ? 'Pembayaran berhasil diverifikasi' : 'Pembayaran telah ditolak'
+          description: approved ? 'Pembayaran berhasil diverifikasi. KTA sedang dibuat...' : 'Pembayaran telah ditolak'
         })
-        setTimeout(() => window.location.reload(), 1000)
+        setShowRejection(false)
+        setRejectionReason('')
+
+        if (approved) {
+          console.log('✅ Payment approved, waiting for PDF generation then fetching updated payment...')
+          // PDFs are generated synchronously now, just wait a bit then fetch
+          setTimeout(() => fetchPaymentDetail(), 500)
+        } else {
+          // For rejected, redirect back
+          setTimeout(() => router.push('/dashboard/payments'), 1000)
+        }
       } else {
+        console.error('❌ Verify failed:', result)
         toast({
           variant: 'destructive',
           title: 'Gagal Memverifikasi',
@@ -256,6 +324,7 @@ function VerificationFloatingBar() {
         })
       }
     } catch (error) {
+      console.error('❌ Verify error:', error)
       toast({
         variant: 'destructive',
         title: 'Terjadi Kesalahan',
@@ -270,6 +339,8 @@ function VerificationFloatingBar() {
     return null
   }
 
+  const isVerified = payment.status === 'VERIFIED'
+
   return (
     <>
       <div className={`
@@ -280,11 +351,37 @@ function VerificationFloatingBar() {
           <CardContent className="py-4">
             <div className="flex items-center justify-between px-6 lg:px-8">
               <div>
-                <p className="text-sm text-slate-600">Verifikasi Pembayaran</p>
+                <p className="text-sm text-slate-600">
+                  {isVerified ? 'Pembayaran Terverifikasi' : 'Verifikasi Pembayaran'}
+                </p>
                 <p className="text-lg font-semibold text-slate-900">{payment.invoiceNumber}</p>
+                {!isVerified && (
+                  <p className="text-xs text-slate-500">
+                    {payment.totalJumlah} KTA • Rp {payment.totalNominal?.toLocaleString('id-ID')}
+                  </p>
+                )}
               </div>
 
-              {!showRejection ? (
+              {isVerified ? (
+                // Show download button when verified
+                <Button
+                  onClick={handleDownloadAllKTA}
+                  disabled={downloadingZip}
+                  className="bg-green-600 hover:bg-green-700 px-8 py-6 text-lg"
+                >
+                  {downloadingZip ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-5 w-5 mr-2" />
+                      Download Semua KTA ({payment.payments?.length || 0})
+                    </>
+                  )}
+                </Button>
+              ) : !showRejection ? (
                 <div className="flex gap-3">
                   <Button
                     onClick={() => setShowRejection(true)}
@@ -375,24 +472,9 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { sidebarCollapsed, setSidebarCollapsed } = useSidebar()
   const [daerahLogoError, setDaerahLogoError] = useState(false)
-  useRenderCount('DashboardContent')
 
   // Extract daerahId to avoid infinite re-renders
   const daerahId = session?.user?.daerah?.id
-  const daerahData = session?.user?.daerah
-
-  // Debug: Log daerah data
-  useEffect(() => {
-    if (daerahData) {
-      console.log('🔍 DEBUG DAERAH DATA:')
-      console.log('  ID:', daerahData.id)
-      console.log('  Kode Daerah:', daerahData.kodeDaerah)
-      console.log('  Nama Daerah:', daerahData.namaDaerah)
-      console.log('  Full object:', JSON.stringify(daerahData, null, 2))
-    } else {
-      console.log('⚠️  No daerah data in session')
-    }
-  }, [daerahData])
 
   // Reset logo error when daerah changes
   useEffect(() => {
@@ -628,16 +710,18 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
 export function DashboardClient(props: DashboardClientProps) {
   return (
     <ErrorBoundary>
-      <PaymentSelectionProvider>
-        <InvoiceCreationProvider>
-          <SidebarProvider>
-            <DashboardContent {...props} />
-            <PaymentFloatingBar />
-            <InvoiceCreationBar />
-            <VerificationFloatingBar />
-          </SidebarProvider>
-        </InvoiceCreationProvider>
-      </PaymentSelectionProvider>
+      <KTASelectionProvider>
+        <PaymentSelectionProvider>
+          <InvoiceCreationProvider>
+            <SidebarProvider>
+              <DashboardContent {...props} />
+              <PaymentFloatingBar />
+              <InvoiceCreationBar />
+              <VerificationFloatingBar />
+            </SidebarProvider>
+          </InvoiceCreationProvider>
+        </PaymentSelectionProvider>
+      </KTASelectionProvider>
     </ErrorBoundary>
   )
 }
