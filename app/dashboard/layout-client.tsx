@@ -167,10 +167,9 @@ function InvoiceCreationBar() {
 }
 
 // Verification Floating Bar Component
-function VerificationFloatingBar() {
+function VerificationFloatingBar({ session }: { session: any }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { session } = useSession()
   const { sidebarCollapsed } = useSidebar()
   const [payment, setPayment] = useState<any>(null)
   const [verifying, setVerifying] = useState(false)
@@ -360,10 +359,13 @@ function DashboardContent({ children, session, isPusat }: DashboardClientProps) 
   const { sidebarCollapsed, setSidebarCollapsed } = useSidebar()
   const [daerahLogoError, setDaerahLogoError] = useState(false)
 
+  // Extract daerahId to avoid infinite re-renders
+  const daerahId = session?.user?.daerah?.id
+
   // Reset logo error when daerah changes
   useEffect(() => {
     setDaerahLogoError(false)
-  }, [session?.user?.daerah?.id])
+  }, [daerahId])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50/10">
@@ -599,7 +601,7 @@ export function DashboardClient(props: DashboardClientProps) {
           <DashboardContent {...props} />
           <PaymentFloatingBar />
           <InvoiceCreationBar />
-          <VerificationFloatingBar />
+          <VerificationFloatingBar session={props.session} />
         </SidebarProvider>
       </InvoiceCreationProvider>
     </PaymentSelectionProvider>
