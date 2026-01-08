@@ -302,7 +302,7 @@ export default function DashboardPage() {
       EDITED: 'Diedit',
       WAITING_PAYMENT: 'Menunggu Konfirmasi',
       READY_FOR_PUSAT: 'Siap Verifikasi Pusat',
-      APPROVED_BY_PUSAT: 'Disetujui Pusat',
+      APPROVED_BY_PUSAT: 'Ready for Print',
       READY_TO_PRINT: 'Siap Cetak',
       PRINTED: 'Sudah Dicetak',
       REJECTED: 'Ditolak',
@@ -514,7 +514,7 @@ export default function DashboardPage() {
 
       {/* Quick Links */}
       <div className="grid md:grid-cols-3 gap-4 animate-slide-up-stagger stagger-5">
-        <Link href="/dashboard/kta/fetch-siki" className="card-3d bg-white p-5 group">
+        <Link href="/dashboard/kta/apply" className="card-3d bg-white p-5 group">
           <div className="w-11 h-11 rounded-lg bg-gatensi-blueLight flex items-center justify-center mb-3 group-hover:bg-gatensi-blueLight/80 transition-colors">
             <FileText className="h-5 w-5 text-gatensi-blue" />
           </div>

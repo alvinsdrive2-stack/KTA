@@ -32,8 +32,8 @@ function PaymentFloatingBar() {
   const { sidebarCollapsed } = useSidebar()
   useRenderCount('PaymentFloatingBar')
 
-  // Only show on payments/daerah page
-  const shouldShow = pathname?.includes('/payments/daerah') && selectedCount > 0 && !pathname?.includes('/invoice')
+  // Only show on payments/daerah or payments/pusat page
+  const shouldShow = (pathname?.includes('/payments/daerah') || pathname?.includes('/payments/pusat')) && selectedCount > 0 && !pathname?.includes('/invoice')
 
   const handleProceedToPayment = () => {
     // Store selected requests in localStorage for the invoice page
@@ -50,7 +50,12 @@ function PaymentFloatingBar() {
     // Clear selection immediately
     clearSelection()
 
-    router.push('/dashboard/payments/daerah/invoice')
+    // Navigate to the correct invoice page based on current pathname
+    if (pathname?.includes('/payments/pusat')) {
+      router.push('/dashboard/payments/pusat/invoice')
+    } else {
+      router.push('/dashboard/payments/daerah/invoice')
+    }
   }
 
   if (!shouldShow) {
@@ -93,7 +98,8 @@ function InvoiceCreationBar() {
   const [creating, setCreating] = useState(false)
   useRenderCount('InvoiceCreationBar')
 
-  const shouldShow = pathname?.includes('/payments/daerah/invoice') && totalCount > 0
+  // Show for both daerah and pusat invoice pages
+  const shouldShow = (pathname?.includes('/payments/daerah/invoice') || pathname?.includes('/payments/pusat/invoice')) && totalCount > 0 && !pathname?.match(/\/invoice\/[^/]+$/)
 
   const handleCreateInvoice = async () => {
     setCreating(true)
@@ -121,7 +127,12 @@ function InvoiceCreationBar() {
       if (response.ok && result.success) {
         localStorage.removeItem('selectedKTARequests')
         clearInvoiceKTAs()
-        window.location.href = '/dashboard/payments/daerah'
+        // Navigate to the correct payments page based on current pathname
+        if (pathname?.includes('/payments/pusat')) {
+          window.location.href = '/dashboard/payments/pusat'
+        } else {
+          window.location.href = '/dashboard/payments/daerah'
+        }
       }
     } catch (error) {
       console.error('Create invoice error:', error)
@@ -432,7 +443,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
           {/* Logo - Primary Blue Header with Indonesia Map */}
           <div className="relative h-24 flex items-center justify-center bg-gradient-to-br from-blue-700 to-blue-600 shadow-md z-10 overflow-hidden">
             {/* Blue Background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-700 to-blue-400"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-900 to-blue-500"></div>
 
             {/* Indonesia Map Background */}
             <div className="absolute inset-0 pointer-events-none mix-blend-overlay">
@@ -456,7 +467,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
                     fill
                     className="object-contain"
                     style={{
-                      transform: 'translateY(2px)',
+                      transform: 'translateY(1.5px)',
                       filter: 'brightness(0) drop-shadow(0 8px 8px rgba(255,255,255,0.6)) drop-shadow(0 4px 8px rgba(255,255,255,0.4))'
                     }}
                     priority

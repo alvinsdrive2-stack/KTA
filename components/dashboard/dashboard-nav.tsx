@@ -58,6 +58,13 @@ const navItems: NavItem[] = [
     badge: null,
   },
   {
+    title: 'Pembayaran',
+    href: '/dashboard/payments/pusat',
+    icon: CreditCard,
+    roles: ['PUSAT', 'ADMIN'],
+    badge: null,
+  },
+  {
     title: 'Konfirmasi',
     href: '/dashboard/payments',
     icon: CreditCard,
@@ -90,6 +97,19 @@ const navSections: NavSection[] = [
         href: '/dashboard/payments/daerah/invoices',
         icon: History,
         roles: ['DAERAH'],
+        badge: null,
+      }
+    ]
+  },
+  {
+    title: 'Riwayat',
+    roles: ['PUSAT', 'ADMIN'],
+    items: [
+      {
+        title: 'Riwayat Invoice',
+        href: '/dashboard/payments/pusat/invoices',
+        icon: History,
+        roles: ['PUSAT', 'ADMIN'],
         badge: null,
       }
     ]

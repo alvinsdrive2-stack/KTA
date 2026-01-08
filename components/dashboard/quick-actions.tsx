@@ -38,7 +38,7 @@ const quickActions: QuickAction[] = [
     label: 'Ambil Data SIKI',
     description: 'Verifikasi data anggota SIKI',
     icon: RefreshCw,
-    href: '/dashboard/kta/fetch-siki',
+    href: '/dashboard/kta/apply',
     color: 'slate',
   },
   {
