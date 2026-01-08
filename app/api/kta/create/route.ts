@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 
+// Helper function to get base price by jenjang
+function getHargaBaseByJenjang(jenjang: string): number {
+  const jenjangNum = parseInt(jenjang, 10)
+  // Jenjang 7-9 = Rp. 300.000, Jenjang 1-6 = Rp. 100.000
+  return jenjangNum >= 7 ? 300000 : 100000
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
@@ -28,6 +35,19 @@ export async function POST(request: NextRequest) {
       daerahId = defaultDaerah?.id || 'DEFAULT'
     }
 
+    // Get daerah diskon
+    const daerah = await prisma.daerah.findUnique({
+      where: { id: daerahId },
+      select: { diskonPersen: true }
+    })
+
+    const diskonPersen = daerah?.diskonPersen ?? 0
+
+    // Calculate pricing based on jenjang
+    const jenjang = sikiData.jenjang
+    const hargaBase = getHargaBaseByJenjang(jenjang)
+    const hargaFinal = hargaBase - (hargaBase * diskonPersen / 100)
+
     // Check if KTA request already exists
     const existingRequest = await prisma.kTARequest.findUnique({
       where: { idIzin: idIzin }
@@ -50,6 +70,10 @@ export async function POST(request: NextRequest) {
           tanggalDaftar: sikiData.tgl_daftar ? new Date(sikiData.tgl_daftar) : new Date(),
           ktpUrl: sikiData.ktpUrl || null,
           fotoUrl: sikiData.fotoUrl || null,
+          hargaRegion: hargaFinal,
+          hargaBase,
+          diskonPersen,
+          hargaFinal,
         }
       })
     } else {
@@ -69,36 +93,27 @@ export async function POST(request: NextRequest) {
           alamat: sikiData.alamat || '',
           tanggalDaftar: sikiData.tgl_daftar ? new Date(sikiData.tgl_daftar) : new Date(),
           status: 'DRAFT',
-          hargaRegion: 0, // Will be updated when creating payment
+          hargaRegion: hargaFinal,
+          hargaBase,
+          diskonPersen,
+          hargaFinal,
           ktpUrl: sikiData.ktpUrl || null,
           fotoUrl: sikiData.fotoUrl || null,
         },
       })
     }
 
-    // Get current region price and update KTA request
-    const currentYear = new Date().getFullYear()
-    const regionPrice = await prisma.regionPrice.findFirst({
-      where: {
-        daerahId: daerahId,
-        tahun: currentYear,
-        isActive: true
-      }
-    })
-
-    const harga = regionPrice?.hargaKta || 0
-
-    // Update KTA request with region price
-    await prisma.kTARequest.update({
-      where: { id: ktaRequest.id },
-      data: { hargaRegion: harga }
-    })
-
     return NextResponse.json({
       success: true,
       data: {
         ktaRequest,
         sikiData: sikiData,
+        pricing: {
+          jenjang,
+          hargaBase,
+          diskonPersen,
+          hargaFinal
+        }
       },
     })
   } catch (error) {

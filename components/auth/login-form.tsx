@@ -49,17 +49,20 @@ export function LoginForm() {
       if (result?.error) {
         console.error("Login error:", result.error)
         setError('Email atau password salah')
+        setIsLoading(false)
       } else if (result?.ok) {
         console.log("Login successful, redirecting to dashboard...")
-        await new Promise(resolve => setTimeout(resolve, 100))
-        router.push('/dashboard')
+        // Wait longer for session to be fully established
+        await new Promise(resolve => setTimeout(resolve, 500))
+        // Use window.location.href for full page reload to ensure session is synced
+        window.location.href = '/dashboard'
       }
     } catch (error) {
       console.error("Login exception:", error)
       setError('Terjadi kesalahan. Silakan coba lagi.')
-    } finally {
       setIsLoading(false)
     }
+    // Don't set isLoading(false) on success - we're redirecting anyway
   }
 
   return (

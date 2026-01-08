@@ -59,8 +59,9 @@ interface DashboardCache {
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const userRole = session?.user?.role as string
+  const sessionLoading = sessionStatus === 'loading'
 
   const [ktaRequests, setKtaRequests] = useState<KTARequest[]>([])
   const [stats, setStats] = useState({
@@ -96,6 +97,7 @@ export default function DashboardPage() {
   })
 
   const hasFetchedRef = useRef(false)
+  const hasFetchedChartsRef = useRef(false)
 
   const displayLimit = 5
   const displayRequests = ktaRequests.slice(0, displayLimit)
@@ -148,7 +150,7 @@ export default function DashboardPage() {
         setLoading(false)
         hasFetchedRef.current = true
         fetchDashboardData(false).catch(() => {})
-        fetchRoleBasedCharts()
+        // Don't call fetchRoleBasedCharts here - let the useEffect handle it when session is ready
         return
       }
     }
@@ -240,15 +242,16 @@ export default function DashboardPage() {
     fetchDashboardData()
   }, [])
 
-  // Fetch charts when userRole is available
+  // Fetch charts when both session and dashboard data are ready
   useEffect(() => {
-    if (hasFetchedRef.current && userRole) {
+    if (!sessionLoading && userRole && hasFetchedRef.current && !hasFetchedChartsRef.current) {
       fetchRoleBasedCharts()
+      hasFetchedChartsRef.current = true
     }
-  }, [userRole])
+  }, [sessionLoading, userRole, hasFetchedRef.current])
 
   useEffect(() => {
-    if (hasFetchedRef.current) {
+    if (hasFetchedRef.current && hasFetchedChartsRef.current) {
       if (userRole === 'PUSAT' || userRole === 'ADMIN') {
         fetchDailySubmissions(timePeriod)
       } else if (userRole === 'DAERAH') {
@@ -258,7 +261,7 @@ export default function DashboardPage() {
   }, [timePeriod, daerahPeriod])
 
   useEffect(() => {
-    if (hasFetchedRef.current && (userRole === 'PUSAT' || userRole === 'ADMIN')) {
+    if (hasFetchedRef.current && hasFetchedChartsRef.current && (userRole === 'PUSAT' || userRole === 'ADMIN')) {
       fetchRegionSubmissions(regionTimePeriod)
     }
   }, [regionTimePeriod])
@@ -283,7 +286,7 @@ export default function DashboardPage() {
       DRAFT: 'Draft',
       FETCHED_FROM_SIKI: 'Diambil dari SIKI',
       EDITED: 'Diedit',
-      WAITING_PAYMENT: 'Menunggu Pembayaran',
+      WAITING_PAYMENT: 'Menunggu Konfirmasi',
       READY_FOR_PUSAT: 'Siap Verifikasi Pusat',
       APPROVED_BY_PUSAT: 'Disetujui Pusat',
       READY_TO_PRINT: 'Siap Cetak',
@@ -298,10 +301,11 @@ export default function DashboardPage() {
       localStorage.removeItem(CACHE_KEY)
     }
     hasFetchedRef.current = false
+    hasFetchedChartsRef.current = false
     fetchDashboardData(false)
   }
 
-  if (loading) {
+  if (loading || sessionLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <PulseLogo text="Memuat dashboard..." />
@@ -350,7 +354,7 @@ export default function DashboardPage() {
                 onClick={handleRefresh}
                 disabled={refreshing}
                 variant="outline"
-                className="border-white/40 text-white hover:bg-white/20 hover:text-white backdrop-blur-sm"
+                className="border-white/40 text-black hover:bg-white/20 hover:text-white backdrop-blur-sm"
                 size="sm"
               >
                 <RefreshCw className={'mr-2 h-4 w-4 ' + (refreshing ? 'animate-spin' : '')} />
@@ -501,7 +505,7 @@ export default function DashboardPage() {
           <p className="text-xs text-slate-500">Verifikasi data anggota melalui SIKI PU</p>
         </Link>
 
-        <Link href="/dashboard/kta" className="card-3d bg-white p-5 group">
+        <Link href="/dashboard/permohonan" className="card-3d bg-white p-5 group">
           <div className="w-11 h-11 rounded-lg bg-gatensi-redLight flex items-center justify-center mb-3 group-hover:bg-gatensi-redLight/80 transition-colors">
             <CreditCard className="h-5 w-5 text-gatensi-red" />
           </div>

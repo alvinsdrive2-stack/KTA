@@ -97,12 +97,15 @@ export async function GET(request: NextRequest) {
             },
           },
           payments: {
-            select: {
-              id: true,
-              jumlah: true,
-              statusPembayaran: true,
-              paidAt: true,
-            },
+            include: {
+              bulkPayment: {
+                select: {
+                  id: true,
+                  invoiceNumber: true,
+                  status: true,
+                }
+              }
+            }
           },
         },
         orderBy: {

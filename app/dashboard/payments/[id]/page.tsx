@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/useSession'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,6 +43,7 @@ interface BulkPaymentDetail {
       nama: string
       nik: string
       jabatanKerja: string
+      jenjang: string
     }
   }>
 }
@@ -53,7 +54,6 @@ export default function PaymentDetailPage() {
   const { session } = useSession()
   const [payment, setPayment] = useState<BulkPaymentDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Use ref to track if we've already fetched
@@ -112,47 +112,6 @@ export default function PaymentDetailPage() {
     fetchPaymentDetail()
   }, [session, params.id])
 
-  const handleVerifyPayment = async (approved: boolean) => {
-    if (!payment) return
-
-    const reason = !approved
-      ? prompt('Alasan penolakan:')
-      : null
-
-    if (!approved && !reason) {
-      return
-    }
-
-    setVerifying(true)
-    try {
-      const response = await fetch(`/api/payments/verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bulkPaymentId: payment.id,
-          approved,
-          reason
-        })
-      })
-
-      const result = await response.json()
-
-      if (response.ok && result.success) {
-        alert(approved ? 'Pembayaran berhasil dikonfirmasi' : 'Pembayaran ditolak')
-        // Refresh by forcing re-fetch
-        window.location.reload()
-      } else {
-        alert(result.error || 'Gagal mengkonfirmasi pembayaran')
-      }
-    } catch (error) {
-      alert('Terjadi kesalahan saat mengkonfirmasi pembayaran')
-    } finally {
-      setVerifying(false)
-    }
-  }
-
   // Access control check (after loading)
   const userRole = session?.user?.role
   const isPusatOrAdmin = userRole === 'PUSAT' || userRole === 'ADMIN'
@@ -207,7 +166,7 @@ export default function PaymentDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {/* Header */}
       <div className="flex items-center justify-between animate-slide-up-stagger stagger-1">
         <div>
@@ -255,20 +214,17 @@ export default function PaymentDetailPage() {
 
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Bukti Pembayaran */}
+        {/* Left: Invoice PDF */}
         <Card className="card-3d animate-slide-up-stagger stagger-3">
           <CardHeader>
-            <CardTitle>Bukti Pembayaran</CardTitle>
+            <CardTitle>Invoice</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="border rounded-lg overflow-hidden bg-slate-50">
-              <img
-                src={payment.buktiPembayaranUrl}
-                alt="Bukti Pembayaran"
-                className="w-full h-auto"
-                onError={(e) => {
-                  e.currentTarget.src = '/images/placeholder.png'
-                }}
+              <iframe
+                src={`/api/payments/invoice/${payment.id}/pdf`}
+                className="w-full h-[600px]"
+                title="Invoice PDF"
               />
             </div>
           </CardContent>
@@ -307,6 +263,19 @@ export default function PaymentDetailPage() {
                   {new Date(payment.createdAt).toLocaleString('id-ID')}
                 </span>
               </div>
+              <div className="pt-2">
+                <p className="text-gray-600 mb-2">Bukti Pembayaran</p>
+                <div className="border rounded-lg overflow-hidden bg-slate-50">
+                  <img
+                    src={payment.buktiPembayaranUrl}
+                    alt="Bukti Pembayaran"
+                    className="w-full h-auto"
+                    onError={(e) => {
+                      e.currentTarget.src = '/images/placeholder.png'
+                    }}
+                  />
+                </div>
+              </div>
               {payment.verifiedByUser && (
                 <>
                   <div className="flex justify-between border-b pb-2">
@@ -324,28 +293,6 @@ export default function PaymentDetailPage() {
                 </>
               )}
             </div>
-
-            {/* Action Buttons */}
-            {payment.status === 'PENDING' && (
-              <div className="space-y-2 pt-4 border-t">
-                <p className="text-sm text-gray-600 mb-3">Konfirmasi pembayaran ini?</p>
-                <Button
-                  onClick={() => handleVerifyPayment(true)}
-                  disabled={verifying}
-                  className="w-full"
-                >
-                  {verifying ? 'Memproses...' : 'Setujui Pembayaran'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => handleVerifyPayment(false)}
-                  disabled={verifying}
-                  className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  {verifying ? 'Memproses...' : 'Tolak Pembayaran'}
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -363,6 +310,7 @@ export default function PaymentDetailPage() {
                   <th className="px-4 py-3 text-left font-medium text-slate-700">ID Izin</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-700">Nama</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-700">NIK</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-700">Jenjang</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-700">Jabatan</th>
                 </tr>
               </thead>
@@ -372,6 +320,11 @@ export default function PaymentDetailPage() {
                     <td className="px-4 py-3 text-slate-900">{p.ktaRequest.idIzin}</td>
                     <td className="px-4 py-3 text-slate-700">{p.ktaRequest.nama}</td>
                     <td className="px-4 py-3 text-slate-700">{p.ktaRequest.nik}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {p.ktaRequest.jenjang}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-slate-700">{p.ktaRequest.jabatanKerja}</td>
                   </tr>
                 ))}

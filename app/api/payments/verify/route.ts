@@ -36,10 +36,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Bulk payment not found' }, { status: 404 })
     }
 
-    if (bulkPayment.status !== 'PENDING') {
-      return NextResponse.json({ error: 'Payment already processed' }, { status: 400 })
-    }
-
     // Update bulk payment status
     const updatedBulkPayment = await prisma.bulkPayment.update({
       where: { id: bulkPaymentId },
@@ -68,9 +64,7 @@ export async function POST(request: NextRequest) {
           }
         },
         data: {
-          status: 'APPROVED_BY_PUSAT',
-          pusatApprovedBy: session.user.id,
-          pusatApprovedAt: new Date()
+          status: 'APPROVED_BY_PUSAT'
         }
       })
     } else {

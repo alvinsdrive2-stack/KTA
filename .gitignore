@@ -13,3 +13,5 @@ playwright/.cache
 coverage
 /generates/prisma
 tsconfig.tsbuildinfo
+
+.vercel

@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ArrowLeft, Upload, CreditCard, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { PulseLogo } from '@/components/ui/loading-spinner'
+import { useToast } from '@/components/ui/use-toast'
 
 interface KTARequest {
   id: string
@@ -28,6 +29,7 @@ interface KTARequest {
 
 export default function PaymentPage() {
   const { session } = useSession()
+  const { toast } = useToast()
   const router = useRouter()
   const [selectedRequests, setSelectedRequests] = useState<KTARequest[]>([])
   const [paymentProof, setPaymentProof] = useState<File | null>(null)
@@ -116,8 +118,12 @@ export default function PaymentPage() {
         localStorage.removeItem('selectedKTARequests')
 
         // Show success message and redirect
-        alert('Pembayaran berhasil diupload! Invoice telah dibuat untuk diverifikasi oleh Pusat.')
-        router.push('/dashboard/kta')
+        toast({
+          variant: 'success',
+          title: 'Pembayaran Berhasil',
+          description: 'Invoice telah dibuat untuk diverifikasi oleh Pusat'
+        })
+        setTimeout(() => router.push('/dashboard/kta'), 1000)
       } else {
         setError(result.error || 'Gagal mengupload pembayaran')
       }
