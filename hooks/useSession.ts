@@ -16,7 +16,8 @@ export function useSession() {
         name: session.user.name || '',
         email: session.user.email || '',
         role: session.user.role || 'DAERAH',
-        daerahId: session.user.daerahId || null
+        daerahId: session.user.daerahId || null,
+        daerah: session.user.daerah || null
       }
     }
   }, [session])
