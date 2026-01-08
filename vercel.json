@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["sin1"],
+  "env": {
+    "DATABASE_URL": "postgresql://postgres.qwpkgobfxoehjazvaeyj:mpbKCeunSN5zuzyR@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres",
+    "NEXTAUTH_SECRET": "WxJzEpyMDaW8TFShHu8zLt4ApqXASos/LGmSFgtVe80=",
+    "SIKI_API_TOKEN": ""
+  }
+}
