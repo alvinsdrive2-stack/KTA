@@ -491,7 +491,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
         />
       )}
 
-      {/* Sidebar - LSP Gatensi Theme */}
+      {/* Sidebar - Gatensi Theme */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 overflow-hidden transition-all duration-300 ease-in-out lg:translate-x-0 animate-fade-in

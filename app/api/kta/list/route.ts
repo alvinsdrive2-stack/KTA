@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
+    const statuses = searchParams.getAll('status') // Get all status values
     const daerahKode = searchParams.get('daerahKode')
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1')
@@ -62,7 +63,12 @@ export async function GET(request: NextRequest) {
     }
 
     if (status) {
-      whereClause.status = status
+      // If multiple statuses are sent, use 'in' operator
+      if (statuses.length > 1) {
+        whereClause.status = { in: statuses }
+      } else {
+        whereClause.status = status
+      }
     }
 
     if (daerahKode && (session.user.role === 'PUSAT' || session.user.role === 'ADMIN')) {

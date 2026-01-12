@@ -46,7 +46,7 @@ interface ChartProps {
   className?: string
 }
 
-// LSP Gatensi Brand Colors
+// Gatensi Brand Colors
 const LSP_COLORS = {
   red: '#E31937',
   redDark: '#B91C1C',
@@ -259,7 +259,7 @@ export function DailySubmissionChart({
               variant={currentPeriod === 'week' ? 'default' : 'outline'}
               size="sm"
               onClick={() => onPeriodChange?.('week')}
-              className={currentPeriod === 'week' ? 'bg-gatensi-blue hover:bg-gatensi-blueDark text-white' : ''}
+              className={currentPeriod === 'week' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
             >
               Seminggu
             </Button>
@@ -267,7 +267,7 @@ export function DailySubmissionChart({
               variant={currentPeriod === 'month' ? 'default' : 'outline'}
               size="sm"
               onClick={() => onPeriodChange?.('month')}
-              className={currentPeriod === 'month' ? 'bg-gatensi-blue hover:bg-gatensi-blueDark text-white' : ''}
+              className={currentPeriod === 'month' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
             >
               Sebulan
             </Button>
@@ -275,7 +275,7 @@ export function DailySubmissionChart({
               variant={currentPeriod === 'year' ? 'default' : 'outline'}
               size="sm"
               onClick={() => onPeriodChange?.('year')}
-              className={currentPeriod === 'year' ? 'bg-gatensi-blue hover:bg-gatensi-blueDark text-white' : ''}
+              className={currentPeriod === 'year' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
             >
               Setahun
             </Button>
@@ -340,7 +340,7 @@ export function RegionSubmissionChart({
               variant={currentPeriod === 'week' ? 'default' : 'outline'}
               size="sm"
               onClick={() => onPeriodChange?.('week')}
-              className={currentPeriod === 'week' ? 'bg-gatensi-blue hover:bg-gatensi-blueDark text-white' : ''}
+              className={currentPeriod === 'week' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
             >
               Seminggu
             </Button>
@@ -348,7 +348,7 @@ export function RegionSubmissionChart({
               variant={currentPeriod === 'month' ? 'default' : 'outline'}
               size="sm"
               onClick={() => onPeriodChange?.('month')}
-              className={currentPeriod === 'month' ? 'bg-gatensi-blue hover:bg-gatensi-blueDark text-white' : ''}
+              className={currentPeriod === 'month' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
             >
               Sebulan
             </Button>
@@ -356,7 +356,7 @@ export function RegionSubmissionChart({
               variant={currentPeriod === 'year' ? 'default' : 'outline'}
               size="sm"
               onClick={() => onPeriodChange?.('year')}
-              className={currentPeriod === 'year' ? 'bg-gatensi-blue hover:bg-gatensi-blueDark text-white' : ''}
+              className={currentPeriod === 'year' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
             >
               Setahun
             </Button>
@@ -469,7 +469,7 @@ export function DaerahComparisonCard({ data, className }: { data: DaerahComparis
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-gatensi-blue to-gatensi-blueDark rounded-xl p-5 text-white shadow-lg">
+          <div className="bg-gradient-to-br from-Gatensi-blue to-Gatensi-blueDark rounded-xl p-5 text-white shadow-lg">
             <div className="text-xs text-blue-100 mb-1">Total KTA Dicetak</div>
             <div className="text-4xl font-bold count-up">{data.totalPrinted}</div>
           </div>
@@ -502,7 +502,7 @@ export function DaerahPrintedChart({
               variant={currentPeriod === 'week' ? 'default' : 'outline'}
               size="sm"
               onClick={() => onPeriodChange?.('week')}
-              className={currentPeriod === 'week' ? 'bg-gatensi-red hover:bg-gatensi-redDark text-white' : ''}
+              className={currentPeriod === 'week' ? 'bg-Gatensi-red hover:bg-Gatensi-redDark text-white' : ''}
             >
               Seminggu
             </Button>
@@ -510,7 +510,7 @@ export function DaerahPrintedChart({
               variant={currentPeriod === 'month' ? 'default' : 'outline'}
               size="sm"
               onClick={() => onPeriodChange?.('month')}
-              className={currentPeriod === 'month' ? 'bg-gatensi-red hover:bg-gatensi-redDark text-white' : ''}
+              className={currentPeriod === 'month' ? 'bg-Gatensi-red hover:bg-Gatensi-redDark text-white' : ''}
             >
               Sebulan
             </Button>
@@ -518,7 +518,7 @@ export function DaerahPrintedChart({
               variant={currentPeriod === 'year' ? 'default' : 'outline'}
               size="sm"
               onClick={() => onPeriodChange?.('year')}
-              className={currentPeriod === 'year' ? 'bg-gatensi-red hover:bg-gatensi-redDark text-white' : ''}
+              className={currentPeriod === 'year' ? 'bg-Gatensi-red hover:bg-Gatensi-redDark text-white' : ''}
             >
               Setahun
             </Button>

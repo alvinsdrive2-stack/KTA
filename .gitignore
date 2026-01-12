@@ -14,6 +14,9 @@ coverage
 /generates/prisma
 tsconfig.tsbuildinfo
 
+# Generated QR codes
+public/qr-codes/*.png
+
 .vercel
 
 # Invalid Windows device names that may accidentally get created

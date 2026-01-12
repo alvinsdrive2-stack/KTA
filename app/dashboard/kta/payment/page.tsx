@@ -294,7 +294,7 @@ export default function PaymentPage() {
                   <p><strong>Rekening Tujuan:</strong></p>
                   <p>Bank: BNI</p>
                   <p>No. Rekening: 1234567890</p>
-                  <p>a.n. LSP GATENSI NASIONAL</p>
+                  <p>a.n. Gatensi NASIONAL</p>
                 </div>
               </form>
             </CardContent>

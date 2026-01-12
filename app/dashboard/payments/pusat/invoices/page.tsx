@@ -82,7 +82,7 @@ export default function PusatInvoicesHistoryPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 animate-slide-up-stagger stagger-1">
         <Link href="/dashboard/payments/pusat">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -96,7 +96,7 @@ export default function PusatInvoicesHistoryPage() {
       </div>
 
       {/* Invoices Table */}
-      <Card className="card-3d">
+      <Card className="card-3d animate-slide-up-stagger stagger-2">
         <CardHeader className="border-b border-slate-200">
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileText className="h-5 w-5 text-slate-700" />

@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
           ktaRequestId: req.id,
           bulkPaymentId: bulkPayment.id,
           invoiceNumber,
-          rekeningTujuan: 'BNI - 1234567890 - a.n. LSP GATENSI NASIONAL',
+          rekeningTujuan: 'BNI - 1234567890 - a.n. Gatensi NASIONAL',
           jumlah: req.hargaFinal || 0,
           statusPembayaran: 'PENDING'
         }

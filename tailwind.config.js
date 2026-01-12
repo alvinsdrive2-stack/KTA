@@ -51,7 +51,7 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // LSP Gatensi Brand Colors - Red & Blue
+        // Gatensi Brand Colors - Red & Blue
         brand: {
           red: {
             50: '#fef2f2',
@@ -153,6 +153,16 @@ module.exports = {
           "0%, 100%": { boxShadow: "0 0 5px rgba(59, 130, 246, 0.5)" },
           "50%": { boxShadow: "0 0 20px rgba(59, 130, 246, 0.8)" },
         },
+        // Hue rotate for rainbow gradient
+        "hue-rotate": {
+          "0%": { filter: "hue-rotate(0deg)" },
+          "100%": { filter: "hue-rotate(360deg)" },
+        },
+        // Gradient shift
+        "gradient-shift": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -168,6 +178,8 @@ module.exports = {
         "float": "float 3s ease-in-out infinite",
         "count": "count 0.3s ease-out forwards",
         "glow": "glow 2s ease-in-out infinite",
+        "hue-rotate": "hue-rotate 10s linear infinite",
+        "gradient-shift": "gradient-shift 5s ease infinite",
       },
     },
   },

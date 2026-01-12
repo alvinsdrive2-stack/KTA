@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { KTAPDFGenerator } from '@/lib/pdf-generator'
+import { QRCodeGenerator } from '@/lib/qr-generator'
 import { authMiddleware } from '@/lib/auth-helpers'
 
 export const dynamic = 'force-dynamic'
 
 // Helper function to generate nomorKTA
 async function generateNomorKTA(daerahId: string, jenjang: string): Promise<string> {
-  // Determine jenjang code: 01 for jenjang > 6, 02 for jenjang <= 6
+  // Determine jenjang category code based on jenjang level
+  // 1-3: Operator (03), 4-6: Teknisi (02), 7-9: Ahli (01)
   const jenjangNum = parseInt(jenjang, 10)
-  const jenjangCode = jenjangNum > 6 ? '01' : '02'
+  let jenjangCode: string
+
+  if (jenjangNum >= 1 && jenjangNum <= 3) {
+    jenjangCode = '03' // Operator
+  } else if (jenjangNum >= 4 && jenjangNum <= 6) {
+    jenjangCode = '02' // Teknisi
+  } else if (jenjangNum >= 7 && jenjangNum <= 9) {
+    jenjangCode = '01' // Ahli
+  } else {
+    throw new Error(`Invalid jenjang: ${jenjang}. Must be between 1-9.`)
+  }
 
   // Get daerah kode
   const daerah = await prisma.daerah.findUnique({
@@ -21,7 +33,7 @@ async function generateNomorKTA(daerahId: string, jenjang: string): Promise<stri
     throw new Error('Daerah not found')
   }
 
-  // Count existing KTAs with the same daerah and jenjang code
+  // Count existing KTAs with the same daerah and jenjang category code
   const existingCount = await prisma.kTARequest.count({
     where: {
       daerahId,
@@ -37,6 +49,7 @@ async function generateNomorKTA(daerahId: string, jenjang: string): Promise<stri
   return `${daerah.kodeDaerah}.${jenjangCode}.${sequence}`
 }
 
+// POST endpoint to mark KTA as ready (PDF will be generated on-demand via GET)
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -57,14 +70,13 @@ export async function POST(
     // Fetch KTA with all related data
     const ktaRequest = await prisma.kTARequest.findUnique({
       where: { id: ktaId },
-      include: {
-        daerah: {
-          select: {
-            id: true,
-            kodeDaerah: true,
-            namaDaerah: true
-          }
-        }
+      select: {
+        id: true,
+        nomorKTA: true,
+        daerahId: true,
+        jenjang: true,
+        status: true,
+        nama: true
       }
     })
 
@@ -79,58 +91,26 @@ export async function POST(
       return NextResponse.json({ error: 'KTA must be approved first' }, { status: 400 })
     }
 
-    // If PDF already generated, return existing path
-    if (ktaRequest.kartuGeneratedPath && ktaRequest.nomorKTA) {
-      return NextResponse.json({
-        success: true,
-        message: 'PDF already generated',
-        nomorKTA: ktaRequest.nomorKTA,
-        pdfPath: ktaRequest.kartuGeneratedPath
-      })
-    }
-
     // Generate nomorKTA if not exists
     let nomorKTA = ktaRequest.nomorKTA
     if (!nomorKTA) {
       nomorKTA = await generateNomorKTA(ktaRequest.daerahId, ktaRequest.jenjang)
     }
 
-    // Generate QR code path if not exists
+    // Generate QR code if not exists
     let qrCodePath = ktaRequest.qrCodePath
     if (!qrCodePath) {
-      // For now, use a placeholder - in real implementation, generate QR code
-      qrCodePath = '/qr-placeholder.png'
+      qrCodePath = await QRCodeGenerator.generateKTAQR({
+        id: ktaId,
+        nomorKTA: nomorKTA,
+      })
     }
 
-    // Prepare data for PDF generation
-    const ktaData = {
-      id: ktaRequest.id,
-      idIzin: ktaRequest.idIzin,
-      nama: ktaRequest.nama,
-      nik: ktaRequest.nik,
-      jabatanKerja: ktaRequest.jabatanKerja,
-      subklasifikasi: ktaRequest.subklasifikasi || '-',
-      jenjang: ktaRequest.jenjang,
-      noTelp: ktaRequest.noTelp,
-      email: ktaRequest.email,
-      alamat: ktaRequest.alamat,
-      tanggalDaftar: ktaRequest.tanggalDaftar,
-      qrCodePath: qrCodePath,
-      daerahNama: ktaRequest.daerah.namaDaerah,
-      fotoUrl: ktaRequest.fotoUrl || undefined,
-      tanggalTerbit: new Date(),
-      tanggalBerlaku: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000) // 5 years from now
-    }
-
-    // Generate PDF
-    const pdfPath = await KTAPDFGenerator.generateKTACard(ktaData)
-
-    // Update KTARequest with nomorKTA and PDF path
+    // Update KTARequest with nomorKTA and QR code - PDF will be generated on-demand
     await prisma.kTARequest.update({
       where: { id: ktaId },
       data: {
         nomorKTA,
-        kartuGeneratedPath: pdfPath,
         qrCodePath,
         status: 'READY_TO_PRINT'
       }
@@ -138,13 +118,12 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: 'KTA PDF generated successfully',
-      nomorKTA,
-      pdfPath
+      message: 'KTA ready for PDF generation',
+      nomorKTA
     })
 
   } catch (error) {
-    console.error('Error generating KTA PDF:', error)
+    console.error('Error preparing KTA PDF:', error)
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -152,7 +131,7 @@ export async function POST(
   }
 }
 
-// GET endpoint to download the PDF
+// GET endpoint to download the PDF (generated on-demand)
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -160,10 +139,13 @@ export async function GET(
   try {
     const ktaRequest = await prisma.kTARequest.findUnique({
       where: { id: params.id },
-      select: {
-        kartuGeneratedPath: true,
-        nomorKTA: true,
-        nama: true
+      include: {
+        daerah: {
+          select: {
+            kodeDaerah: true,
+            namaDaerah: true
+          }
+        }
       }
     })
 
@@ -171,29 +153,66 @@ export async function GET(
       return NextResponse.json({ error: 'KTA not found' }, { status: 404 })
     }
 
-    if (!ktaRequest.kartuGeneratedPath) {
-      return NextResponse.json({ error: 'PDF not generated yet' }, { status: 404 })
+    // Check if KTA is approved
+    if (ktaRequest.status !== 'READY_TO_PRINT' && ktaRequest.status !== 'PRINTED') {
+      return NextResponse.json({ error: 'KTA must be approved first' }, { status: 400 })
     }
 
-    // Read PDF file
-    const fs = await import('fs/promises')
-    const path = await import('path')
-    const filePath = path.join(process.cwd(), 'public', ktaRequest.kartuGeneratedPath)
+    // Generate nomorKTA if not exists
+    let nomorKTA = ktaRequest.nomorKTA
+    if (!nomorKTA && ktaRequest.daerahId) {
+      nomorKTA = await generateNomorKTA(ktaRequest.daerahId, ktaRequest.jenjang)
+      await prisma.kTARequest.update({
+        where: { id: params.id },
+        data: { nomorKTA }
+      })
+    }
 
-    const fileBuffer = await fs.readFile(filePath)
+    // Generate QR code path if not exists
+    let qrCodePath = ktaRequest.qrCodePath
+    if (!qrCodePath && nomorKTA) {
+      // Generate QR code for verification
+      qrCodePath = await QRCodeGenerator.generateKTAQR({
+        id: ktaRequest.id,
+        nomorKTA: nomorKTA,
+      })
 
-    // Return PDF file
-    return new NextResponse(fileBuffer, {
+      // Save QR code path to database
+      await prisma.kTARequest.update({
+        where: { id: params.id },
+        data: { qrCodePath }
+      })
+    } else if (!qrCodePath) {
+      // Fallback if no nomorKTA yet
+      qrCodePath = '/qr-placeholder.png'
+    }
+
+    // Prepare data for PDF generation
+    const ktaData = {
+      id: ktaRequest.id,
+      nama: ktaRequest.nama,
+      alamat: ktaRequest.alamat,
+      nomorKTA: nomorKTA || '',
+      createdAt: ktaRequest.createdAt || new Date(),
+      qrCodePath: qrCodePath,
+      fotoUrl: ktaRequest.fotoUrl || undefined,
+    }
+
+    // Generate PDF on-demand
+    const pdfBuffer = await KTAPDFGenerator.generateKTACard(ktaData)
+
+    // Return PDF file directly
+    return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="KTA-${ktaRequest.nomorKTA || ktaRequest.nama}.pdf"`
+        'Content-Disposition': `inline; filename="KTA-${nomorKTA || ktaRequest.nama}.pdf"`
       }
     })
 
   } catch (error) {
-    console.error('Error downloading KTA PDF:', error)
+    console.error('Error generating KTA PDF:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

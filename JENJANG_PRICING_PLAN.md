@@ -269,7 +269,7 @@ useEffect(() => {
 
         <div className="flex justify-between">
           <span className="font-semibold text-slate-900">Total Bayar</span>
-          <span className="text-xl font-bold text-gatensi-blue">
+          <span className="text-xl font-bold text-Gatensi-blue">
             Rp {hargaFinal.toLocaleString('id-ID')}
           </span>
         </div>

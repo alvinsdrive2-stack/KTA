@@ -17,7 +17,7 @@ const sizes = {
 export function LoadingSpinner({ size = 'md', text, className = '' }: LoadingSpinnerProps) {
   return (
     <div className={`flex flex-col items-center justify-center gap-4 ${className}`}>
-      {/* Logo with pulse animation - LSP Gatensi Brand Colors */}
+      {/* Logo with pulse animation - Gatensi Brand Colors */}
       <div className={`relative ${sizes[size]}`}>
         <div className="absolute inset-0 bg-brand-red-400 rounded-full opacity-20 animate-ping" />
         <div className="absolute inset-0 bg-brand-blue-400 rounded-full opacity-30 animate-pulse" />
@@ -36,7 +36,7 @@ export function LoadingSpinner({ size = 'md', text, className = '' }: LoadingSpi
         <p className="text-sm text-gray-600 animate-pulse font-medium">{text}</p>
       )}
 
-      {/* Loading dots with LSP Gatensi colors */}
+      {/* Loading dots with Gatensi colors */}
       <div className="flex gap-2">
         <div className="w-2 h-2 bg-brand-red-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
         <div className="w-2 h-2 bg-brand-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -46,12 +46,12 @@ export function LoadingSpinner({ size = 'md', text, className = '' }: LoadingSpi
   )
 }
 
-// Full page loading overlay with LSP Gatensi branding
+// Full page loading overlay with Gatensi branding
 export function FullPageLoader({ text = 'Memuat...' }: { text?: string }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-md">
       <div className="flex flex-col items-center gap-6">
-        {/* LSP Gatensi branded spinner */}
+        {/* Gatensi branded spinner */}
         <div className="relative w-20 h-20">
           <div className="absolute inset-0 border-4 border-brand-red-100 rounded-full" />
           <div className="absolute inset-0 border-4 border-brand-red-600 rounded-full border-t-transparent animate-spin" />
@@ -93,7 +93,7 @@ export function SpinningLogo({ className = '' }: { className?: string }) {
           className="opacity-80"
         />
       </div>
-      {/* Spinning ring with LSP Gatensi colors */}
+      {/* Spinning ring with Gatensi colors */}
       <div className="absolute inset-0 border-2 border-brand-red-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
@@ -115,12 +115,12 @@ export function BounceLogo({ className = '' }: { className?: string }) {
   )
 }
 
-// Pulse logo loader with LSP Gatensi branding
+// Pulse logo loader with Gatensi branding
 export function PulseLogo({ className = '', text }: { className?: string; text?: string }) {
   return (
     <div className={`flex flex-col items-center gap-4 ${className}`}>
       <div className="relative">
-        {/* Pulse rings with LSP Gatensi colors */}
+        {/* Pulse rings with Gatensi colors */}
         <div className="absolute inset-0 bg-brand-red-400 rounded-full opacity-20 animate-ping" />
         <div className="absolute inset-0 bg-brand-blue-400 rounded-full opacity-30 animate-pulse" />
 
@@ -140,7 +140,7 @@ export function PulseLogo({ className = '', text }: { className?: string; text?:
   )
 }
 
-// LSP Gatensi branded spinner (no image)
+// Gatensi branded spinner (no image)
 export function LSPSpinner({ size = 'md', className = '' }: { size?: 'sm' | 'md' | 'lg', className?: string }) {
   const sizes = {
     sm: 'w-6 h-6 border-2',

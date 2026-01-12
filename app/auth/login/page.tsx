@@ -11,7 +11,7 @@ export default function LoginPage() {
           <div className="relative w-20 h-20 bg-white rounded-2xl shadow-lg flex items-center justify-center p-3">
             <Image
               src="/logo.png"
-              alt="LSP Gatensi Logo"
+              alt="Gatensi Logo"
               fill
               className="object-contain"
               priority
@@ -36,7 +36,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="text-center mt-5 text-xs text-slate-500">
-          <p>&copy; 2025 LSP Gatensi Karya Konstruksi</p>
+          <p>&copy; 2025 Gatensi Karya Konstruksi</p>
         </div>
       </div>
     </div>

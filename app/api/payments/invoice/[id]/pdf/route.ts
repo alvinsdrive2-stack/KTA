@@ -136,7 +136,7 @@ export async function GET(
       console.error('Logo loading error:', error)
 
       // Draw text fallback
-      page.drawText('LSP GATENSI', {
+      page.drawText('Gatensi', {
         x: width - margin - 110,
         y: yPosition,
         size: 14,
@@ -554,7 +554,7 @@ export async function GET(
     })
     yPosition -= lineHeight
 
-    page.drawText('System - LSP Gatensi Karya Konstruksi', {
+    page.drawText('System - Gatensi Karya Konstruksi', {
       x: margin,
       y: yPosition,
       size: 9,

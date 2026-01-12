@@ -75,8 +75,10 @@ export default function KTADetailPage() {
   }
 
   const handleDownloadPDF = async () => {
-    if (!kta?.kartuGeneratedPath) {
-      alert('PDF belum tersedia. Silakan generate PDF terlebih dahulu.')
+    // Check if KTA is ready for download (status must be READY_TO_PRINT or PRINTED)
+    const canDownload = kta?.status === 'READY_TO_PRINT' || kta?.status === 'PRINTED'
+    if (!canDownload) {
+      alert('PDF belum tersedia. KTA harus sudah diverifikasi dan siap cetak.')
       return
     }
 
@@ -94,7 +96,8 @@ export default function KTADetailPage() {
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
       } else {
-        alert('Gagal mendownload PDF')
+        const error = await response.json()
+        alert(error.error || 'Gagal mendownload PDF')
       }
     } catch (error) {
       console.error('Error downloading PDF:', error)
@@ -143,7 +146,7 @@ export default function KTADetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 animate-slide-up-stagger stagger-1">
         <Button
           variant="ghost"
           size="sm"
@@ -160,12 +163,12 @@ export default function KTADetailPage() {
 
       {/* No. KTA Card */}
       {kta.nomorKTA && (
-        <Card className="card-3d bg-gradient-to-r from-blue-600 to-blue-700 text-white border-0">
+        <Card className="card-3d bg-gradient-to-r from-blue-600 to-blue-700 text-white border-0 animate-slide-up-stagger stagger-2">
           <CardContent className="py-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium mb-1">Nomor KTA</p>
-                <p className="text-3xl font-bold font-mono tracking-wider">{kta.nomorKTA}</p>
+                <p className="text-gray-600 text-sm font-medium mb-1">Nomor KTA</p>
+                <p className="text-gray-400 text-3xl font-bold font-mono tracking-wider">{kta.nomorKTA}</p>
               </div>
               <IdCard className="h-12 w-12 text-blue-200" />
             </div>
@@ -174,7 +177,7 @@ export default function KTADetailPage() {
       )}
 
       {/* Main Info Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-slide-up-stagger stagger-3">
         {/* Personal Information */}
         <Card className="card-3d lg:col-span-2">
           <CardHeader className="border-b border-slate-200 bg-slate-50/50">
@@ -357,7 +360,7 @@ export default function KTADetailPage() {
             <CardContent className="p-4">
               <Button
                 onClick={handleDownloadPDF}
-                disabled={!kta.kartuGeneratedPath || downloading}
+                disabled={downloading}
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 {downloading ? (
@@ -369,7 +372,7 @@ export default function KTADetailPage() {
                   </>
                 )}
               </Button>
-              {!kta.kartuGeneratedPath && (
+              {(kta.status !== 'READY_TO_PRINT' && kta.status !== 'PRINTED') && (
                 <p className="text-xs text-slate-500 text-center mt-2">
                   PDF belum tersedia
                 </p>
