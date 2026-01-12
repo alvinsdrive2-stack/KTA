@@ -18,7 +18,7 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        // LSP Gatensi Brand Colors
+        // Gatensi Brand Colors
         "lsp-red": "bg-brand-red-600 text-white hover:bg-brand-red-700 shadow-md hover:shadow-lg active:scale-95",
         "lsp-blue": "bg-brand-blue-600 text-white hover:bg-brand-blue-700 shadow-md hover:shadow-lg active:scale-95",
         "lsp-gradient": "bg-gradient-to-r from-brand-red-600 to-brand-blue-600 text-white hover:from-brand-red-700 hover:to-brand-blue-700 shadow-md hover:shadow-lg active:scale-95",

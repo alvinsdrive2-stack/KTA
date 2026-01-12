@@ -1,229 +1,589 @@
-import { PDFDocument, rgb, StandardFonts, PageSizes } from 'pdf-lib'
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
 import fs from 'fs/promises'
 import path from 'path'
+import sharp from 'sharp'
 
 interface KTAData {
   id: string
-  idIzin: string
   nama: string
-  nik: string
-  jabatanKerja: string
-  subklasifikasi: string
-  jenjang: string
-  noTelp: string
-  email: string
   alamat: string
-  tanggalDaftar: Date
+  nomorKTA: string
+  createdAt: Date
   qrCodePath: string
-  daerahNama: string
   fotoUrl?: string
-  tanggalTerbit: Date
-  tanggalBerlaku: Date
+}
+
+// Helper function untuk capitalize each word
+function capitalizeEachWord(text: string): string {
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+// Helper function untuk format alamat dengan RT/RW uppercase
+function formatAlamatWithRW(alamat: string): string {
+  let formatted = capitalizeEachWord(alamat)
+  // Replace RT/RW variations with proper format
+  formatted = formatted.replace(/\b\/?rt\b/gi, '/RT')
+  formatted = formatted.replace(/\b\/?rw\b/gi, '/RW')
+  // Handle case without slash but with space after
+  formatted = formatted.replace(/\brt\b/gi, 'RT')
+  formatted = formatted.replace(/\brw\b/gi, 'RW')
+  return formatted
+}
+
+// Helper functions untuk format data (sama seperti kta-preview)
+function formatNama(nama: string): string {
+  const maxChars = 25
+
+  if (nama.length <= maxChars) {
+    return nama
+  }
+
+  const words = nama.trim().split(/\s+/)
+
+  if (words.length <= 2) {
+    return nama.slice(0, maxChars - 3) + '...'
+  }
+
+  const firstWord = words[0]
+  const lastWord = words[words.length - 1]
+  const middleWords = words.slice(1, -1)
+
+  let abbreviated = firstWord
+  for (const word of middleWords) {
+    const initial = word.charAt(0) + '.'
+    if ((abbreviated + ' ' + initial + ' ' + lastWord).length <= maxChars) {
+      abbreviated += ' ' + initial
+    } else {
+      break
+    }
+  }
+
+  if ((abbreviated + ' ' + lastWord).length <= maxChars) {
+    abbreviated += ' ' + lastWord
+  }
+
+  return abbreviated
+}
+
+function formatAlamat(alamat: string): string[] {
+  const maxLine1 = 26
+  const maxLine2 = 26
+  const maxLine3 = 26
+
+  const words = alamat.split(' ')
+  const lines: string[] = []
+  let currentLine = ''
+
+  // Build line 1
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word
+    if (lines.length === 0 && testLine.length <= maxLine1) {
+      currentLine = testLine
+    } else if (lines.length === 0 && currentLine) {
+      lines.push(currentLine)
+      currentLine = word
+    } else if (lines.length === 1) {
+      break
+    }
+  }
+  if (lines.length === 0 && currentLine) {
+    lines.push(currentLine)
+    currentLine = ''
+  }
+
+  // Build line 2
+  const startIndexLine2 = lines[0] ? lines[0].split(' ').length : 0
+  let line2Words: string[] = []
+  for (let i = startIndexLine2; i < words.length; i++) {
+    const testLine = line2Words.join(' ') + (line2Words.length ? ' ' : '') + words[i]
+    if (testLine.length <= maxLine2) {
+      line2Words.push(words[i])
+    } else if (line2Words.length === 0) {
+      line2Words.push(words[i])
+      break
+    } else {
+      break
+    }
+  }
+  if (line2Words.length > 0) {
+    lines.push(line2Words.join(' '))
+  }
+
+  // Build line 3
+  const startIndexLine3 = startIndexLine2 + line2Words.length
+  const line3Words = words.slice(startIndexLine3)
+  if (line3Words.length > 0) {
+    const line3 = line3Words.join(' ')
+    lines.push(line3.length > maxLine3 ? line3.slice(0, maxLine3) : line3)
+  }
+
+  return lines.filter(l => l.length > 0)
+}
+
+function formatDate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${month}/${year}`
+}
+
+// Use 2x resolution for print quality (1200x760)
+const SCALE = 2
+const CARD_WIDTH = 600 * SCALE
+const CARD_HEIGHT = 380 * SCALE
+
+// Cache untuk font dan template
+let manropeFontBytes: Buffer | ArrayBuffer | null = null
+let manropeMediumFontBytes: Buffer | ArrayBuffer | null = null
+let templateImage: Buffer | null = null
+
+async function getManropeFont(): Promise<Buffer | ArrayBuffer> {
+  if (manropeFontBytes) return manropeFontBytes
+
+  try {
+    // Load Manrope SemiBold from public folder
+    const fontPath = path.join(process.cwd(), 'public', 'Manrope-SemiBold.ttf')
+    const fontBuffer = await fs.readFile(fontPath)
+
+    manropeFontBytes = fontBuffer
+    return manropeFontBytes
+  } catch (error) {
+    console.error('Error loading Manrope font:', error)
+    throw error
+  }
+}
+
+async function getManropeMediumFont(): Promise<Buffer | ArrayBuffer> {
+  if (manropeMediumFontBytes) return manropeMediumFontBytes
+
+  try {
+    // Load Manrope Medium from public folder
+    const fontPath = path.join(process.cwd(), 'public', 'Manrope-Medium.ttf')
+    const fontBuffer = await fs.readFile(fontPath)
+
+    manropeMediumFontBytes = fontBuffer
+    return manropeMediumFontBytes
+  } catch (error) {
+    console.error('Error loading Manrope Medium font:', error)
+    throw error
+  }
+}
+
+async function getTemplateImage(): Promise<Buffer> {
+  if (templateImage) return templateImage
+
+  try {
+    const templatePath = path.join(process.cwd(), 'public', 'template kta', 'KTA AI - FRONT.svg')
+    const pngCachePath = path.join('/tmp', 'kta-template-front-hires.png')
+
+    // Check if PNG cache exists
+    try {
+      const cached = await fs.readFile(pngCachePath)
+      templateImage = cached
+      return templateImage
+    } catch {}
+
+    // Convert SVG to PNG using sharp - high resolution (2x)
+    const svgBuffer = await fs.readFile(templatePath)
+
+    const pngBuffer = await sharp(svgBuffer)
+      .resize(CARD_WIDTH, CARD_HEIGHT, {
+        fit: 'cover',
+        position: 'center'
+      })
+      .png()
+      .toBuffer()
+
+    templateImage = pngBuffer
+
+    // Cache for future use
+    await fs.mkdir('/tmp', { recursive: true })
+    await fs.writeFile(pngCachePath, pngBuffer)
+
+    return templateImage
+  } catch (error) {
+    console.error('Error loading template:', error)
+    // Return fallback - solid color with high resolution
+    return sharp({
+      create: {
+        width: CARD_WIDTH,
+        height: CARD_HEIGHT,
+        channels: 3,
+        background: { r: 26, g: 26, b: 26 }
+      }
+    })
+    .png()
+    .toBuffer()
+  }
+}
+
+// Cache untuk back template
+let templateImageBack: Buffer | null = null
+
+async function getTemplateImageBack(): Promise<Buffer> {
+  if (templateImageBack) return templateImageBack
+
+  try {
+    const templatePath = path.join(process.cwd(), 'public', 'template kta', 'KTA AI - BACK.svg')
+    const pngCachePath = path.join('/tmp', 'kta-template-back-hires.png')
+
+    // Check if PNG cache exists
+    try {
+      const cached = await fs.readFile(pngCachePath)
+      templateImageBack = cached
+      return templateImageBack
+    } catch {}
+
+    // Convert SVG to PNG using sharp - high resolution (2x)
+    const svgBuffer = await fs.readFile(templatePath)
+
+    const pngBuffer = await sharp(svgBuffer)
+      .resize(CARD_WIDTH, CARD_HEIGHT, {
+        fit: 'cover',
+        position: 'center'
+      })
+      .png()
+      .toBuffer()
+
+    templateImageBack = pngBuffer
+
+    // Cache for future use
+    await fs.mkdir('/tmp', { recursive: true })
+    await fs.writeFile(pngCachePath, pngBuffer)
+
+    return templateImageBack
+  } catch (error) {
+    console.error('Error loading back template:', error)
+    // Return fallback - solid color with high resolution
+    return sharp({
+      create: {
+        width: CARD_WIDTH,
+        height: CARD_HEIGHT,
+        channels: 3,
+        background: { r: 26, g: 26, b: 26 }
+      }
+    })
+    .png()
+    .toBuffer()
+  }
 }
 
 export class KTAPDFGenerator {
-  private static readonly outputDir = path.join(process.cwd(), 'public', 'uploads', 'kta-cards')
+  private static readonly outputDir = path.join('/tmp', 'kta-cards')
 
-  static async generateKTACard(ktaData: KTAData): Promise<string> {
-    // Ensure output directory exists
+  static async generateKTACard(ktaData: KTAData): Promise<Buffer> {
     await fs.mkdir(this.outputDir, { recursive: true })
 
-    // Create new PDF document
     const pdfDoc = await PDFDocument.create()
 
-    // Add a page (ID Card size: 85.6mm x 53.98mm)
-    const page = pdfDoc.addPage([242.8, 153.9]) // Convert to points (1mm = 2.835pt)
+    // Register fontkit FIRST, before any font operations
+    // Handle both ESM and CommonJS exports
+    pdfDoc.registerFontkit((fontkit as any).default || fontkit)
 
-    // Use standard font
-    const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+    const page = pdfDoc.addPage([CARD_WIDTH, CARD_HEIGHT])
 
-    // Background - Construction theme gradient effect
-    const backgroundGradient = {
-      type: 'radial',
-      colors: ['#f37320', '#e45a16']
-    }
+    // Load Manrope SemiBold font (for main text)
+    const manropeBytes = await getManropeFont()
+    const manropeFont = await pdfDoc.embedFont(manropeBytes)
 
-    page.drawRectangle({
+    // Load Manrope Medium font (for CRD/EXP labels)
+    const manropeMediumBytes = await getManropeMediumFont()
+    const manropeMediumFont = await pdfDoc.embedFont(manropeMediumBytes)
+
+    // Load and embed template
+    const templateBuffer = await getTemplateImage()
+    const templateImage = await pdfDoc.embedPng(templateBuffer)
+
+    // Draw template background (full card size)
+    page.drawImage(templateImage, {
       x: 0,
       y: 0,
-      width: 242.8,
-      height: 153.9,
-      color: rgb(0.95, 0.45, 0.13),
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
     })
 
-    // White content area
-    page.drawRectangle({
-      x: 10,
-      y: 10,
-      width: 222.8,
-      height: 133.9,
-      color: rgb(1, 1, 1),
+    // Format data
+    const formattedNama = capitalizeEachWord(formatNama(ktaData.nama))
+    const alamatLines = formatAlamat(ktaData.alamat).map(line => formatAlamatWithRW(line))
+    const nomorKTA = ktaData.nomorKTA.toUpperCase()
+
+    // Hitung expired date (createdAt + 5 years)
+    const expiredDate = new Date(ktaData.createdAt)
+    expiredDate.setFullYear(expiredDate.getFullYear() + 5)
+
+    const issuedDateStr = formatDate(ktaData.createdAt)
+    const expiredDateStr = formatDate(expiredDate)
+
+    const colorWhite = rgb(1, 1, 1)
+
+    // Convert preview positions to PDF positions (with SCALE)
+    const toX = (previewX: number) => previewX * SCALE
+    const toY = (previewY: number) => CARD_HEIGHT - (previewY * SCALE)
+
+    // Draw Nama (top: 157px, left: 330px) - with offset
+    page.drawText(formattedNama, {
+      x: toX(330),
+      y: toY(157 + 18),
+      size: 16 * SCALE,
+      font: manropeFont,
+      color: colorWhite,
     })
 
-    // Header with construction icon and title
-    page.drawText('KARTU TANDA ANGGOTA', {
-      x: 20,
-      y: 123.9,
-      size: 14,
-      font,
-      color: rgb(0.2, 0.2, 0.2),
+    // Draw Alamat (3 lines max) - with offset
+    // All lines: top 183px + (index * 24)px, left 330px
+    alamatLines.forEach((line, index) => {
+      const xPos = toX(330)
+      const yPos = toY(183 + index * 24 + 16)
+      page.drawText(line, {
+        x: xPos,
+        y: yPos,
+        size: 16 * SCALE,
+        font: manropeFont,
+        color: colorWhite,
+      })
     })
 
-    page.drawText('ASOSIASI TENAGA KONSTRUKSI INDONESIA', {
-      x: 20,
-      y: 108,
-      size: 8,
-      font,
-      color: rgb(0.4, 0.4, 0.4),
+    // Draw Nomor KTA (top: 132px, left: 330px) - with offset
+    page.drawText(nomorKTA, {
+      x: toX(330),
+      y: toY(132 + 18),
+      size: 16 * SCALE,
+      font: manropeFont,
+      color: colorWhite,
     })
 
-    // Add line separator
-    page.drawLine({
-      start: { x: 20, y: 100 },
-      end: { x: 222.8, y: 100 },
-      thickness: 1,
-      color: rgb(0.8, 0.8, 0.8),
+    // Draw DOM (bottom: 46px from bottom, right: 325px from right)
+    // Calculate x position from right edge (600 - 325 = 275px from left)
+    const domLabelX = toX(600 - 420)
+    const domY = 52 * SCALE
+
+    // Measure DOM label width (approximately 30px at 15pt font)
+    page.drawText('CRD', {
+      x: domLabelX,
+      y: domY,
+      size: 16 * SCALE,
+      font: manropeFont,
+      color: colorWhite,
+    })
+    // Date is 60px to the right of DOM label
+    page.drawText(issuedDateStr.toUpperCase(), {
+      x: domLabelX + 50 * SCALE,
+      y: domY,
+      size: 16 * SCALE,
+      font: manropeMediumFont,
+      color: colorWhite,
     })
 
-    // Photo placeholder
-    const photoX = 160
-    const photoY = 75
-    const photoSize = 60
+    // Draw EXP (bottom: 19px from bottom, right: 326px from right)
+    // Calculate x position from right edge (600 - 326 = 274px from left)
+    const expLabelX = toX(600 - 420)
+    const expY = 28 * SCALE
 
-    page.drawRectangle({
-      x: photoX,
-      y: photoY,
-      width: photoSize,
-      height: photoSize * 1.2, // ID card photo ratio
-      color: rgb(0.95, 0.95, 0.95),
-      borderWidth: 1,
-      borderColor: rgb(0.8, 0.8, 0.8),
+    page.drawText('EXP', {
+      x: expLabelX,
+      y: expY,
+      size: 16 * SCALE,
+      font: manropeFont,
+      color: colorWhite,
+    })
+    // Date is 60px to the right of EXP label
+    page.drawText(expiredDateStr.toUpperCase(), {
+      x: expLabelX + 50 * SCALE,
+      y: expY,
+      size: 16 * SCALE,
+      font: manropeMediumFont,
+      color: colorWhite,
     })
 
-    // Try to embed photo if available
+    // Draw Photo (top: 122px, right: 412px, width: 110px, height: 140px)
+    // right: 412px in 600px container → x = 600 - 412 - 110 = 78px from left
+    const photoX = toX(600 - 417 - 110)
+    // top: 122px, height: 140px → bottom at 122 + 140 = 262px from top
+    const photoY = toY(122 + 140)
+    const photoWidth = 120 * SCALE
+    const photoHeight = 140 * SCALE
+
+    // Embed photo if available
     if (ktaData.fotoUrl) {
       try {
-        const imagePath = path.join(process.cwd(), 'public', ktaData.fotoUrl)
-        const imageBytes = await fs.readFile(imagePath)
-        const image = await pdfDoc.embedJpg(imageBytes)
+        let imageBytes: Buffer
+
+        if (ktaData.fotoUrl.startsWith('http://') || ktaData.fotoUrl.startsWith('https://')) {
+          const response = await fetch(ktaData.fotoUrl)
+          if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`)
+          const arrayBuffer = await response.arrayBuffer()
+          imageBytes = Buffer.from(arrayBuffer)
+        } else {
+          const imagePath = path.join(process.cwd(), 'public', ktaData.fotoUrl)
+          imageBytes = await fs.readFile(imagePath)
+        }
+
+        // Resize & add rounded corners with sharp
+        const targetWidth = Math.round(photoWidth - 2 * SCALE)
+        const targetHeight = Math.round(photoHeight - 2 * SCALE)
+        const cornerRadius = 12
+
+        // Resize image with alpha
+        const resizedImage = await sharp(imageBytes)
+          .resize(targetWidth, targetHeight, { fit: 'cover' })
+          .ensureAlpha()
+          .raw()
+          .toBuffer({ resolveWithObject: true })
+
+        const { data, info } = resizedImage
+        const pixels = new Uint8ClampedArray(data)
+
+        // Manual rounded corners - set alpha to 0 outside corners
+        for (let y = 0; y < info.height; y++) {
+          for (let x = 0; x < info.width; x++) {
+            const i = (y * info.width + x) * 4
+
+            // Top-left corner
+            if (x < cornerRadius && y < cornerRadius) {
+              const dx = cornerRadius - x
+              const dy = cornerRadius - y
+              if (dx * dx + dy * dy > cornerRadius * cornerRadius) {
+                pixels[i + 3] = 0 // Transparent
+              }
+            }
+            // Top-right corner
+            else if (x >= info.width - cornerRadius && y < cornerRadius) {
+              const dx = x - (info.width - cornerRadius)
+              const dy = cornerRadius - y
+              if (dx * dx + dy * dy > cornerRadius * cornerRadius) {
+                pixels[i + 3] = 0
+              }
+            }
+            // Bottom-left corner
+            else if (x < cornerRadius && y >= info.height - cornerRadius) {
+              const dx = cornerRadius - x
+              const dy = y - (info.height - cornerRadius)
+              if (dx * dx + dy * dy > cornerRadius * cornerRadius) {
+                pixels[i + 3] = 0
+              }
+            }
+            // Bottom-right corner
+            else if (x >= info.width - cornerRadius && y >= info.height - cornerRadius) {
+              const dx = x - (info.width - cornerRadius)
+              const dy = y - (info.height - cornerRadius)
+              if (dx * dx + dy * dy > cornerRadius * cornerRadius) {
+                pixels[i + 3] = 0
+              }
+            }
+          }
+        }
+
+        // Anti-aliasing fix: make fully opaque or fully transparent (no in-between)
+        for (let i = 3; i < pixels.length; i += 4) {
+          if (pixels[i] > 0 && pixels[i] < 255) {
+            // For semi-transparent pixels at edges, threshold them
+            pixels[i] = pixels[i] > 128 ? 255 : 0
+          }
+        }
+
+        const roundedImage = await sharp(pixels, {
+          raw: info
+        })
+          .png()
+          .toBuffer()
+
+        const image = await pdfDoc.embedPng(roundedImage)
 
         page.drawImage(image, {
-          x: photoX + 1,
-          y: photoY + 1,
-          width: photoSize - 2,
-          height: photoSize * 1.2 - 2,
+          x: photoX + 1 * SCALE,
+          y: photoY + 1 * SCALE,
+          width: photoWidth - 2 * SCALE,
+          height: photoHeight - 2 * SCALE,
         })
       } catch (error) {
         console.error('Error embedding photo:', error)
       }
     }
 
-    // Member Information
-    const infoY = 80
-    const lineHeight = 12
-    let currentY = infoY
+    // Draw QR Code placeholder (bottom: 10px, right: 28px)
+    const qrX = toX(600 - 28 - 60)
+    const qrY = 10 * SCALE
+    const qrSize = 60 * SCALE
 
-    const drawField = (label: string, value: string) => {
-      page.drawText(label, {
-        x: 20,
-        y: currentY,
-        size: 7,
-        font,
-        color: rgb(0.4, 0.4, 0.4),
-      })
-
-      page.drawText(value, {
-        x: 60,
-        y: currentY,
-        size: 8,
-        font,
-        color: rgb(0.2, 0.2, 0.2),
-      })
-
-      currentY -= lineHeight
-    }
-
-    drawField('Nama:', ktaData.nama)
-    drawField('NIK:', ktaData.nik)
-    drawField('ID Izin:', ktaData.idIzin)
-    drawField('Jabatan:', ktaData.jabatanKerja)
-    drawField('Subklasifikasi:', ktaData.subklasifikasi)
-    drawField('Jenjang:', ktaData.jenjang)
-
-    // Daerah information at bottom
-    page.drawText(`Daerah: ${ktaData.daerahNama}`, {
-      x: 20,
-      y: 25,
-      size: 7,
-      font,
-      color: rgb(0.4, 0.4, 0.4),
+    page.drawRectangle({
+      x: qrX,
+      y: qrY,
+      width: qrSize,
+      height: qrSize,
+      borderColor: rgb(1, 1, 1),
+      borderWidth: 1 * SCALE,
+      color: rgb(1, 1, 1),
     })
 
-    // Valid dates
-    page.drawText(
-      `Terbit: ${ktaData.tanggalTerbit.toLocaleDateString('id-ID')} - ` +
-      `Berlaku: ${ktaData.tanggalBerlaku.toLocaleDateString('id-ID')}`,
-      {
-        x: 20,
-        y: 15,
-        size: 6,
-        font,
-        color: rgb(0.4, 0.4, 0.4),
-      }
-    )
-
-    // QR Code
+    // Embed QR code if available
     if (ktaData.qrCodePath) {
       try {
-        const qrImagePath = path.join(process.cwd(), 'public', ktaData.qrCodePath)
-        const qrImageBytes = await fs.readFile(qrImagePath)
-        const qrImage = await pdfDoc.embedPng(qrImageBytes)
+        let qrImageBytes: Buffer | undefined
 
-        page.drawImage(qrImage, {
-          x: 190,
-          y: 15,
-          width: 30,
-          height: 30,
-        })
+        if (ktaData.qrCodePath.startsWith('http://') || ktaData.qrCodePath.startsWith('https://')) {
+          const response = await fetch(ktaData.qrCodePath)
+          if (!response.ok) throw new Error(`Failed to fetch QR: ${response.statusText}`)
+          const arrayBuffer = await response.arrayBuffer()
+          qrImageBytes = Buffer.from(arrayBuffer)
+        } else {
+          const qrImagePath = path.join(process.cwd(), 'public', ktaData.qrCodePath)
+          try {
+            qrImageBytes = await fs.readFile(qrImagePath)
+          } catch {
+            console.log(`QR file not found, skipping: ${qrImagePath}`)
+          }
+        }
+
+        if (qrImageBytes) {
+          const qrImage = await pdfDoc.embedPng(qrImageBytes)
+          page.drawImage(qrImage, {
+            x: qrX + 1 * SCALE,
+            y: qrY + 1 * SCALE,
+            width: qrSize - 2 * SCALE,
+            height: qrSize - 2 * SCALE,
+          })
+        }
       } catch (error) {
         console.error('Error embedding QR code:', error)
       }
     }
 
-    // Serialize PDF
+    // ===== BACK PAGE =====
+    const pageBack = pdfDoc.addPage([CARD_WIDTH, CARD_HEIGHT])
+
+    // Load and embed back template
+    const templateBackBuffer = await getTemplateImageBack()
+    const templateBackImage = await pdfDoc.embedPng(templateBackBuffer)
+
+    // Draw back template background
+    pageBack.drawImage(templateBackImage, {
+      x: 0,
+      y: 0,
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
+    })
+
     const pdfBytes = await pdfDoc.save()
-
-    // Generate filename
-    const filename = `KTA-${ktaData.idIzin}-${Date.now()}.pdf`
-    const filePath = path.join(this.outputDir, filename)
-
-    // Write file
-    await fs.writeFile(filePath, pdfBytes)
-
-    // Return relative path
-    return `/uploads/kta-cards/${filename}`
+    return Buffer.from(pdfBytes)
   }
 
-  static async generateBulkKTACards(ktaDataList: KTAData[]): Promise<string> {
-    // Create PDF with multiple pages (one card per page)
+  static async generateBulkKTACards(ktaDataList: KTAData[]): Promise<Buffer> {
     const pdfDoc = await PDFDocument.create()
+    // Handle both ESM and CommonJS exports
+    pdfDoc.registerFontkit((fontkit as any).default || fontkit)
 
     for (const ktaData of ktaDataList) {
-      const tempPdfPath = await this.generateKTACard(ktaData)
-      const tempPdfBytes = await fs.readFile(path.join(process.cwd(), 'public', tempPdfPath))
-      const tempPdf = await PDFDocument.load(tempPdfBytes)
-
+      const pdfBuffer = await this.generateKTACard(ktaData)
+      const tempPdf = await PDFDocument.load(pdfBuffer)
       const [page] = await pdfDoc.copyPages(tempPdf, [0])
       pdfDoc.addPage(page)
     }
 
     const pdfBytes = await pdfDoc.save()
-
-    const filename = `Bulk-KTA-${Date.now()}.pdf`
-    const filePath = path.join(this.outputDir, filename)
-
-    await fs.writeFile(filePath, pdfBytes)
-
-    return `/uploads/kta-cards/${filename}`
+    return Buffer.from(pdfBytes)
   }
 }

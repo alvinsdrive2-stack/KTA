@@ -479,7 +479,7 @@ export default function DashboardPage() {
                   <TableRow key={request.id} hover className="opacity-0 animate-fade-in" style={{ animationDelay: (450 + index * 50) + 'ms' }}>
                     <td>
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-gatensi-blue flex items-center justify-center text-white font-medium text-xs shadow-md">
+                        <div className="w-9 h-9 rounded-lg bg-Gatensi-blue flex items-center justify-center text-white font-medium text-xs shadow-md">
                           {request.nama.charAt(0).toUpperCase()}
                         </div>
                         <div>
@@ -513,16 +513,16 @@ export default function DashboardPage() {
       {/* Quick Links */}
       <div className="grid md:grid-cols-3 gap-4 animate-slide-up-stagger stagger-5">
         <Link href="/dashboard/kta/apply" className="card-3d bg-white p-5 group">
-          <div className="w-11 h-11 rounded-lg bg-gatensi-blueLight flex items-center justify-center mb-3 group-hover:bg-gatensi-blueLight/80 transition-colors">
-            <FileText className="h-5 w-5 text-gatensi-blue" />
+          <div className="w-11 h-11 rounded-lg bg-Gatensi-blueLight flex items-center justify-center mb-3 group-hover:bg-Gatensi-blueLight/80 transition-colors">
+            <FileText className="h-5 w-5 text-Gatensi-blue" />
           </div>
           <h3 className="font-semibold text-slate-900 mb-1 text-sm">Ambil Data SIKI</h3>
           <p className="text-xs text-slate-500">Verifikasi data anggota melalui SIKI PU</p>
         </Link>
 
         <Link href="/dashboard/permohonan" className="card-3d bg-white p-5 group">
-          <div className="w-11 h-11 rounded-lg bg-gatensi-redLight flex items-center justify-center mb-3 group-hover:bg-gatensi-redLight/80 transition-colors">
-            <CreditCard className="h-5 w-5 text-gatensi-red" />
+          <div className="w-11 h-11 rounded-lg bg-Gatensi-redLight flex items-center justify-center mb-3 group-hover:bg-Gatensi-redLight/80 transition-colors">
+            <CreditCard className="h-5 w-5 text-Gatensi-red" />
           </div>
           <h3 className="font-semibold text-slate-900 mb-1 text-sm">Kelola KTA</h3>
           <p className="text-xs text-slate-500">Kelola permohonan KTA</p>

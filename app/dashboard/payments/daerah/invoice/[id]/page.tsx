@@ -430,7 +430,7 @@ export default function InvoiceDetailPage() {
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-blue-900 mb-2">Informasi Pembayaran</h3>
                 <p className="text-sm text-blue-800">
-                  Silakan transfer ke rekening: <span className="font-bold">BNI - 1234567890 - a.n. LSP GATENSI NASIONAL</span>
+                  Silakan transfer ke rekening: <span className="font-bold">BNI - 1234567890 - a.n. Gatensi NASIONAL</span>
                 </p>
               </div>
               <Button

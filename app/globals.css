@@ -3,18 +3,18 @@
 @tailwind utilities;
 
 /* ========================================
-   LSP GATENSI BRAND COLORS
+   Gatensi BRAND COLORS
    ======================================== */
 
 @layer base {
   :root {
-    /* LSP Gatensi Brand Colors */
-    --gatensi-red: #E31937;
-    --gatensi-blue: #1E3A8A;
-    --gatensi-red-light: #FEE2E2;
-    --gatensi-blue-light: #DBEAFE;
-    --gatensi-red-dark: #B91C1C;
-    --gatensi-blue-dark: #1E40AF;
+    /* Gatensi Brand Colors */
+    --Gatensi-red: #E31937;
+    --Gatensi-blue: #1E3A8A;
+    --Gatensi-red-light: #FEE2E2;
+    --Gatensi-blue-light: #DBEAFE;
+    --Gatensi-red-dark: #B91C1C;
+    --Gatensi-blue-dark: #1E40AF;
 
     /* Neutral Colors */
     --background: 0 0% 100%;
@@ -89,39 +89,39 @@
 }
 
 /* ========================================
-   GATENSI BRAND UTILITY CLASSES
+   Gatensi BRAND UTILITY CLASSES
    ======================================== */
 
-.bg-gatensi-red {
-  background-color: var(--gatensi-red);
+.bg-Gatensi-red {
+  background-color: var(--Gatensi-red);
 }
 
-.bg-gatensi-blue {
-  background-color: var(--gatensi-blue);
+.bg-Gatensi-blue {
+  background-color: var(--Gatensi-blue);
 }
 
-.text-gatensi-red {
-  color: var(--gatensi-red);
+.text-Gatensi-red {
+  color: var(--Gatensi-red);
 }
 
-.text-gatensi-blue {
-  color: var(--gatensi-blue);
+.text-Gatensi-blue {
+  color: var(--Gatensi-blue);
 }
 
-.border-gatensi-red {
-  border-color: var(--gatensi-red);
+.border-Gatensi-red {
+  border-color: var(--Gatensi-red);
 }
 
-.border-gatensi-blue {
-  border-color: var(--gatensi-blue);
+.border-Gatensi-blue {
+  border-color: var(--Gatensi-blue);
 }
 
-.hover\:bg-gatensi-red:hover {
-  background-color: var(--gatensi-red-dark);
+.hover\:bg-Gatensi-red:hover {
+  background-color: var(--Gatensi-red-dark);
 }
 
-.hover\:bg-gatensi-blue:hover {
-  background-color: var(--gatensi-blue-dark);
+.hover\:bg-Gatensi-blue:hover {
+  background-color: var(--Gatensi-blue-dark);
 }
 
 /* ========================================
@@ -267,7 +267,7 @@ html {
   transform: translateX(-50%);
   width: 80px;
   height: 4px;
-  background: linear-gradient(90deg, var(--gatensi-red), var(--gatensi-blue));
+  background: linear-gradient(90deg, var(--Gatensi-red), var(--Gatensi-blue));
   border-radius: 2px;
 }
 
@@ -293,7 +293,7 @@ html {
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--gatensi-red), var(--gatensi-blue));
+  background: linear-gradient(90deg, var(--Gatensi-red), var(--Gatensi-blue));
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.3s ease;
@@ -328,7 +328,7 @@ html {
   left: 0;
   width: 0;
   height: 2px;
-  background: var(--gatensi-blue);
+  background: var(--Gatensi-blue);
   transition: width 0.3s ease;
 }
 
@@ -361,7 +361,7 @@ html {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 2px solid var(--gatensi-blue);
+  border: 2px solid var(--Gatensi-blue);
   animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
 }
 
@@ -431,7 +431,7 @@ html {
 
 /* Focus visible styles for accessibility */
 .focus-ring:focus-visible {
-  outline: 2px solid var(--gatensi-blue);
+  outline: 2px solid var(--Gatensi-blue);
   outline-offset: 2px;
 }
 
@@ -447,12 +447,12 @@ html {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--gatensi-blue), var(--gatensi-red));
+  background: linear-gradient(180deg, var(--Gatensi-blue), var(--Gatensi-red));
   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, var(--gatensi-blue-dark), var(--gatensi-red-dark));
+  background: linear-gradient(180deg, var(--Gatensi-blue-dark), var(--Gatensi-red-dark));
 }
 
 /* ========================================
@@ -482,7 +482,7 @@ html {
 }
 
 /* ========================================
-   GATENSI BRANDED COMPONENTS
+   Gatensi BRANDED COMPONENTS
    ======================================== */
 
 /* 3D Card Effect */
@@ -718,12 +718,12 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--gatensi-blue), var(--gatensi-red));
+  background: linear-gradient(180deg, var(--Gatensi-blue), var(--Gatensi-red));
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, var(--gatensi-blue-dark), var(--gatensi-red-dark));
+  background: linear-gradient(180deg, var(--Gatensi-blue-dark), var(--Gatensi-red-dark));
 }
 
 /* ========================================
