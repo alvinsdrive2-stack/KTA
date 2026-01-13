@@ -89,7 +89,34 @@ export async function GET(request: NextRequest) {
     const [ktaRequests, total] = await Promise.all([
       prisma.kTARequest.findMany({
         where: whereClause,
-        include: {
+        select: {
+          id: true,
+          idIzin: true,
+          nik: true,
+          nama: true,
+          jabatanKerja: true,
+          subklasifikasi: true,
+          jenjang: true,
+          noTelp: true,
+          email: true,
+          alamat: true,
+          tanggalDaftar: true,
+          status: true,
+          hargaRegion: true,
+          pusatApprovedBy: true,
+          pusatApprovedAt: true,
+          kartuGeneratedPath: true,
+          qrCodePath: true,
+          nomorKTA: true,
+          createdAt: true,
+          updatedAt: true,
+          fotoUrl: true,
+          fotoData: true,
+          ktpUrl: true,
+          subklasifikasiId: true,
+          diskonPersen: true,
+          hargaBase: true,
+          hargaFinal: true,
           requestedByUser: {
             select: {
               id: true,
@@ -101,7 +128,6 @@ export async function GET(request: NextRequest) {
               id: true,
               namaDaerah: true,
               kodeDaerah: true,
-              // kodePropinsi: true, // Disable until fixed
             },
           },
           payments: {

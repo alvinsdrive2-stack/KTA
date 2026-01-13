@@ -129,12 +129,20 @@ export class ClientKTAPDFGenerator {
           for (let i = 0; i < binaryString.length; i++) {
             imageBytes[i] = binaryString.charCodeAt(i)
           }
+          console.log('✅ Using base64 fotoData')
         } else if (ktaData.fotoUrl) {
           // Fetch from browser (bypasses geo-block)
+          console.log(`📡 Fetching foto from URL: ${ktaData.fotoUrl}`)
           const response = await fetch(ktaData.fotoUrl)
-          if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`)
+
+          if (!response.ok) {
+            console.error(`❌ Failed to fetch foto: ${response.status} ${response.statusText}`)
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+          }
+
           const arrayBuffer = await response.arrayBuffer()
           imageBytes = new Uint8Array(arrayBuffer)
+          console.log('✅ Foto fetched successfully, size:', imageBytes.length)
         } else {
           throw new Error('No photo data or URL provided')
         }

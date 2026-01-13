@@ -19,7 +19,34 @@ export async function GET(
     // Fetch KTA with all related data
     const ktaRequest = await prisma.kTARequest.findUnique({
       where: { id: ktaId },
-      include: {
+      select: {
+        id: true,
+        idIzin: true,
+        nik: true,
+        nama: true,
+        jabatanKerja: true,
+        subklasifikasi: true,
+        jenjang: true,
+        noTelp: true,
+        email: true,
+        alamat: true,
+        tanggalDaftar: true,
+        status: true,
+        hargaRegion: true,
+        pusatApprovedBy: true,
+        pusatApprovedAt: true,
+        kartuGeneratedPath: true,
+        qrCodePath: true,
+        nomorKTA: true,
+        createdAt: true,
+        updatedAt: true,
+        fotoUrl: true,
+        fotoData: true,
+        ktpUrl: true,
+        subklasifikasiId: true,
+        diskonPersen: true,
+        hargaBase: true,
+        hargaFinal: true,
         daerah: {
           select: {
             id: true,

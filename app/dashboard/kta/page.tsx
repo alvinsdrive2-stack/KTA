@@ -152,7 +152,7 @@ export default function KTAPage() {
         console.log(`Generating PDF ${i + 1}/${selectedKTAs.length} (${progress}%)`)
 
         try {
-          // Prepare KTA data
+          // Prepare KTA data - pass fotoUrl for client-side fetch (bypasses geo-block)
           const ktaData = {
             id: kta.id,
             nama: kta.nama,
@@ -160,7 +160,7 @@ export default function KTAPage() {
             nomorKTA: kta.nomorKTA || kta.id,
             createdAt: kta.createdAt,
             qrCodePath: kta.qrCodePath || '/qr-placeholder.png',
-            fotoUrl: kta.fotoUrl || undefined,
+            fotoUrl: kta.fotoUrl || undefined, // Browser will fetch this URL directly
           }
 
           // Generate PDF on client-side

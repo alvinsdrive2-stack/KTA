@@ -250,7 +250,7 @@ function VerificationFloatingBar() {
 
           const kta = ktaDataResult.data
 
-          // Prepare KTA data
+          // Prepare KTA data - pass fotoUrl for client-side fetch (bypasses geo-block)
           const ktaData = {
             id: kta.id,
             nama: kta.nama,
@@ -258,7 +258,7 @@ function VerificationFloatingBar() {
             nomorKTA: payment.nomorKTA || kta.id,
             createdAt: kta.createdAt,
             qrCodePath: kta.qrCodePath || '/qr-placeholder.png',
-            fotoUrl: kta.fotoUrl || undefined,
+            fotoUrl: kta.fotoUrl || undefined, // Browser will fetch this URL directly
           }
 
           // Generate PDF on client-side
