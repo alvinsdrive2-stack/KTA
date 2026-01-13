@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
           tanggalDaftar: sikiData.tgl_daftar ? new Date(sikiData.tgl_daftar) : new Date(),
           ktpUrl: cachedKtpUrl,
           fotoUrl: cachedFotoUrl,
+          fotoData: fotoData, // Store base64 data for geo-blocked URLs
           hargaRegion: hargaFinal,
           hargaBase,
           diskonPersen,
@@ -142,6 +143,7 @@ export async function POST(request: NextRequest) {
           hargaFinal,
           ktpUrl: cachedKtpUrl,
           fotoUrl: cachedFotoUrl,
+          fotoData: fotoData, // Store base64 data for geo-blocked URLs
         },
       })
     }

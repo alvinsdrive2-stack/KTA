@@ -452,25 +452,20 @@ export class KTAPDFGenerator {
       try {
         let imageBytes: Buffer
 
-        // Prioritize fotoData (base64 from client) for geo-blocked URLs
+        // Prioritize fotoData (base64 from database) for geo-blocked URLs
         if (ktaData.fotoData) {
           // Parse base64 data: "data:image/xxx;base64,..."
           const base64Data = ktaData.fotoData.includes(',')
             ? ktaData.fotoData.split(',')[1]
             : ktaData.fotoData
           imageBytes = Buffer.from(base64Data, 'base64')
-        } else if (ktaData.fotoUrl) {
-          if (ktaData.fotoUrl.startsWith('http://') || ktaData.fotoUrl.startsWith('https://')) {
-            const response = await fetch(ktaData.fotoUrl)
-            if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`)
-            const arrayBuffer = await response.arrayBuffer()
-            imageBytes = Buffer.from(arrayBuffer)
-          } else {
-            const imagePath = path.join(process.cwd(), 'public', ktaData.fotoUrl)
-            imageBytes = await fs.readFile(imagePath)
-          }
+        } else if (ktaData.fotoUrl && !ktaData.fotoUrl.startsWith('http')) {
+          // Only fetch local files - skip external URLs (geo-blocked, etc)
+          const imagePath = path.join(process.cwd(), 'public', ktaData.fotoUrl)
+          imageBytes = await fs.readFile(imagePath)
         } else {
-          throw new Error('No photo data or URL provided')
+          // Skip external URLs - they will be geo-blocked on server
+          throw new Error('Skipping external URL (use base64 data instead)')
         }
 
         // Resize & add rounded corners with sharp

@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
         alamat,
         ktpUrl: cachedKtpUrl,
         fotoUrl: cachedFotoUrl,
+        fotoData: fotoData, // Store base64 data for geo-blocked URLs
         daerahId: finalDaerahId,
         requestedBy: session.user.id,
         status: 'DRAFT',

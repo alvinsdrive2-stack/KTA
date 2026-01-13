@@ -111,6 +111,7 @@ model KTARequest {
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   fotoUrl            String?
+  fotoData           String?         @db.Text
   ktpUrl             String?
   subklasifikasiId   String?
   diskonPersen       Int?            @default(0)
