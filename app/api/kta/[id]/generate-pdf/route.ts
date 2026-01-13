@@ -199,8 +199,31 @@ export async function GET(
     }
 
     // Prepare data for PDF generation
-    // Prioritize fotoData from database (for geo-blocked URLs)
-    // Only pass fotoUrl if it's a local path (not external http/https)
+    // Try to fetch photo via proxy for external URLs (at generation time)
+    let fotoData = ktaRequest.fotoData || undefined
+
+    if (!fotoData && ktaRequest.fotoUrl && ktaRequest.fotoUrl.startsWith('http')) {
+      // Try to fetch via internal proxy
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+        const proxyUrl = `${baseUrl}/api/proxy/image?url=${encodeURIComponent(ktaRequest.fotoUrl)}`
+        const response = await fetch(proxyUrl)
+
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer()
+          const buffer = Buffer.from(arrayBuffer)
+          const contentType = response.headers.get('content-type') || 'image/jpeg'
+          const mimeType = contentType.split(';')[0].trim()
+          fotoData = `data:${mimeType};base64,${buffer.toString('base64')}`
+          console.log(`✅ Fetched photo via proxy for ${ktaRequest.nama}`)
+        } else {
+          console.log(`⚠️ Proxy fetch failed: ${response.status}`)
+        }
+      } catch (error) {
+        console.log(`⚠️ Proxy fetch error:`, error instanceof Error ? error.message : 'Unknown')
+      }
+    }
+
     const ktaData = {
       id: ktaRequest.id,
       nama: ktaRequest.nama,
@@ -208,8 +231,8 @@ export async function GET(
       nomorKTA: nomorKTA || '',
       createdAt: ktaRequest.createdAt || new Date(),
       qrCodePath: qrCodePath,
-      ...(ktaRequest.fotoData ? { fotoData: ktaRequest.fotoData } : {}), // Use base64 from database
-      ...(!ktaRequest.fotoData && ktaRequest.fotoUrl && !ktaRequest.fotoUrl.startsWith('http') ? { fotoUrl: ktaRequest.fotoUrl } : {})
+      ...(fotoData ? { fotoData } : {}),
+      ...(!fotoData && ktaRequest.fotoUrl && !ktaRequest.fotoUrl.startsWith('http') ? { fotoUrl: ktaRequest.fotoUrl } : {})
     }
 
     // Generate PDF on-demand
