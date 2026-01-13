@@ -138,32 +138,61 @@ export default function KTAPage() {
     setDownloadingBulk(true)
 
     try {
-      const response = await fetch('/api/kta/bulk-download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ktaIds: selectedKTAs.map(k => k.id) })
-      })
+      // Client-side PDF generation
+      const { ClientKTAPDFGenerator } = await import('@/lib/client-pdf-generator')
+      const JSZip = (await import('jszip')).default
 
-      if (response.ok) {
-        // Download ZIP file
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `KTA-Bulk-${Date.now()}.zip`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
+      const zip = new JSZip()
 
-        clearSelection()
-      } else {
-        const error = await response.json()
-        alert(error.error || 'Failed to download files')
+      // Generate PDFs for each selected KTA
+      for (let i = 0; i < selectedKTAs.length; i++) {
+        const kta = selectedKTAs[i]
+        const progress = Math.round(((i + 1) / selectedKTAs.length) * 100)
+
+        console.log(`Generating PDF ${i + 1}/${selectedKTAs.length} (${progress}%)`)
+
+        try {
+          // Prepare KTA data
+          const ktaData = {
+            id: kta.id,
+            nama: kta.nama,
+            alamat: kta.alamat,
+            nomorKTA: kta.nomorKTA || kta.id,
+            createdAt: kta.createdAt,
+            qrCodePath: kta.qrCodePath || '/qr-placeholder.png',
+            fotoUrl: kta.fotoUrl || undefined,
+          }
+
+          // Generate PDF on client-side
+          const pdfBytes = await ClientKTAPDFGenerator.generateKTACard(ktaData)
+
+          // Add to ZIP (JSZip supports Uint8Array)
+          const fileName = `${kta.nomorKTA || kta.nama}.pdf`
+          zip.file(fileName, pdfBytes as any) // Use 'as any' to bypass type check
+
+        } catch (error) {
+          console.error(`Error generating PDF for ${kta.nama}:`, error)
+        }
       }
+
+      // Generate ZIP file
+      console.log('Generating ZIP file...')
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+
+      // Download ZIP
+      const url = window.URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `KTA-Bulk-${Date.now()}.zip`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      clearSelection()
     } catch (error) {
       console.error('Bulk download error:', error)
-      alert('Failed to download files')
+      alert('Failed to download files: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setDownloadingBulk(false)
     }

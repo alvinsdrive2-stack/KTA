@@ -227,44 +227,77 @@ function VerificationFloatingBar() {
 
     setDownloadingZip(true)
     try {
-      const ktaIds = payment.payments.map((p: any) => p.ktaRequestId)
+      // Client-side PDF generation
+      const { ClientKTAPDFGenerator } = await import('@/lib/client-pdf-generator')
+      const JSZip = (await import('jszip')).default
 
-      const response = await fetch('/api/kta/bulk-download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ktaIds })
-      })
+      const zip = new JSZip()
+      const paymentsArray = payment.payments
 
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `KTA-${payment.invoiceNumber}.zip`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
+      // Generate PDFs for each KTA
+      for (let i = 0; i < paymentsArray.length; i++) {
+        const p = paymentsArray[i]
+        const progress = Math.round(((i + 1) / paymentsArray.length) * 100)
+        console.log(`Generating PDF ${i + 1}/${paymentsArray.length} (${progress}%)`)
 
-        toast({
-          variant: 'success',
-          title: 'Download Berhasil',
-          description: `Berhasil mendownload ${payment.payments.length} KTA.`,
-        })
-      } else {
-        const error = await response.json()
-        toast({
-          variant: 'destructive',
-          title: 'Download Gagal',
-          description: error.error || 'Gagal mendownload KTA.',
-        })
+        try {
+          // Fetch KTA data
+          const response = await fetch(`/api/kta/${p.ktaRequestId}`)
+          if (!response.ok) continue
+
+          const ktaDataResult = await response.json()
+          if (!ktaDataResult.success) continue
+
+          const kta = ktaDataResult.data
+
+          // Prepare KTA data
+          const ktaData = {
+            id: kta.id,
+            nama: kta.nama,
+            alamat: kta.alamat,
+            nomorKTA: payment.nomorKTA || kta.id,
+            createdAt: kta.createdAt,
+            qrCodePath: kta.qrCodePath || '/qr-placeholder.png',
+            fotoUrl: kta.fotoUrl || undefined,
+          }
+
+          // Generate PDF on client-side
+          const pdfBytes = await ClientKTAPDFGenerator.generateKTACard(ktaData)
+
+          // Add to ZIP (JSZip supports Uint8Array)
+          const fileName = `${payment.nomorKTA || kta.nama}.pdf`
+          zip.file(fileName, pdfBytes as any) // Use 'as any' to bypass type check
+
+        } catch (error) {
+          console.error(`Error generating PDF:`, error)
+        }
       }
+
+      // Generate ZIP file
+      console.log('Generating ZIP file...')
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+
+      // Download ZIP
+      const url = window.URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `KTA-${payment.invoiceNumber}.zip`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast({
+        variant: 'success',
+        title: 'Download Berhasil',
+        description: `Berhasil mendownload ${paymentsArray.length} KTA.`,
+      })
     } catch (error) {
       console.error('Bulk download error:', error)
       toast({
         variant: 'destructive',
         title: 'Download Gagal',
-        description: 'Terjadi kesalahan saat mendownload KTA.',
+        description: error instanceof Error ? error.message : 'Terjadi kesalahan saat mendownload KTA.',
       })
     } finally {
       setDownloadingZip(false)
@@ -481,13 +514,37 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
     setDaerahLogoError(false)
   }, [daerahId])
 
+  // Close sidebar on mobile when pressing ESC key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && sidebarOpen) {
+        setSidebarOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [sidebarOpen])
+
+  // Lock body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [sidebarOpen])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50/10">
-      {/* Mobile overlay */}
+      {/* Mobile overlay - closes sidebar when clicked outside */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-fade-in"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden animate-fade-in transition-opacity duration-300"
           onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
 

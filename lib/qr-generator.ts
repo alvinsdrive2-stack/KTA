@@ -19,7 +19,7 @@ export class QRCodeGenerator {
    * URL format: {baseUrl}/qr/{id}/{nomorKTA}
    */
   static async generateKTAQR(options: QRCodeOptions): Promise<string> {
-    const { id, nomorKTA, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' } = options
+    const { id, nomorKTA, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ktagatensi.vercel.app/' } = options
 
     // Generate QR code URL
     const qrUrl = `${baseUrl}/qr/${id}/${nomorKTA}`
@@ -51,7 +51,7 @@ export class QRCodeGenerator {
    * Generate QR code as buffer (for file operations if needed)
    */
   static async generateKTAQRBuffer(options: QRCodeOptions): Promise<Buffer> {
-    const { id, nomorKTA, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' } = options
+    const { id, nomorKTA, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ktagatensi.vercel.app/' } = options
 
     // Generate QR code URL
     const qrUrl = `${baseUrl}/qr/${id}/${nomorKTA}`

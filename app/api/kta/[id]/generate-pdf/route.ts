@@ -139,7 +139,18 @@ export async function GET(
   try {
     const ktaRequest = await prisma.kTARequest.findUnique({
       where: { id: params.id },
-      include: {
+      select: {
+        id: true,
+        nama: true,
+        alamat: true,
+        createdAt: true,
+        qrCodePath: true,
+        nomorKTA: true,
+        jenjang: true,
+        daerahId: true,
+        fotoUrl: true,
+        fotoData: true, // Include fotoData from database
+        status: true,
         daerah: {
           select: {
             kodeDaerah: true,
@@ -188,6 +199,8 @@ export async function GET(
     }
 
     // Prepare data for PDF generation
+    // Prioritize fotoData from database (for geo-blocked URLs)
+    // Only pass fotoUrl if it's a local path (not external http/https)
     const ktaData = {
       id: ktaRequest.id,
       nama: ktaRequest.nama,
@@ -195,7 +208,8 @@ export async function GET(
       nomorKTA: nomorKTA || '',
       createdAt: ktaRequest.createdAt || new Date(),
       qrCodePath: qrCodePath,
-      fotoUrl: ktaRequest.fotoUrl || undefined,
+      ...(ktaRequest.fotoData ? { fotoData: ktaRequest.fotoData } : {}), // Use base64 from database
+      ...(!ktaRequest.fotoData && ktaRequest.fotoUrl && !ktaRequest.fotoUrl.startsWith('http') ? { fotoUrl: ktaRequest.fotoUrl } : {})
     }
 
     // Generate PDF on-demand

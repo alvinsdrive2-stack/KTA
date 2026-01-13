@@ -67,7 +67,18 @@ export async function POST(request: NextRequest) {
       where: {
         id: { in: ktaIds }
       },
-      include: {
+      select: {
+        id: true,
+        nama: true,
+        alamat: true,
+        createdAt: true,
+        qrCodePath: true,
+        nomorKTA: true,
+        jenjang: true,
+        daerahId: true,
+        status: true,
+        fotoUrl: true,
+        fotoData: true, // Include fotoData from database
         daerah: {
           select: {
             kodeDaerah: true,
@@ -138,14 +149,17 @@ export async function POST(request: NextRequest) {
           }
 
           // Prepare data for PDF generation
+          // Prioritize fotoData from database (for geo-blocked URLs)
+          // Only pass fotoUrl if it's a local path (not external http/https)
           const ktaData = {
             id: kta.id,
             nama: kta.nama,
             alamat: kta.alamat,
             nomorKTA: nomorKTA || kta.id,
-            createdAt: kta.createdAt, // ✅ Tambah createdAt
+            createdAt: kta.createdAt,
             qrCodePath: qrCodePath,
-            fotoUrl: kta.fotoUrl || undefined
+            ...(kta.fotoData ? { fotoData: kta.fotoData } : {}), // Use base64 from database
+            ...(!kta.fotoData && kta.fotoUrl && !kta.fotoUrl.startsWith('http') ? { fotoUrl: kta.fotoUrl } : {})
           }
 
           // Generate PDF on-demand
