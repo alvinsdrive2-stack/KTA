@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { idIzin, sikiData } = body
+    const { idIzin, sikiData, fotoData, ktpData } = body
 
     if (!idIzin || !sikiData) {
       return NextResponse.json(
@@ -87,10 +87,13 @@ export async function POST(request: NextRequest) {
     })
 
     // Cache photos from SIKI (download & save locally for PDF generation)
+    // Or use base64 data if provided (for geo-blocked URLs)
     console.log('Caching photos from SIKI...')
     const { fotoUrl: cachedFotoUrl, ktpUrl: cachedKtpUrl } = await cacheKTAPhotos(
       sikiData.fotoUrl || null,
-      sikiData.ktpUrl || null
+      sikiData.ktpUrl || null,
+      fotoData, // Base64 from client (for geo-blocked URLs)
+      ktpData  // Base64 from client
     )
 
     let ktaRequest

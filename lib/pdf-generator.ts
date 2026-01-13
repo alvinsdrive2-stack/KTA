@@ -12,6 +12,7 @@ interface KTAData {
   createdAt: Date
   qrCodePath: string
   fotoUrl?: string
+  fotoData?: string  // base64 image data (client-side fetch)
 }
 
 // Helper function untuk capitalize each word
@@ -455,18 +456,29 @@ export class KTAPDFGenerator {
     const photoHeight = 140 * SCALE
 
     // Embed photo if available
-    if (ktaData.fotoUrl) {
+    if (ktaData.fotoData || ktaData.fotoUrl) {
       try {
         let imageBytes: Buffer
 
-        if (ktaData.fotoUrl.startsWith('http://') || ktaData.fotoUrl.startsWith('https://')) {
-          const response = await fetch(ktaData.fotoUrl)
-          if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`)
-          const arrayBuffer = await response.arrayBuffer()
-          imageBytes = Buffer.from(arrayBuffer)
+        // Prioritize fotoData (base64 from client) for geo-blocked URLs
+        if (ktaData.fotoData) {
+          // Parse base64 data: "data:image/xxx;base64,..."
+          const base64Data = ktaData.fotoData.includes(',')
+            ? ktaData.fotoData.split(',')[1]
+            : ktaData.fotoData
+          imageBytes = Buffer.from(base64Data, 'base64')
+        } else if (ktaData.fotoUrl) {
+          if (ktaData.fotoUrl.startsWith('http://') || ktaData.fotoUrl.startsWith('https://')) {
+            const response = await fetch(ktaData.fotoUrl)
+            if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`)
+            const arrayBuffer = await response.arrayBuffer()
+            imageBytes = Buffer.from(arrayBuffer)
+          } else {
+            const imagePath = path.join(process.cwd(), 'public', ktaData.fotoUrl)
+            imageBytes = await fs.readFile(imagePath)
+          }
         } else {
-          const imagePath = path.join(process.cwd(), 'public', ktaData.fotoUrl)
-          imageBytes = await fs.readFile(imagePath)
+          throw new Error('No photo data or URL provided')
         }
 
         // Resize & add rounded corners with sharp

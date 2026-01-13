@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
       alamat,
       ktpUrl,
       fotoUrl,
+      fotoData,
+      ktpData,
       daerahId
     } = body
 
@@ -32,9 +34,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
     }
 
-    // Validate files
-    if (!ktpUrl || !fotoUrl) {
-      return NextResponse.json({ error: 'KTP and foto are required' }, { status: 400 })
+    // Validate files (either URL or base64 data)
+    const hasKtp = ktpUrl || ktpData
+    const hasFoto = fotoUrl || fotoData
+
+    if (!hasKtp || !hasFoto) {
+      return NextResponse.json({ error: 'KTP and foto are required (URL or data)' }, { status: 400 })
     }
 
     // Determine daerah
@@ -66,10 +71,13 @@ export async function POST(request: NextRequest) {
     const idIzin = `M${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
     // Cache photos (download & save locally for PDF generation)
+    // Or use base64 data if provided (for geo-blocked URLs)
     console.log('Caching photos for manual KTA...')
     const { fotoUrl: cachedFotoUrl, ktpUrl: cachedKtpUrl } = await cacheKTAPhotos(
-      fotoUrl,
-      ktpUrl
+      fotoUrl || null,
+      ktpUrl || null,
+      fotoData, // Base64 from client (for geo-blocked URLs)
+      ktpData  // Base64 from client
     )
 
     // Create KTA Request
