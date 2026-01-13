@@ -9,61 +9,22 @@ interface QRCodeOptions {
 }
 
 export class QRCodeGenerator {
-  private static readonly qrDir = path.join(process.cwd(), 'public', 'qr-codes')
+  // Use /tmp for Vercel serverless compatibility
+  private static readonly qrDir = '/tmp/qr-codes'
 
   /**
    * Generate QR code for KTA verification
+   * Returns base64 data URL for direct embedding in PDF
    * QR code contains URL to public verification page
    * URL format: {baseUrl}/qr/{id}/{nomorKTA}
    */
   static async generateKTAQR(options: QRCodeOptions): Promise<string> {
     const { id, nomorKTA, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' } = options
 
-    // Create QR code directory if not exists
-    await fs.mkdir(this.qrDir, { recursive: true })
-
     // Generate QR code URL
     const qrUrl = `${baseUrl}/qr/${id}/${nomorKTA}`
 
-    // Generate QR code filename
-    const filename = `kta-${id}.png`
-    const filepath = path.join(this.qrDir, filename)
-    const publicPath = `/qr-codes/${filename}`
-
-    // Check if QR code already exists
-    try {
-      await fs.access(filepath)
-      return publicPath
-    } catch {
-      // File doesn't exist, generate new QR code
-    }
-
-    // Generate QR code as PNG buffer
-    const qrBuffer = await QRCode.toBuffer(qrUrl, {
-      width: 200,
-      margin: 1,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF',
-      },
-    })
-
-    // Save QR code to file
-    await fs.writeFile(filepath, qrBuffer)
-
-    return publicPath
-  }
-
-  /**
-   * Generate QR code as base64 string (for direct embedding)
-   */
-  static async generateKTAQRBase64(options: QRCodeOptions): Promise<string> {
-    const { id, nomorKTA, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' } = options
-
-    // Generate QR code URL
-    const qrUrl = `${baseUrl}/qr/${id}/${nomorKTA}`
-
-    // Generate QR code as base64
+    // Generate QR code as base64 data URL (no file writing needed)
     const qrDataUrl = await QRCode.toDataURL(qrUrl, {
       width: 200,
       margin: 1,
@@ -73,7 +34,36 @@ export class QRCodeGenerator {
       },
     })
 
-    // Remove "data:image/png;base64," prefix and return just the base64 string
-    return qrDataUrl.split(',')[1]
+    return qrDataUrl // Returns "data:image/png;base64,..."
+  }
+
+  /**
+   * Generate QR code as base64 string (for direct embedding)
+   * Same as generateKTAQR but returns only base64 without prefix
+   */
+  static async generateKTAQRBase64(options: QRCodeOptions): Promise<string> {
+    const dataUrl = await this.generateKTAQR(options)
+    // Remove "data:image/png;base64," prefix
+    return dataUrl.split(',')[1]
+  }
+
+  /**
+   * Generate QR code as buffer (for file operations if needed)
+   */
+  static async generateKTAQRBuffer(options: QRCodeOptions): Promise<Buffer> {
+    const { id, nomorKTA, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' } = options
+
+    // Generate QR code URL
+    const qrUrl = `${baseUrl}/qr/${id}/${nomorKTA}`
+
+    // Generate QR code as PNG buffer
+    return await QRCode.toBuffer(qrUrl, {
+      width: 200,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF',
+      },
+    })
   }
 }
