@@ -40,7 +40,7 @@ export class SIKIApiClient {
         console.error('SIKI_API_TOKEN is not set or empty')
         return {
           success: false,
-          message: 'SIKI API token is not configured. Please set SIKI_API_TOKEN environment variable.'
+          message: 'Permohonan sudah ada tidak dapat menambahkan permohonan dengan id yang sama'
         }
       }
 
