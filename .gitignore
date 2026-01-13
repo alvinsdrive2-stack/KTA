@@ -17,6 +17,9 @@ tsconfig.tsbuildinfo
 # Generated QR codes
 public/qr-codes/*.png
 
+# Cached photos from SIKI
+public/cached-photos
+
 .vercel
 
 # Invalid Windows device names that may accidentally get created

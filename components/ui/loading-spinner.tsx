@@ -23,7 +23,7 @@ export function LoadingSpinner({ size = 'md', text, className = '' }: LoadingSpi
         <div className="absolute inset-0 bg-brand-blue-400 rounded-full opacity-30 animate-pulse" />
         <div className="relative w-full h-full bg-white rounded-full flex items-center justify-center shadow-lg border-2 border-brand-red-100">
           <Image
-            src="/logo2.png"
+            src="/logo.png"
             alt="Loading..."
             fill
             className="object-contain p-3"
@@ -58,7 +58,7 @@ export function FullPageLoader({ text = 'Memuat...' }: { text?: string }) {
           <div className="absolute inset-2 border-4 border-brand-blue-100 rounded-full" />
           <div className="absolute inset-2 border-4 border-brand-blue-600 rounded-full border-b-transparent animate-spin" style={{ animationDirection: 'reverse' }} />
           <Image
-            src="/logo2.png"
+            src="/logo.png"
             alt="Loading..."
             fill
             className="object-contain p-4"
@@ -86,7 +86,7 @@ export function SpinningLogo({ className = '' }: { className?: string }) {
     <div className={`relative ${className}`}>
       <div className="animate-spin">
         <Image
-          src="/logo2.png"
+          src="/logo.png"
           alt="Loading..."
           width={40}
           height={40}
@@ -105,7 +105,7 @@ export function BounceLogo({ className = '' }: { className?: string }) {
     <div className={`flex items-center justify-center ${className}`}>
       <div className="animate-bounce">
         <Image
-          src="/logo2.png"
+          src="/logo.png"
           alt="Loading..."
           width={48}
           height={48}
@@ -127,7 +127,7 @@ export function PulseLogo({ className = '', text }: { className?: string; text?:
         {/* Logo */}
         <div className="relative bg-white rounded-full p-4 shadow-lg border-2 border-brand-red-100">
           <Image
-            src="/logo2.png"
+            src="/logo.png"
             alt="Loading..."
             width={48}
             height={48}
