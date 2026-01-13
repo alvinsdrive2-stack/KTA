@@ -109,7 +109,7 @@ export async function GET(
 
     // Try to load logo image
     try {
-      const logoPath = join(process.cwd(), 'public', 'logoinv.png')
+      const logoPath = join(process.cwd(), 'public', 'logo.png')
       console.log('Loading logo from:', logoPath)
 
       const logoBuffer = readFileSync(logoPath)

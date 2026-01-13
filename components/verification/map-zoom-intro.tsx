@@ -140,7 +140,7 @@ export function MapZoomIntro({ regionName, onComplete }: MapZoomIntroProps) {
           {/* Logo with circular background */}
           <div className="bg-white rounded-full p-6 shadow-2xl flex items-center justify-center">
             <img
-              src="/logoinv.png"
+              src="/logo.png"
               alt="Gatensi Logo"
               className="w-28 h-28 object-contain"
               style={{

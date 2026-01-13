@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { cacheKTAPhotos } from '@/lib/photo-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,6 +86,13 @@ export async function POST(request: NextRequest) {
       where: { idIzin: idIzin }
     })
 
+    // Cache photos from SIKI (download & save locally for PDF generation)
+    console.log('Caching photos from SIKI...')
+    const { fotoUrl: cachedFotoUrl, ktpUrl: cachedKtpUrl } = await cacheKTAPhotos(
+      sikiData.fotoUrl || null,
+      sikiData.ktpUrl || null
+    )
+
     let ktaRequest
     if (existingRequest) {
       // Update existing request
@@ -100,8 +108,8 @@ export async function POST(request: NextRequest) {
           email: sikiData.email || '',
           alamat: sikiData.alamat || '',
           tanggalDaftar: sikiData.tgl_daftar ? new Date(sikiData.tgl_daftar) : new Date(),
-          ktpUrl: sikiData.ktpUrl || null,
-          fotoUrl: sikiData.fotoUrl || null,
+          ktpUrl: cachedKtpUrl,
+          fotoUrl: cachedFotoUrl,
           hargaRegion: hargaFinal,
           hargaBase,
           diskonPersen,
@@ -129,8 +137,8 @@ export async function POST(request: NextRequest) {
           hargaBase,
           diskonPersen,
           hargaFinal,
-          ktpUrl: sikiData.ktpUrl || null,
-          fotoUrl: sikiData.fotoUrl || null,
+          ktpUrl: cachedKtpUrl,
+          fotoUrl: cachedFotoUrl,
         },
       })
     }

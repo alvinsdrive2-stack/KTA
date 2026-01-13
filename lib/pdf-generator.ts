@@ -141,35 +141,84 @@ let manropeFontBytes: Buffer | ArrayBuffer | null = null
 let manropeMediumFontBytes: Buffer | ArrayBuffer | null = null
 let templateImage: Buffer | null = null
 
+// Fetch font from public URL (works in serverless)
 async function getManropeFont(): Promise<Buffer | ArrayBuffer> {
   if (manropeFontBytes) return manropeFontBytes
 
-  try {
-    // Load Manrope SemiBold from public folder
-    const fontPath = path.join(process.cwd(), 'public', 'Manrope-SemiBold.ttf')
-    const fontBuffer = await fs.readFile(fontPath)
+  // Determine base URL for font loading
+  // On Vercel: use VERCEL_URL (auto-available) or NEXT_PUBLIC_SITE_URL
+  // Locally: use localhost
+  let baseUrl = 'http://localhost:3000'
+  if (process.env.VERCEL_URL) {
+    baseUrl = `https://${process.env.VERCEL_URL}`
+  } else if (process.env.NEXT_PUBLIC_SITE_URL) {
+    baseUrl = process.env.NEXT_PUBLIC_SITE_URL
+  }
 
-    manropeFontBytes = fontBuffer
+  try {
+    const fontUrl = `${baseUrl}/fonts/Manrope-SemiBold.ttf`
+    console.log('Fetching font from:', fontUrl)
+    const response = await fetch(fontUrl)
+    if (response.ok) {
+      const arrayBuffer = await response.arrayBuffer()
+      manropeFontBytes = Buffer.from(arrayBuffer)
+      console.log('Font loaded successfully from URL')
+      return manropeFontBytes
+    } else {
+      console.log('Font fetch failed with status:', response.status)
+    }
+  } catch (error) {
+    console.log('Fetch failed, trying local filesystem...', error)
+  }
+
+  // Fallback to local filesystem (development)
+  try {
+    const fontPath = path.join(process.cwd(), 'fonts', 'Manrope-SemiBold.ttf')
+    manropeFontBytes = await fs.readFile(fontPath)
+    console.log('Font loaded from filesystem')
     return manropeFontBytes
   } catch (error) {
-    console.error('Error loading Manrope font:', error)
-    throw error
+    console.error('Error loading Manrope SemiBold font:', error)
+    throw new Error('Failed to load Manrope SemiBold font from URL and filesystem')
   }
 }
 
 async function getManropeMediumFont(): Promise<Buffer | ArrayBuffer> {
   if (manropeMediumFontBytes) return manropeMediumFontBytes
 
-  try {
-    // Load Manrope Medium from public folder
-    const fontPath = path.join(process.cwd(), 'public', 'Manrope-Medium.ttf')
-    const fontBuffer = await fs.readFile(fontPath)
+  // Determine base URL for font loading
+  let baseUrl = 'http://localhost:3000'
+  if (process.env.VERCEL_URL) {
+    baseUrl = `https://${process.env.VERCEL_URL}`
+  } else if (process.env.NEXT_PUBLIC_SITE_URL) {
+    baseUrl = process.env.NEXT_PUBLIC_SITE_URL
+  }
 
-    manropeMediumFontBytes = fontBuffer
+  try {
+    const fontUrl = `${baseUrl}/fonts/Manrope-Medium.ttf`
+    console.log('Fetching medium font from:', fontUrl)
+    const response = await fetch(fontUrl)
+    if (response.ok) {
+      const arrayBuffer = await response.arrayBuffer()
+      manropeMediumFontBytes = Buffer.from(arrayBuffer)
+      console.log('Medium font loaded successfully from URL')
+      return manropeMediumFontBytes
+    } else {
+      console.log('Medium font fetch failed with status:', response.status)
+    }
+  } catch (error) {
+    console.log('Medium font fetch failed, trying local filesystem...', error)
+  }
+
+  // Fallback to local filesystem (development)
+  try {
+    const fontPath = path.join(process.cwd(), 'fonts', 'Manrope-Medium.ttf')
+    manropeMediumFontBytes = await fs.readFile(fontPath)
     return manropeMediumFontBytes
   } catch (error) {
-    console.error('Error loading Manrope Medium font:', error)
-    throw error
+    // Medium font is corrupted, use SemiBold as fallback
+    console.warn('Manrope Medium font not available, using SemiBold')
+    return getManropeFont()
   }
 }
 
@@ -280,17 +329,15 @@ export class KTAPDFGenerator {
 
     const pdfDoc = await PDFDocument.create()
 
-    // Register fontkit FIRST, before any font operations
-    // Handle both ESM and CommonJS exports
+    // Register fontkit for custom fonts
     pdfDoc.registerFontkit((fontkit as any).default || fontkit)
 
     const page = pdfDoc.addPage([CARD_WIDTH, CARD_HEIGHT])
 
-    // Load Manrope SemiBold font (for main text)
+    // Load Manrope fonts from URL (works on Vercel)
     const manropeBytes = await getManropeFont()
     const manropeFont = await pdfDoc.embedFont(manropeBytes)
 
-    // Load Manrope Medium font (for CRD/EXP labels)
     const manropeMediumBytes = await getManropeMediumFont()
     const manropeMediumFont = await pdfDoc.embedFont(manropeMediumBytes)
 
@@ -366,12 +413,12 @@ export class KTAPDFGenerator {
       x: domLabelX,
       y: domY,
       size: 16 * SCALE,
-      font: manropeFont,
+      font: manropeMediumFont,
       color: colorWhite,
     })
     // Date is 60px to the right of DOM label
     page.drawText(issuedDateStr.toUpperCase(), {
-      x: domLabelX + 50 * SCALE,
+      x: domLabelX + 60 * SCALE,
       y: domY,
       size: 16 * SCALE,
       font: manropeMediumFont,
@@ -387,12 +434,12 @@ export class KTAPDFGenerator {
       x: expLabelX,
       y: expY,
       size: 16 * SCALE,
-      font: manropeFont,
+      font: manropeMediumFont,
       color: colorWhite,
     })
     // Date is 60px to the right of EXP label
     page.drawText(expiredDateStr.toUpperCase(), {
-      x: expLabelX + 50 * SCALE,
+      x: expLabelX + 60 * SCALE,
       y: expY,
       size: 16 * SCALE,
       font: manropeMediumFont,
@@ -573,14 +620,14 @@ export class KTAPDFGenerator {
 
   static async generateBulkKTACards(ktaDataList: KTAData[]): Promise<Buffer> {
     const pdfDoc = await PDFDocument.create()
-    // Handle both ESM and CommonJS exports
-    pdfDoc.registerFontkit((fontkit as any).default || fontkit)
 
     for (const ktaData of ktaDataList) {
       const pdfBuffer = await this.generateKTACard(ktaData)
       const tempPdf = await PDFDocument.load(pdfBuffer)
-      const [page] = await pdfDoc.copyPages(tempPdf, [0])
-      pdfDoc.addPage(page)
+      // Copy both front (page 0) and back (page 1)
+      const [frontPage, backPage] = await pdfDoc.copyPages(tempPdf, [0, 1])
+      pdfDoc.addPage(frontPage)
+      pdfDoc.addPage(backPage)
     }
 
     const pdfBytes = await pdfDoc.save()

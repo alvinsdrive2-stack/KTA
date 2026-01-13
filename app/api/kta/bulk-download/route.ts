@@ -140,21 +140,12 @@ export async function POST(request: NextRequest) {
           // Prepare data for PDF generation
           const ktaData = {
             id: kta.id,
-            idIzin: kta.idIzin,
             nama: kta.nama,
-            nik: kta.nik,
-            jabatanKerja: kta.jabatanKerja,
-            subklasifikasi: kta.subklasifikasi || '-',
-            jenjang: kta.jenjang,
-            noTelp: kta.noTelp,
-            email: kta.email,
             alamat: kta.alamat,
-            tanggalDaftar: kta.tanggalDaftar,
+            nomorKTA: nomorKTA || kta.id,
+            createdAt: kta.createdAt, // ✅ Tambah createdAt
             qrCodePath: qrCodePath,
-            daerahNama: kta.daerah.namaDaerah,
-            fotoUrl: kta.fotoUrl || undefined,
-            tanggalTerbit: new Date(),
-            tanggalBerlaku: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000)
+            fotoUrl: kta.fotoUrl || undefined
           }
 
           // Generate PDF on-demand

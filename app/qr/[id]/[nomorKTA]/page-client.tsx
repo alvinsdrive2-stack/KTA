@@ -73,7 +73,7 @@ export function VerifyKTAPageClient({ ktaData }: VerifyKTAPageClientProps) {
                   <div className="flex-shrink-0">
                     <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-xl shadow-black/20">
                       <img
-                        src="/logoinv.png"
+                        src="/logo.png"
                         alt="Gatensi Logo"
                         className="w-11 h-11 object-contain"
                       />
@@ -107,7 +107,7 @@ export function VerifyKTAPageClient({ ktaData }: VerifyKTAPageClientProps) {
                           </p>
                         </div>
                         <div className="w-14 h-14 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-                          <img src="/logoinv.png" alt="Gatensi Logo" className="w-9 h-9 object-contain" />
+                          <img src="/logo.png" alt="Gatensi Logo" className="w-9 h-9 object-contain" />
                         </div>
                       </div>
                     </div>

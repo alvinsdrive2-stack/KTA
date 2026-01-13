@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { cacheKTAPhotos } from '@/lib/photo-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,6 +65,13 @@ export async function POST(request: NextRequest) {
     // Generate ID Izin (M - for Manual)
     const idIzin = `M${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
+    // Cache photos (download & save locally for PDF generation)
+    console.log('Caching photos for manual KTA...')
+    const { fotoUrl: cachedFotoUrl, ktpUrl: cachedKtpUrl } = await cacheKTAPhotos(
+      fotoUrl,
+      ktpUrl
+    )
+
     // Create KTA Request
     const ktaRequest = await prisma.kTARequest.create({
       data: {
@@ -76,8 +84,8 @@ export async function POST(request: NextRequest) {
         noTelp,
         email,
         alamat,
-        ktpUrl,
-        fotoUrl,
+        ktpUrl: cachedKtpUrl,
+        fotoUrl: cachedFotoUrl,
         daerahId: finalDaerahId,
         requestedBy: session.user.id,
         status: 'DRAFT',

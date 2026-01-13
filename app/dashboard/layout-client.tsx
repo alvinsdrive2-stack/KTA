@@ -685,7 +685,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
                     />
                   ) : (
                     <Image
-                      src="/logo2inv.png"
+                      src="/logo.png"
                       alt="Logo"
                       fill
                       className="object-contain p-1"
