@@ -146,18 +146,13 @@ let templateImage: Buffer | null = null
 async function getManropeFont(): Promise<Buffer | ArrayBuffer> {
   if (manropeFontBytes) return manropeFontBytes
 
-  // Determine base URL for font loading
-  // On Vercel: use VERCEL_URL (auto-available) or NEXT_PUBLIC_SITE_URL
-  // Locally: use localhost
-  let baseUrl = 'http://localhost:3000'
-  if (process.env.VERCEL_URL) {
-    baseUrl = `https://${process.env.VERCEL_URL}`
-  } else if (process.env.NEXT_PUBLIC_SITE_URL) {
-    baseUrl = process.env.NEXT_PUBLIC_SITE_URL
-  }
+  // Use direct URL for production, localhost for development
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  const fontUrl = isDevelopment
+    ? 'http://localhost:3000/fonts/Manrope-SemiBold.ttf'
+    : 'https://ktagatensi.vercel.app/fonts/Manrope-SemiBold.ttf'
 
   try {
-    const fontUrl = `${baseUrl}/fonts/Manrope-SemiBold.ttf`
     console.log('Fetching font from:', fontUrl)
     const response = await fetch(fontUrl)
     if (response.ok) {
@@ -187,16 +182,13 @@ async function getManropeFont(): Promise<Buffer | ArrayBuffer> {
 async function getManropeMediumFont(): Promise<Buffer | ArrayBuffer> {
   if (manropeMediumFontBytes) return manropeMediumFontBytes
 
-  // Determine base URL for font loading
-  let baseUrl = 'http://localhost:3000'
-  if (process.env.VERCEL_URL) {
-    baseUrl = `https://${process.env.VERCEL_URL}`
-  } else if (process.env.NEXT_PUBLIC_SITE_URL) {
-    baseUrl = process.env.NEXT_PUBLIC_SITE_URL
-  }
+  // Use direct URL for production, localhost for development
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  const fontUrl = isDevelopment
+    ? 'http://localhost:3000/fonts/Manrope-Medium.ttf'
+    : 'https://ktagatensi.vercel.app/fonts/Manrope-Medium.ttf'
 
   try {
-    const fontUrl = `${baseUrl}/fonts/Manrope-Medium.ttf`
     console.log('Fetching medium font from:', fontUrl)
     const response = await fetch(fontUrl)
     if (response.ok) {
