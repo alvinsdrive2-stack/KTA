@@ -368,7 +368,7 @@ export class KTAPDFGenerator {
     page.drawText(formattedNama, {
       x: toX(330),
       y: toY(157 + 18),
-      size: 16 * SCALE,
+      size: 18 * SCALE,
       font: manropeFont,
       color: colorWhite,
     })
@@ -381,7 +381,7 @@ export class KTAPDFGenerator {
       page.drawText(line, {
         x: xPos,
         y: yPos,
-        size: 16 * SCALE,
+        size: 18 * SCALE,
         font: manropeFont,
         color: colorWhite,
       })
@@ -391,7 +391,7 @@ export class KTAPDFGenerator {
     page.drawText(nomorKTA, {
       x: toX(330),
       y: toY(132 + 18),
-      size: 16 * SCALE,
+      size: 18 * SCALE,
       font: manropeFont,
       color: colorWhite,
     })
@@ -405,7 +405,7 @@ export class KTAPDFGenerator {
     page.drawText('CRD', {
       x: domLabelX,
       y: domY,
-      size: 16 * SCALE,
+      size: 18 * SCALE,
       font: manropeMediumFont,
       color: colorWhite,
     })
@@ -413,7 +413,7 @@ export class KTAPDFGenerator {
     page.drawText(issuedDateStr.toUpperCase(), {
       x: domLabelX + 60 * SCALE,
       y: domY,
-      size: 16 * SCALE,
+      size: 18 * SCALE,
       font: manropeMediumFont,
       color: colorWhite,
     })
@@ -426,7 +426,7 @@ export class KTAPDFGenerator {
     page.drawText('EXP', {
       x: expLabelX,
       y: expY,
-      size: 16 * SCALE,
+      size: 18 * SCALE,
       font: manropeMediumFont,
       color: colorWhite,
     })
@@ -434,7 +434,7 @@ export class KTAPDFGenerator {
     page.drawText(expiredDateStr.toUpperCase(), {
       x: expLabelX + 60 * SCALE,
       y: expY,
-      size: 16 * SCALE,
+      size: 18 * SCALE,
       font: manropeMediumFont,
       color: colorWhite,
     })
@@ -551,7 +551,8 @@ export class KTAPDFGenerator {
           height: photoHeight - 2 * SCALE,
         })
       } catch (error) {
-        console.error('Error embedding photo:', error)
+        // Silently skip photo if loading fails (geo-blocked URL, etc.)
+        console.log('Skipping photo due to error:', error instanceof Error ? error.message : 'Unknown error')
       }
     }
 
@@ -575,12 +576,20 @@ export class KTAPDFGenerator {
       try {
         let qrImageBytes: Buffer | undefined
 
-        if (ktaData.qrCodePath.startsWith('http://') || ktaData.qrCodePath.startsWith('https://')) {
+        // Handle base64 data URL (from QRCodeGenerator)
+        if (ktaData.qrCodePath.startsWith('data:image/')) {
+          const base64Data = ktaData.qrCodePath.split(',')[1]
+          qrImageBytes = Buffer.from(base64Data, 'base64')
+        }
+        // Handle HTTP/HTTPS URL
+        else if (ktaData.qrCodePath.startsWith('http://') || ktaData.qrCodePath.startsWith('https://')) {
           const response = await fetch(ktaData.qrCodePath)
           if (!response.ok) throw new Error(`Failed to fetch QR: ${response.statusText}`)
           const arrayBuffer = await response.arrayBuffer()
           qrImageBytes = Buffer.from(arrayBuffer)
-        } else {
+        }
+        // Handle local file path
+        else {
           const qrImagePath = path.join(process.cwd(), 'public', ktaData.qrCodePath)
           try {
             qrImageBytes = await fs.readFile(qrImagePath)
@@ -599,7 +608,7 @@ export class KTAPDFGenerator {
           })
         }
       } catch (error) {
-        console.error('Error embedding QR code:', error)
+        console.log('Skipping QR code due to error:', error instanceof Error ? error.message : 'Unknown error')
       }
     }
 
