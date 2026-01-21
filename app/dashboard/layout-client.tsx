@@ -133,7 +133,7 @@ function InvoiceCreationBar() {
         }
       }
     } catch (error) {
-      console.error('Create invoice error:', error)
+      // Error handling silent for production
     } finally {
       setCreating(false)
     }
@@ -197,7 +197,6 @@ function VerificationFloatingBar() {
   const shouldShow = paymentId && session?.user?.role && ['PUSAT', 'ADMIN'].includes(session.user.role) && !isListPage && !pathname?.includes('/invoice')
 
   useEffect(() => {
-    console.log(`🔍 VerificationFloatingBar: pathname=${pathname}, paymentId=${paymentId}, shouldShow=${shouldShow}`)
     if (shouldShow && paymentId) {
       fetchPaymentDetail()
     }
@@ -205,20 +204,16 @@ function VerificationFloatingBar() {
 
   const fetchPaymentDetail = async () => {
     try {
-      console.log(`📡 Fetching payment detail for: ${paymentId}`)
       const response = await fetch(`/api/payments/${paymentId}`)
       const data = await response.json()
-      console.log('📦 Payment detail response:', data)
 
       if (data.success && (data.data.status === 'PENDING' || data.data.status === 'PAID' || data.data.status === 'VERIFIED')) {
-        console.log(`✅ Payment loaded: ${data.data.invoiceNumber} - Status: ${data.data.status}`)
         setPayment(data.data)
       } else {
-        console.log('⚠️ Payment not valid for verification:', data.success ? `Status: ${data.data.status}` : 'No success')
         setPayment(null)
       }
     } catch (error) {
-      console.error('❌ Error fetching payment:', error)
+      // Silent error handling for production
     }
   }
 
@@ -261,7 +256,6 @@ function VerificationFloatingBar() {
         })
       }
     } catch (error) {
-      console.error('Bulk download error:', error)
       toast({
         variant: 'destructive',
         title: 'Download Gagal',
@@ -282,7 +276,6 @@ function VerificationFloatingBar() {
       return
     }
 
-    console.log(`🔐 Calling verify API: bulkPaymentId=${payment.id}, approved=${approved}`)
     setVerifying(true)
     try {
       const response = await fetch('/api/payments/verify', {
@@ -297,8 +290,6 @@ function VerificationFloatingBar() {
 
       const result = await response.json()
 
-      console.log('📡 Verify API response:', result)
-
       if (response.ok && result.success) {
         toast({
           variant: 'success',
@@ -309,7 +300,6 @@ function VerificationFloatingBar() {
         setRejectionReason('')
 
         if (approved) {
-          console.log('✅ Payment approved, waiting for PDF generation then fetching updated payment...')
           // PDFs are generated synchronously now, just wait a bit then fetch
           setTimeout(() => fetchPaymentDetail(), 500)
         } else {
@@ -317,7 +307,6 @@ function VerificationFloatingBar() {
           setTimeout(() => router.push('/dashboard/payments'), 1000)
         }
       } else {
-        console.error('❌ Verify failed:', result)
         toast({
           variant: 'destructive',
           title: 'Gagal Memverifikasi',
@@ -325,7 +314,6 @@ function VerificationFloatingBar() {
         })
       }
     } catch (error) {
-      console.error('❌ Verify error:', error)
       toast({
         variant: 'destructive',
         title: 'Terjadi Kesalahan',
@@ -503,7 +491,6 @@ function KTAFloatingBar() {
         alert(error.error || 'Failed to download files')
       }
     } catch (error) {
-      console.error('Bulk download error:', error)
       alert('Failed to download files')
     } finally {
       setDownloadingBulk(false)
@@ -607,7 +594,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
           fixed inset-y-0 left-0 z-50 overflow-hidden transition-all duration-300 ease-in-out lg:translate-x-0 animate-fade-in
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           ${sidebarCollapsed ? 'lg:-translate-x-full lg:w-0 lg:opacity-0' : 'lg:w-64 lg:opacity-100'}
-          w-64
+          w-64 shadow-2xl
         `}
       >
         <div className="flex h-full flex-col shadow-2xl border-r border-slate-200/50 relative sidebar-shimmer">
@@ -617,6 +604,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
               src="/indonesia-map-white.png"
               alt="Indonesia Map"
               fill
+              sizes="256px"
               className="object-cover opacity-20"
               priority
             />
@@ -633,7 +621,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
           <div className="absolute bottom-0 left-0 w-40 h-40 bg-gradient-to-tr from-blue-600/5 to-transparent rounded-full translate-y-1/2 -translate-x-1/4 sidebar-orb-2"></div>
 
           {/* Logo - Primary Blue Header with Indonesia Map */}
-          <div className="relative h-24 flex items-center justify-center bg-gradient-to-br from-blue-700 to-blue-600 shadow-md z-10 overflow-hidden">
+          <div className="relative h-20 flex items-center justify-center bg-gradient-to-br from-blue-700 to-blue-600 shadow-md z-10 overflow-hidden">
             {/* Blue Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-900 to-blue-500"></div>
 
@@ -643,6 +631,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
                 src="/indonesia-map-white.png"
                 alt="Indonesia Map"
                 fill
+                sizes="256px"
                 className="object-cover opacity-50"
                 priority
               />
@@ -657,6 +646,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
                     src="/logo.png"
                     alt="Logo Shadow"
                     fill
+                    sizes="224px"
                     className="object-contain"
                     style={{
                       transform: 'translateY(1.5px)',
@@ -671,6 +661,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
                   src="/logo.png"
                   alt="KTA Logo"
                   fill
+                  sizes="224px"
                   className="object-contain relative z-10"
                   style={{
                     filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
@@ -722,6 +713,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
             src="/indonesia-map.png"
             alt="Indonesia Map"
             fill
+            sizes="100vw"
             className="object-cover"
             style={{
               filter: 'grayscale(100%) sepia(100%) saturate(500%) hue-rotate(200deg) brightness(0.7) opacity(0.3)',
@@ -789,6 +781,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
                       src={getDaerahLogoUrl(session.user.daerah.namaDaerah)}
                       alt={session.user.daerah.namaDaerah}
                       fill
+                      sizes="40px"
                       className="object-contain p-1"
                       onError={() => setDaerahLogoError(true)}
                       unoptimized
@@ -798,6 +791,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
                       src="/logo.png"
                       alt="Logo"
                       fill
+                      sizes="40px"
                       className="object-contain p-1"
                       unoptimized
                     />
