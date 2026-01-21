@@ -186,7 +186,7 @@ export default function KTAPage() {
 
   return (
     <>
-      <div className="space-y-5">
+      <div className="space-y-5 overflow-hidden">
         {/* Header */}
         <div className="animate-slide-up-stagger stagger-1">
           <div>
@@ -196,8 +196,8 @@ export default function KTAPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-up-stagger stagger-2">
-          <Card className="card-3d">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-up-stagger stagger-2 over">
+          <Card className="card-3d overflow-hidden">
             <CardContent className="pt-5">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
@@ -324,7 +324,7 @@ export default function KTAPage() {
                 <p className="text-slate-500">Belum ada KTA yang terverifikasi</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-hidden">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/50">

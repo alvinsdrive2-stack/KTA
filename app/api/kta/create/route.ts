@@ -81,6 +81,42 @@ export async function POST(request: NextRequest) {
     const hargaBase = getHargaBaseByJenjang(jenjang)
     const hargaFinal = hargaBase - (hargaBase * diskonPersen / 100)
 
+    // Debug logging
+    console.log('=== KTA Create Debug ===')
+    console.log('subklasifikasiId from sikiData:', sikiData.subklasifikasiId)
+    console.log('klasifikasi from sikiData:', sikiData.klasifikasi)
+    console.log('=====================')
+
+    // Find subklasifikasi by kodeSubklasifikasi to ensure it exists
+    let finalSubklasifikasiId = sikiData.subklasifikasiId
+    let subklasifikasiText = null
+    if (sikiData.klasifikasi?.kodeSubklasifikasi) {
+      const existingSub = await prisma.subklasifikasi.findUnique({
+        where: { kodeSubklasifikasi: sikiData.klasifikasi.kodeSubklasifikasi }
+      })
+      if (existingSub) {
+        console.log('Found existing subklasifikasi by kode:', sikiData.klasifikasi.kodeSubklasifikasi, 'ID:', existingSub.id)
+        finalSubklasifikasiId = existingSub.id
+        subklasifikasiText = existingSub.subklasifikasi
+      } else {
+        console.log('⚠️ Subklasifikasi with kode not found, creating new one')
+        // Create it if not exists
+        const idKlasifikasi = sikiData.klasifikasi.kodeSubklasifikasi.substring(0, 2).toUpperCase()
+        const idSubklasifikasi = sikiData.klasifikasi.kodeSubklasifikasi.substring(2).toUpperCase()
+        const newSub = await prisma.subklasifikasi.create({
+          data: {
+            idKlasifikasi: idKlasifikasi,
+            idSubklasifikasi: idSubklasifikasi,
+            kodeSubklasifikasi: sikiData.klasifikasi.kodeSubklasifikasi,
+            subklasifikasi: sikiData.klasifikasi.subklasifikasi || sikiData.klasifikasi.kodeSubklasifikasi,
+          }
+        })
+        finalSubklasifikasiId = newSub.id
+        subklasifikasiText = newSub.subklasifikasi
+        console.log('Created new subklasifikasi with ID:', finalSubklasifikasiId)
+      }
+    }
+
     // Check if KTA request already exists
     const existingRequest = await prisma.kTARequest.findUnique({
       where: { idIzin: idIzin }
@@ -99,13 +135,15 @@ export async function POST(request: NextRequest) {
     let ktaRequest
     if (existingRequest) {
       // Update existing request
+      console.log('Updating existing request with subklasifikasiId:', finalSubklasifikasiId)
       ktaRequest = await prisma.kTARequest.update({
         where: { idIzin: idIzin },
         data: {
           nik: sikiData.nik,
           nama: sikiData.nama,
-          jabatanKerja: sikiData.jabatan || 'N/A',
-          subklasifikasi: sikiData.subklasifikasi || 'N/A',
+          jabatanKerja: sikiData.jabatanKerja || sikiData.jabatan || 'N/A',
+          subklasifikasi: subklasifikasiText,
+          subklasifikasiId: finalSubklasifikasiId || null,
           jenjang: sikiData.jenjang,
           noTelp: sikiData.telp || '',
           email: sikiData.email || '',
@@ -120,8 +158,10 @@ export async function POST(request: NextRequest) {
           hargaFinal,
         }
       })
+      console.log('After update, subklasifikasiId:', ktaRequest.subklasifikasiId)
     } else {
       // Create new KTA request
+      console.log('Creating new request with subklasifikasiId:', finalSubklasifikasiId)
       ktaRequest = await prisma.kTARequest.create({
         data: {
           idIzin: idIzin,
@@ -129,8 +169,9 @@ export async function POST(request: NextRequest) {
           requestedBy: session.user.id,
           nik: sikiData.nik,
           nama: sikiData.nama,
-          jabatanKerja: sikiData.jabatan || 'N/A',
-          subklasifikasi: sikiData.subklasifikasi || 'N/A',
+          jabatanKerja: sikiData.jabatanKerja || sikiData.jabatan || 'N/A',
+          subklasifikasi: subklasifikasiText,
+          subklasifikasiId: finalSubklasifikasiId || null,
           jenjang: sikiData.jenjang,
           noTelp: sikiData.telp || '',
           email: sikiData.email || '',
@@ -146,6 +187,7 @@ export async function POST(request: NextRequest) {
           fotoData: fotoData, // Store base64 data for geo-blocked URLs
         },
       })
+      console.log('After create, subklasifikasiId:', ktaRequest.subklasifikasiId)
     }
 
     return NextResponse.json({
