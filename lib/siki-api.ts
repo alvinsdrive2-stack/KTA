@@ -24,6 +24,7 @@ interface SIKIResponse {
 
 export class SIKIApiClient {
   private baseUrl = 'https://siki.pu.go.id/siki-api/v1'
+  private baseUrlV2 = 'https://siki.pu.go.id/siki-api/v2'
   private token: string
   private testMode: boolean
 
@@ -31,6 +32,105 @@ export class SIKIApiClient {
     this.token = token || process.env.SIKI_API_TOKEN || ''
     // Allow test mode override
     this.testMode = testMode
+  }
+
+  async getJabatanKerjaList(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrlV2}/jabatan-kerja`, {
+        headers: {
+          'token': this.token,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        console.error('Failed to fetch jabatan-kerja list:', response.status)
+        return null
+      }
+
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('Error fetching jabatan-kerja list:', error)
+      return null
+    }
+  }
+
+  async getSubklasifikasiList(): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrlV2}/subklasifikasi`, {
+        headers: {
+          'token': this.token,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        console.error('Failed to fetch subklasifikasi list:', response.status)
+        return null
+      }
+
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('Error fetching subklasifikasi list:', error)
+      return null
+    }
+  }
+
+  // Fetch jabatan kerja by code from new API
+  async getJabatanKerjaByCode(kodeJabker: string): Promise<string | null> {
+    try {
+      const url = `https://asap.lspgatensi.id/api/jabker?kode_jabker=${kodeJabker}`
+      console.log('Fetching jabatan kerja from:', url)
+
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        console.error('Failed to fetch jabatan kerja:', response.status)
+        return null
+      }
+
+      const data = await response.json()
+
+      // Check response structure and extract jabatan_kerja field
+      if (data && data.data && data.data.jabatan_kerja) {
+        console.log(`✓ Found jabatan kerja: "${kodeJabker}" → "${data.data.jabatan_kerja}"`)
+        return data.data.jabatan_kerja
+      }
+
+      console.log(`⚠️ Jabatan kerja "${kodeJabker}" not found in API response`)
+      return null
+    } catch (error) {
+      console.error('Error fetching jabatan kerja by code:', error)
+      return null
+    }
+  }
+
+  // Cache for subklasifikasi data
+  private subklasifikasiCache: Map<string, string> | null = null
+
+  // Clear cache method
+  clearCache(): void {
+    this.subklasifikasiCache = null
+    console.log('Cache cleared')
+  }
+
+  async getSubklasifikasiName(kodeSubklasifikasi: string): Promise<string | null> {
+    // Initialize cache if not already done
+    if (this.subklasifikasiCache === null) {
+      const data = await this.getSubklasifikasiList()
+      if (data && data.data) {
+        this.subklasifikasiCache = new Map()
+        for (const item of data.data) {
+          this.subklasifikasiCache.set(String(item.kode_subklasifikasi), item.subklasifikasi)
+        }
+      } else {
+        this.subklasifikasiCache = new Map()
+      }
+    }
+
+    return this.subklasifikasiCache.get(String(kodeSubklasifikasi)) || null
   }
 
   async getPermohonanSKK(idIzin: string): Promise<SIKIResponse> {

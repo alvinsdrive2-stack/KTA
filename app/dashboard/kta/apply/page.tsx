@@ -410,7 +410,7 @@ export default function KTAApplyPage() {
                   <Label htmlFor="jabatan" className="text-slate-700">Jabatan Kerja</Label>
                   <Input
                     id="jabatan"
-                    value={sikiData.jabatan || ''}
+                    value={sikiData.jabatanKerja || sikiData.jabatan || ''}
                     readOnly
                     className="mt-1 bg-slate-100 text-slate-500 cursor-not-allowed"
                   />

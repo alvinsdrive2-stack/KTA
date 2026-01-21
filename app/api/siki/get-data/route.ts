@@ -48,51 +48,68 @@ export async function POST(request: NextRequest) {
     }
 
     const sikiData = sikiResponse.data
-
-    // Fetch klasifikasi data from database (similar to refresh-siki)
-    let klasifikasiData = null
     const klasifikasiKualifikasi = (sikiData as any).klasifikasi_kualifikasi?.[0]
-    let subklasifikasiId = null
-    let kodeSubklasifikasi = null
+
+    // Extract values from SIKI
+    let idJabatanKerja: string | null = null
+    let kodeSubklasifikasi: string | null = null
     let jabatanKerja = sikiData.jabatan || 'N/A'
     let jenjang = sikiData.jenjang || ''
 
+    console.log('=== SIKI Data Debug ===')
+    console.log('Raw klasifikasiKualifikasi:', JSON.stringify(klasifikasiKualifikasi, null, 2))
+    console.log('sikiData.jabatan:', sikiData.jabatan)
+    console.log('sikiData.subklasifikasi:', sikiData.subklasifikasi)
+
     // Format 1: SIKI has klasifikasi_kualifikasi array
     if (klasifikasiKualifikasi) {
-      kodeSubklasifikasi = klasifikasiKualifikasi.subklasifikasi
-      const idKlasifikasi = klasifikasiKualifikasi.klasifikasi
-      jabatanKerja = klasifikasiKualifikasi.jabatan_kerja || jabatanKerja
+      idJabatanKerja = klasifikasiKualifikasi.jabatan_kerja || null
+      kodeSubklasifikasi = klasifikasiKualifikasi.subklasifikasi || null
       jenjang = klasifikasiKualifikasi.jenjang || jenjang
+    }
+    // Format 2: SIKI has simple format
+    else {
+      // In simple format, sikiData.jabatan contains the jabatan kerja ID/code
+      idJabatanKerja = sikiData.jabatan || null
+      kodeSubklasifikasi = sikiData.subklasifikasi || null
+    }
 
-      if (kodeSubklasifikasi && idKlasifikasi) {
-        let subklasifikasi = await prisma.subklasifikasi.findUnique({
-          where: { kodeSubklasifikasi: kodeSubklasifikasi }
-        })
+    console.log('Extracted values:')
+    console.log('- idJabatanKerja:', idJabatanKerja)
+    console.log('- kodeSubklasifikasi:', kodeSubklasifikasi)
+    console.log('- jenjang:', jenjang)
 
-        if (!subklasifikasi) {
-          const idSubklasifikasi = kodeSubklasifikasi.substring(2).toUpperCase()
-          subklasifikasi = await prisma.subklasifikasi.create({
-            data: {
-              idKlasifikasi: idKlasifikasi,
-              idSubklasifikasi: idSubklasifikasi,
-              kodeSubklasifikasi: kodeSubklasifikasi,
-              subklasifikasi: `${idKlasifikasi}${idSubklasifikasi}`,
-            }
-          })
-        }
-        subklasifikasiId = subklasifikasi.id
-        klasifikasiData = {
-          id: subklasifikasi.id,
-          idKlasifikasi: subklasifikasi.idKlasifikasi,
-          idSubklasifikasi: subklasifikasi.idSubklasifikasi,
-          kodeSubklasifikasi: subklasifikasi.kodeSubklasifikasi,
-          subklasifikasi: subklasifikasi.subklasifikasi,
-        }
+    // Fetch proper jabatan kerja name from new API
+    let jabatanKerjaName = jabatanKerja
+    if (idJabatanKerja) {
+      console.log('Fetching jabatan kerja for kode:', idJabatanKerja)
+      const nameFromAPI = await sikiApi.getJabatanKerjaByCode(String(idJabatanKerja))
+      if (nameFromAPI) {
+        jabatanKerjaName = nameFromAPI
       }
     }
-    // Format 2: SIKI has simple format with direct subklasifikasi field
-    else if (sikiData.subklasifikasi) {
-      kodeSubklasifikasi = sikiData.subklasifikasi
+
+    // Fetch proper subklasifikasi name from SIKI v2 API
+    let subklasifikasiName = kodeSubklasifikasi || ''
+    if (kodeSubklasifikasi) {
+      console.log('Fetching subklasifikasi name for kode:', kodeSubklasifikasi)
+      const nameFromAPI = await sikiApi.getSubklasifikasiName(String(kodeSubklasifikasi))
+      console.log('Subklasifikasi name from API:', nameFromAPI)
+      if (nameFromAPI) {
+        subklasifikasiName = nameFromAPI
+      }
+    }
+
+    console.log('Final values:')
+    console.log('- jabatanKerjaName:', jabatanKerjaName)
+    console.log('- subklasifikasiName:', subklasifikasiName)
+    console.log('=====================')
+
+    // Handle database operations for subklasifikasi
+    let klasifikasiData = null
+    let subklasifikasiId = null
+
+    if (kodeSubklasifikasi) {
       const idKlasifikasi = kodeSubklasifikasi.substring(0, 2).toUpperCase()
       const idSubklasifikasi = kodeSubklasifikasi.substring(2).toUpperCase()
 
@@ -106,10 +123,17 @@ export async function POST(request: NextRequest) {
             idKlasifikasi: idKlasifikasi,
             idSubklasifikasi: idSubklasifikasi,
             kodeSubklasifikasi: kodeSubklasifikasi,
-            subklasifikasi: `${idKlasifikasi}${idSubklasifikasi}`,
+            subklasifikasi: subklasifikasiName || `${idKlasifikasi}${idSubklasifikasi}`,
           }
         })
+      } else if (subklasifikasiName && subklasifikasi.subklasifikasi !== subklasifikasiName) {
+        // Update existing subklasifikasi with the proper name from API
+        subklasifikasi = await prisma.subklasifikasi.update({
+          where: { id: subklasifikasi.id },
+          data: { subklasifikasi: subklasifikasiName }
+        })
       }
+
       subklasifikasiId = subklasifikasi.id
       klasifikasiData = {
         id: subklasifikasi.id,
@@ -120,15 +144,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Return SIKI data with klasifikasi info
+    // Return SIKI data with enhanced info
     return NextResponse.json({
       success: true,
       data: {
         ...sikiData,
-        jabatanKerja,
+        jabatanKerja: jabatanKerjaName,
         jenjang,
         klasifikasi: klasifikasiData,
         subklasifikasiId,
+        // Keep original values for reference
+        idJabatanKerja,
+        kodeSubklasifikasi,
       },
     })
   } catch (error) {
