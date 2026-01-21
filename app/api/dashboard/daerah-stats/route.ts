@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const printedKTA = await prisma.kTARequest.findMany({
       where: {
         daerahId: userDaerahId,
-        status: 'PRINTED',
+        status: 'READY_TO_PRINT',
         createdAt: {
           gte: startDate,
           lte: now,
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     const last6Months = await prisma.kTARequest.count({
       where: {
         daerahId: userDaerahId,
-        status: 'PRINTED',
+        status: 'READY_TO_PRINT',
         createdAt: {
           gte: sixMonthsAgo,
           lte: now,
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
     const previous6Months = await prisma.kTARequest.count({
       where: {
         daerahId: userDaerahId,
-        status: 'PRINTED',
+        status: 'READY_TO_PRINT',
         createdAt: {
           gte: twelveMonthsAgo,
           lt: sixMonthsAgo,
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
     const totalPrinted = await prisma.kTARequest.count({
       where: {
         daerahId: userDaerahId,
-        status: 'PRINTED',
+        status: 'READY_TO_PRINT',
       },
     })
 

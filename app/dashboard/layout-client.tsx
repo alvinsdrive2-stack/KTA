@@ -1,7 +1,7 @@
 'use client'
 
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
-import { ShieldCheck, LogOut, Bell, Search, Menu, X, ChevronLeft, ChevronRight, HardHat, ArrowRight, FileText, CheckCircle, XCircle, Loader2, Download } from 'lucide-react'
+import { ShieldCheck, LogOut, Bell, Search, Menu, X, ChevronLeft, ChevronRight, HardHat, ArrowRight, FileText, CheckCircle, XCircle, Loader2, Download, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CurrentDate } from '@/components/ui/current-date'
 import { signOut } from 'next-auth/react'
@@ -10,7 +10,7 @@ import Image from 'next/image'
 import { SidebarProvider, useSidebar } from '@/contexts/sidebar-context'
 import { PaymentSelectionProvider, usePaymentSelection } from '@/contexts/PaymentSelectionContext'
 import { InvoiceCreationProvider, useInvoiceCreation } from '@/contexts/InvoiceCreationContext'
-import { KTASelectionProvider } from '@/contexts/KTASelectionContext'
+import { KTASelectionProvider, useKTASelection } from '@/contexts/KTASelectionContext'
 import { Card } from '@/components/ui/card'
 import { CardContent } from '@/components/ui/card'
 import { useRouter, usePathname } from 'next/navigation'
@@ -343,127 +343,212 @@ function VerificationFloatingBar() {
   const isVerified = payment.status === 'VERIFIED'
 
   return (
-    <>
-      <div className={`
-        fixed bottom-0 left-0 right-0 z-50 transition-all duration-300
-        ${sidebarCollapsed ? 'lg:left-0' : 'lg:left-64'}
-      `}>
-        <Card className="rounded-none shadow-2xl animate-slide-up">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between px-6 lg:px-8">
-              <div>
-                <p className="text-sm text-slate-600">
-                  {isVerified ? 'Pembayaran Terverifikasi' : 'Verifikasi Pembayaran'}
+    <div className={`
+      fixed bottom-0 left-0 right-0 z-50 transition-all duration-300
+      ${sidebarCollapsed ? 'lg:left-0' : 'lg:left-64'}
+    `}>
+      <Card className="rounded-none shadow-2xl animate-slide-up">
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between px-6 lg:px-8">
+            <div>
+              <p className="text-sm text-slate-600">
+                {isVerified ? 'Pembayaran Terverifikasi' : 'Verifikasi Pembayaran'}
+              </p>
+              <p className="text-lg font-semibold text-slate-900">{payment.invoiceNumber}</p>
+              {!isVerified && (
+                <p className="text-xs text-slate-500">
+                  {payment.totalJumlah} KTA • Rp {payment.totalNominal?.toLocaleString('id-ID')}
                 </p>
-                <p className="text-lg font-semibold text-slate-900">{payment.invoiceNumber}</p>
-                {!isVerified && (
-                  <p className="text-xs text-slate-500">
-                    {payment.totalJumlah} KTA • Rp {payment.totalNominal?.toLocaleString('id-ID')}
-                  </p>
-                )}
-              </div>
+              )}
+            </div>
 
-              {isVerified ? (
-                // Show download button when verified
+            {isVerified ? (
+              <Button
+                onClick={handleDownloadAllKTA}
+                disabled={downloadingZip}
+                className="bg-green-600 hover:bg-green-700 px-8 py-6 text-lg"
+              >
+                {downloadingZip ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Memproses...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-5 w-5 mr-2" />
+                    Download Semua KTA ({payment.payments?.length || 0})
+                  </>
+                )}
+              </Button>
+            ) : !showRejection ? (
+              <div className="flex gap-3">
                 <Button
-                  onClick={handleDownloadAllKTA}
-                  disabled={downloadingZip}
-                  className="bg-green-600 hover:bg-green-700 px-8 py-6 text-lg"
+                  onClick={() => setShowRejection(true)}
+                  disabled={verifying}
+                  variant="outline"
+                  className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
                 >
-                  {downloadingZip ? (
+                  {verifying ? (
                     <>
-                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Memproses...
                     </>
                   ) : (
                     <>
-                      <Download className="h-5 w-5 mr-2" />
-                      Download Semua KTA ({payment.payments?.length || 0})
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Tolak
                     </>
                   )}
                 </Button>
-              ) : !showRejection ? (
-                <div className="flex gap-3">
-                  <Button
-                    onClick={() => setShowRejection(true)}
-                    disabled={verifying}
-                    variant="outline"
-                    className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
-                  >
-                    {verifying ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Memproses...
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Tolak
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={() => handleVerify(true)}
-                    disabled={verifying}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {verifying ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Memproses...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Setujui
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex gap-3 items-center">
-                  <input
-                    type="text"
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    placeholder="Alasan penolakan..."
-                    className="border border-slate-300 rounded-lg px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-red-500"
-                    autoFocus
-                  />
-                  <Button
-                    onClick={() => handleVerify(false)}
-                    disabled={verifying || !rejectionReason.trim()}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    {verifying ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Memproses...
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Konfirmasi Tolak
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setShowRejection(false)
-                      setRejectionReason('')
-                    }}
-                    variant="outline"
-                    disabled={verifying}
-                  >
-                    Batal
-                  </Button>
-                </div>
-              )}
+                <Button
+                  onClick={() => handleVerify(true)}
+                  disabled={verifying}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {verifying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Setujui
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-3 items-center">
+                <input
+                  type="text"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Alasan penolakan..."
+                  className="border border-slate-300 rounded-lg px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  autoFocus
+                />
+                <Button
+                  onClick={() => handleVerify(false)}
+                  disabled={verifying || !rejectionReason.trim()}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {verifying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Konfirmasi Tolak
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowRejection(false)
+                    setRejectionReason('')
+                  }}
+                  variant="outline"
+                  disabled={verifying}
+                >
+                  Batal
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// KTA Bulk Download Floating Bar Component
+function KTAFloatingBar() {
+  const pathname = usePathname()
+  const { sidebarCollapsed } = useSidebar()
+  const { selectedCount, selectedKTAs, clearSelection } = useKTASelection()
+  const [downloadingBulk, setDownloadingBulk] = useState(false)
+
+  // Only show on /dashboard/kta page
+  const shouldShow = pathname?.includes('/dashboard/kta') && !pathname?.includes('/dashboard/kta/') && selectedCount > 0
+
+  const handleBulkDownload = async () => {
+    if (selectedCount === 0) return
+
+    setDownloadingBulk(true)
+
+    try {
+      const response = await fetch('/api/kta/bulk-download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ktaIds: selectedKTAs.map(k => k.id) })
+      })
+
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `KTA-Bulk-${Date.now()}.zip`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+
+        clearSelection()
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to download files')
+      }
+    } catch (error) {
+      console.error('Bulk download error:', error)
+      alert('Failed to download files')
+    } finally {
+      setDownloadingBulk(false)
+    }
+  }
+
+  if (!shouldShow) {
+    return null
+  }
+
+  return (
+    <div className={`
+      fixed bottom-0 left-0 right-0 z-50 transition-all duration-300
+      ${sidebarCollapsed ? 'lg:left-0' : 'lg:left-64'}
+    `}>
+      <Card className="rounded-none shadow-2xl animate-slide-up">
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between px-6 lg:px-8">
+            <div>
+              <p className="text-sm text-slate-600">{selectedCount} KTA dipilih</p>
+              <p className="text-2xl font-bold text-slate-900">
+                Download sebagai ZIP
+              </p>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </>
+            <Button
+              onClick={handleBulkDownload}
+              disabled={downloadingBulk}
+              className="bg-blue-600 hover:bg-blue-700 px-8 py-6 text-lg"
+            >
+              {downloadingBulk ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Downloading...
+                </>
+              ) : (
+                <>
+                  <Package className="h-5 w-5 mr-2" />
+                  Download {selectedCount} KTA
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 
@@ -743,6 +828,7 @@ export function DashboardClient(props: DashboardClientProps) {
               <PaymentFloatingBar />
               <InvoiceCreationBar />
               <VerificationFloatingBar />
+              <KTAFloatingBar />
             </SidebarProvider>
           </InvoiceCreationProvider>
         </PaymentSelectionProvider>

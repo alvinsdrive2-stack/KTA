@@ -243,14 +243,14 @@ export async function GET(
 
     page.drawText('Tanggal Pengajuan:', {
       x: rightColX,
-      y: yPosition,
+      y: yPosition+19,
       size: 9,
       font: fontBold,
       color: darkGray
     })
     page.drawText('   ' + formatDate(invoice.createdAt), {
       x: rightColX + 85,  // Value on same line as label
-      y: yPosition,
+      y: yPosition+19,
       size: 9,
       font: fontBold,
       color: navyBlue
@@ -290,7 +290,7 @@ export async function GET(
     headers.forEach((header, i) => {
       page.drawText(header, {
         x: xPos + 5,
-        y: yPosition - 8,
+        y: yPosition - 12,
         size: 8,
         font: fontBold,
         color: rgb(1, 1, 1)
