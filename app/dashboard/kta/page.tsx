@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Search, Download, Filter, FileText, CheckCircle, Package } from 'lucide-react'
+import { Search, Download, Filter, FileText, CheckCircle, Package, CheckSquare, X } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useKTASelection } from '@/contexts/KTASelectionContext'
 import {
@@ -54,7 +54,7 @@ export default function KTAPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [downloadingBulk, setDownloadingBulk] = useState(false)
+  const [selectionMode, setSelectionMode] = useState(false)
 
   // Check if user is PUSAT or ADMIN
   const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN'
@@ -109,8 +109,30 @@ export default function KTAPage() {
     }
   }
 
-  const handleRowClick = (ktaId: string) => {
-    router.push(`/dashboard/kta/${ktaId}`)
+  const handleRowClick = (ktaId: string, request: KTARequest) => {
+    if (selectionMode) {
+      // In selection mode, toggle the checkbox
+      toggleKTA({
+        id: request.id,
+        nomorKTA: request.nomorKTA,
+        nama: request.nama,
+        kartuGeneratedPath: request.kartuGeneratedPath
+      })
+    } else {
+      // In normal mode, navigate to detail page
+      router.push(`/dashboard/kta/${ktaId}`)
+    }
+  }
+
+  const handleToggleSelectionMode = () => {
+    if (selectionMode) {
+      // Exiting selection mode - clear selections
+      clearSelection()
+      setSelectionMode(false)
+    } else {
+      // Entering selection mode
+      setSelectionMode(true)
+    }
   }
 
   const handleSelectAll = () => {
@@ -129,43 +151,6 @@ export default function KTAPage() {
           kartuGeneratedPath: req.kartuGeneratedPath
         })
       })
-    }
-  }
-
-  const handleBulkDownload = async () => {
-    if (selectedCount === 0) return
-
-    setDownloadingBulk(true)
-
-    try {
-      const response = await fetch('/api/kta/bulk-download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ktaIds: selectedKTAs.map(k => k.id) })
-      })
-
-      if (response.ok) {
-        // Download ZIP file
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `KTA-Bulk-${Date.now()}.zip`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-
-        clearSelection()
-      } else {
-        const error = await response.json()
-        alert(error.error || 'Failed to download files')
-      }
-    } catch (error) {
-      console.error('Bulk download error:', error)
-      alert('Failed to download files')
-    } finally {
-      setDownloadingBulk(false)
     }
   }
 
@@ -298,14 +283,37 @@ export default function KTAPage() {
                 Daftar KTA Terverifikasi
               </CardTitle>
               {ktaRequests.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSelectAll}
-                  className="text-sm"
-                >
-                  {selectedCount === ktaRequests.length ? 'Batal Pilih Semua' : 'Pilih Semua'}
-                </Button>
+                selectionMode ? (
+                  <div className="flex items-center gap-2 animate-[fadeIn_0.2s_ease-out]">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSelectAll}
+                      className="text-sm transition-all duration-200 hover:bg-slate-100"
+                    >
+                      {selectedCount === ktaRequests.length ? 'Batal Semua' : 'Pilih Semua'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleToggleSelectionMode}
+                      className="text-sm border-slate-300 transition-all duration-200 hover:bg-red-50 hover:border-red-300 hover:text-red-600"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Batal
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleToggleSelectionMode}
+                    className="text-sm border-slate-300 transition-all duration-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600"
+                  >
+                    <CheckSquare className="h-4 w-4 mr-2" />
+                    Pilih untuk Download
+                  </Button>
+                )
               )}
             </div>
           </CardHeader>
@@ -320,13 +328,17 @@ export default function KTAPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/50">
-                      <th className="text-left py-3 px-4 w-12">
-                        <input
-                          type="checkbox"
-                          checked={selectedCount > 0 && selectedCount === ktaRequests.length}
-                          onChange={handleSelectAll}
-                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                        />
+                      <th className={`text-left py-3 px-4 transition-all duration-300 ease-out overflow-hidden ${
+                        selectionMode ? 'w-12 opacity-100' : 'w-0 opacity-0 p-0'
+                      }`}>
+                        <div className="flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedCount > 0 && selectedCount === ktaRequests.length}
+                            onChange={handleSelectAll}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </div>
                       </th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Nama</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">No. KTA</th>
@@ -346,23 +358,27 @@ export default function KTAPage() {
                       return (
                         <tr
                           key={request.id}
-                          className={`border-b border-slate-100 hover:bg-blue-50 transition-colors cursor-pointer ${
-                            isSelected ? 'bg-blue-50/70' : ''
+                          className={`border-b border-slate-100 hover:bg-blue-50 transition-all duration-200 cursor-pointer ${
+                            isSelected ? 'bg-blue-50/70 scale-[1.01]' : ''
                           }`}
-                          onClick={() => handleRowClick(request.id)}
+                          onClick={() => handleRowClick(request.id, request)}
                         >
-                          <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={!!isSelected}
-                              onChange={() => toggleKTA({
-                                id: request.id,
-                                nomorKTA: request.nomorKTA,
-                                nama: request.nama,
-                                kartuGeneratedPath: request.kartuGeneratedPath
-                              })}
-                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            />
+                          <td className={`transition-all duration-300 ease-out overflow-hidden ${
+                            selectionMode ? 'w-12 opacity-100 py-3 px-4' : 'w-0 opacity-0 p-0'
+                          }`} onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-center">
+                              <input
+                                type="checkbox"
+                                checked={!!isSelected}
+                                onChange={() => toggleKTA({
+                                  id: request.id,
+                                  nomorKTA: request.nomorKTA,
+                                  nama: request.nama,
+                                  kartuGeneratedPath: request.kartuGeneratedPath
+                                })}
+                                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition-all duration-200"
+                              />
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-sm text-slate-900 font-medium">{request.nama}</td>
                           <td className="py-3 px-4 text-sm text-slate-700 font-mono">{request.nomorKTA || '-'}</td>
@@ -452,44 +468,7 @@ export default function KTAPage() {
             </CardContent>
           </Card>
         )}
-
-        {/* Spacer for floating bar */}
-        {selectedCount > 0 && <div className="h-20" />}
       </div>
-
-      {/* Floating Bar for Bulk Download */}
-      {selectedCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-50">
-          <Card className="rounded-none shadow-2xl animate-slide-up">
-            <CardContent className="py-4">
-              <div className="flex items-center justify-between px-6 lg:px-8">
-                <div>
-                  <p className="text-sm text-slate-600">{selectedCount} KTA dipilih</p>
-                  <p className="text-lg font-bold text-slate-900">
-                    Download sebagai ZIP
-                  </p>
-                </div>
-                <Button
-                  onClick={handleBulkDownload}
-                  disabled={downloadingBulk}
-                  className="bg-blue-600 hover:bg-blue-700 px-8 py-6 text-lg"
-                >
-                  {downloadingBulk ? (
-                    <>
-                      Downloading...
-                    </>
-                  ) : (
-                    <>
-                      <Package className="h-5 w-5 mr-2" />
-                      Download {selectedCount} KTA
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </>
   )
 }

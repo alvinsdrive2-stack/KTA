@@ -5,7 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Download, FileText, User, IdCard, Calendar, MapPin, Phone, Mail, Building } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent
+} from '@/components/ui/dialog'
+import { ArrowLeft, Download, FileText, User, IdCard, Calendar, MapPin, Phone, Mail, Building, Eye } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useSession } from '@/hooks/useSession'
 
@@ -49,6 +53,7 @@ export default function KTADetailPage() {
   const [kta, setKta] = useState<KTARequest | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
 
   const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN'
 
@@ -82,7 +87,15 @@ export default function KTADetailPage() {
       return
     }
 
+    // Show preview modal first
+    setShowPreview(true)
+  }
+
+  const confirmDownloadPDF = async () => {
+    if (!kta) return
+
     setDownloading(true)
+    setShowPreview(false)
     try {
       const response = await fetch(`/api/kta/${kta.id}/generate-pdf`)
       if (response.ok) {
@@ -167,8 +180,8 @@ export default function KTADetailPage() {
           <CardContent className="py-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium mb-1">Nomor KTA</p>
-                <p className="text-gray-400 text-3xl font-bold font-mono tracking-wider">{kta.nomorKTA}</p>
+                <p className="text-slate-700 text-sm font-medium mb-1">Nomor KTA</p>
+                <p className="text-slate-800 text-3xl font-bold font-mono tracking-wider">{kta.nomorKTA}</p>
               </div>
               <IdCard className="h-12 w-12 text-blue-200" />
             </div>
@@ -367,8 +380,8 @@ export default function KTADetailPage() {
                   <>Downloading...</>
                 ) : (
                   <>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download PDF
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preview & Download
                   </>
                 )}
               </Button>
@@ -381,6 +394,38 @@ export default function KTADetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+          <div className="sticky top-0 z-10 bg-white border-b px-6 py-4">
+            <h3 className="text-lg font-semibold">Preview Kartu Tanda Anggota</h3>
+            <p className="text-sm text-slate-500">
+              {kta?.nama} - {kta?.nomorKTA || 'Pending'}
+            </p>
+          </div>
+
+          {kta && (
+            <div className="w-full h-[70vh] bg-slate-100">
+              <iframe
+                src={`/api/kta/${kta.id}/generate-pdf`}
+                className="w-full h-full border-0"
+                title="KTA Preview"
+              />
+            </div>
+          )}
+
+          <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowPreview(false)}>
+              Tutup
+            </Button>
+            <Button onClick={confirmDownloadPDF} className="bg-blue-600 hover:bg-blue-700">
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

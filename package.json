@@ -44,6 +44,7 @@
     "fontkit": "^2.0.4",
     "jszip": "^3.10.1",
     "lucide-react": "^0.560.0",
+    "midtrans-client": "^1.4.3",
     "next": "^14.2.15",
     "next-auth": "^4.24.8",
     "next-themes": "^0.4.6",

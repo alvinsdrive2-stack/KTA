@@ -114,7 +114,7 @@ export default function DashboardPage() {
     approvedKTA: data.filter((kta) =>
       kta.status === 'APPROVED_BY_PUSAT' || kta.status === 'READY_TO_PRINT' || kta.status === 'PRINTED'
     ).length,
-    printedKTA: data.filter((kta) => kta.status === 'PRINTED').length,
+    printedKTA: data.filter((kta) => kta.status === 'READY_TO_PRINT' || kta.status === 'PRINTED').length,
   })
 
   // Load from cache with useState lazy initializer (runs once on mount)

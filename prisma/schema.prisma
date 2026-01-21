@@ -158,22 +158,26 @@ model Payment {
 }
 
 model BulkPayment {
-  id                 String        @id @default(cuid())
-  invoiceNumber      String        @unique
-  daerahId           String
-  totalJumlah        Int
-  totalNominal       Int
-  buktiPembayaranUrl String
-  status             PaymentStatus @default(PENDING)
-  verifiedBy         String?
-  verifiedAt         DateTime?
-  submittedBy        String
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  daerah             Daerah        @relation(fields: [daerahId], references: [id])
-  submittedByUser    User          @relation("BulkPaymentSubmittedBy", fields: [submittedBy], references: [id])
-  verifiedByUser     User?         @relation("BulkPaymentVerifiedBy", fields: [verifiedBy], references: [id])
-  payments           Payment[]
+  id                    String        @id @default(cuid())
+  invoiceNumber         String        @unique
+  daerahId              String
+  totalJumlah           Int
+  totalNominal          Int
+  buktiPembayaranUrl    String
+  status                PaymentStatus @default(PENDING)
+  verifiedBy            String?
+  verifiedAt            DateTime?
+  submittedBy           String
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  daerah                Daerah        @relation(fields: [daerahId], references: [id])
+  submittedByUser       User          @relation("BulkPaymentSubmittedBy", fields: [submittedBy], references: [id])
+  verifiedByUser        User?         @relation("BulkPaymentVerifiedBy", fields: [verifiedBy], references: [id])
+  payments              Payment[]
+  midtransToken         String?
+  midtransRedirectUrl   String?
+  midtransTransactionId String?
+  midtransPaymentType   String?
 
   @@map("bulk_payments")
 }

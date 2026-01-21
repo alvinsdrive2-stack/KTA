@@ -470,8 +470,8 @@ export function DaerahComparisonCard({ data, className }: { data: DaerahComparis
           </div>
 
           <div className="bg-gradient-to-br from-Gatensi-blue to-Gatensi-blueDark rounded-xl p-5 text-white shadow-lg">
-            <div className="text-xs text-blue-100 mb-1">Total KTA Dicetak</div>
-            <div className="text-4xl font-bold count-up">{data.totalPrinted}</div>
+            <div className="text-xs text-slate-500 mb-1">Total KTA Dicetak</div>
+            <div className="text-4xl font-bold text-blue-800 count-up">{data.totalPrinted}</div>
           </div>
         </div>
       </CardContent>

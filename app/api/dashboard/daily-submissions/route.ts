@@ -14,6 +14,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const period = searchParams.get('period') || 'week'
 
+    const userRole = session.user?.role
+    const userDaerahId = session.user?.daerahId
+
     const now = new Date()
     // Create a new date object to avoid reference issues
     let startDate = new Date(now.getTime())
@@ -37,13 +40,21 @@ export async function GET(request: NextRequest) {
     startDate.setHours(0, 0, 0, 0)
     now.setHours(23, 59, 59, 999) // Include today
 
+    // Build where clause based on user role
+    const whereClause: any = {
+      createdAt: {
+        gte: startDate,
+      },
+    }
+
+    // Filter by daerahId for DAERAH role
+    if (userRole === 'DAERAH' && userDaerahId) {
+      whereClause.daerahId = userDaerahId
+    }
+
     // Fetch KTA requests grouped by date
     const ktaRequests = await prisma.kTARequest.findMany({
-      where: {
-        createdAt: {
-          gte: startDate,
-        },
-      },
+      where: whereClause,
       select: {
         createdAt: true,
       },
