@@ -530,7 +530,7 @@ export default function KTAApplyPage() {
                 {/* Price Breakdown */}
                 <div className="bg-slate-50 rounded-lg p-4 space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Harga Base</span>
+                    <span className="text-slate-600">Harga</span>
                     <span className="font-medium">Rp {hargaBase.toLocaleString('id-ID')}</span>
                   </div>
 

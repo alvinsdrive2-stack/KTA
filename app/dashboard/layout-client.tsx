@@ -758,7 +758,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
                     {session?.user?.name || 'Loading...'}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {session?.user?.role?.toLowerCase() || 'Loading...'}
+                    {session?.user?.role === 'PUSAT' ? 'BPP' : session?.user?.role === 'DAERAH' ? 'BPD' : session?.user?.role?.toLowerCase() || 'Loading...'}
                     {session?.user?.daerah?.namaDaerah && ` • ${session.user.daerah.namaDaerah}`}
                   </p>
                 </div>

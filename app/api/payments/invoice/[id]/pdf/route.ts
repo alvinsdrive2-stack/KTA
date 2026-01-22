@@ -136,15 +136,15 @@ export async function GET(
       console.error('Logo loading error:', error)
 
       // Draw text fallback
-      page.drawText('Gatensi', {
+      page.drawText('Gabungan Ahli', {
         x: width - margin - 110,
         y: yPosition,
         size: 14,
         font: fontBold,
         color: navyBlue
       })
-      page.drawText('KARYA KONSTRUKSI', {
-        x: width - margin - 120,
+      page.drawText('Teknik Nasional Indonesia', {
+        x: width - margin - 140,
         y: yPosition - 18,
         size: 14,
         font: fontBold,
@@ -487,7 +487,7 @@ export async function GET(
     summaryY -= lineHeight
 
     // Diskon
-    page.drawText('Diskon:', {
+    page.drawText('Porsi:', {
       x: rightX + 10,
       y: summaryY,
       size: 8,
@@ -554,7 +554,7 @@ export async function GET(
     })
     yPosition -= lineHeight
 
-    page.drawText('System - Gatensi Karya Konstruksi', {
+    page.drawText('System - Gabungan Ahli Teknik Nasional Indonesia', {
       x: margin,
       y: yPosition,
       size: 9,

@@ -8,13 +8,15 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Autocomplete } from '@/components/ui/autocomplete'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle, Upload, X, CreditCard, User, FileImage, IdCard, Eye, ZoomIn, ZoomOut } from 'lucide-react'
+import { AlertCircle, Upload, X, CreditCard, User, FileImage, IdCard, Eye, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { PulseLogo } from '@/components/ui/loading-spinner'
+import { PulseLogo, LSPSpinner } from '@/components/ui/loading-spinner'
 import { Separator as UISeparator } from '@/components/ui/separator'
 import { useSidebar } from '@/contexts/sidebar-context'
 import { useSession } from '@/hooks/useSession'
+import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
 
 const formSchema = z.object({
@@ -34,6 +36,7 @@ export default function CreateManualPage() {
   const router = useRouter()
   const { setSidebarCollapsed } = useSidebar()
   const { session } = useSession()
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -46,6 +49,18 @@ export default function CreateManualPage() {
   const [diskonPersen, setDiskonPersen] = useState(0)
   const [hargaBase, setHargaBase] = useState(0)
   const [hargaFinal, setHargaFinal] = useState(0)
+
+  // Reference data states
+  const [subklasifikasiList, setSubklasifikasiList] = useState<string[]>([])
+  const [jabatanKerjaList, setJabatanKerjaList] = useState<Array<{
+    id: string
+    subklasifikasi: string
+    jabatanKerja: string
+    jenjangId: string
+    idJabatanKerja: string
+  }>>([])
+  const [loadingSubklasifikasi, setLoadingSubklasifikasi] = useState(false)
+  const [loadingJabatanKerja, setLoadingJabatanKerja] = useState(false)
 
   // File states
   const [ktpFile, setKtpFile] = useState<File | null>(null)
@@ -75,6 +90,53 @@ export default function CreateManualPage() {
 
   // Watch jenjang for price calculation
   const jenjang = form.watch('jenjang')
+  const subklasifikasi = form.watch('subklasifikasi')
+
+  // Fetch subklasifikasi list on mount
+  useEffect(() => {
+    const fetchSubklasifikasi = async () => {
+      setLoadingSubklasifikasi(true)
+      try {
+        const response = await fetch('/api/referensi/subklasifikasi')
+        const data = await response.json()
+        if (data.success) {
+          setSubklasifikasiList(data.data.map((d: any) => d.subklasifikasi))
+        }
+      } catch (error) {
+        console.error('Failed to fetch subklasifikasi:', error)
+      } finally {
+        setLoadingSubklasifikasi(false)
+      }
+    }
+
+    fetchSubklasifikasi()
+  }, [])
+
+  // Fetch jabatan kerja when subklasifikasi changes (jenjang doesn't filter)
+  useEffect(() => {
+    const fetchJabatanKerja = async () => {
+      if (!subklasifikasi) {
+        setJabatanKerjaList([])
+        return
+      }
+
+      setLoadingJabatanKerja(true)
+      try {
+        const params = new URLSearchParams({ subklasifikasi })
+        const response = await fetch(`/api/referensi/jabatan-kerja?${params}`)
+        const data = await response.json()
+        if (data.success) {
+          setJabatanKerjaList(data.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch jabatan kerja:', error)
+      } finally {
+        setLoadingJabatanKerja(false)
+      }
+    }
+
+    fetchJabatanKerja()
+  }, [subklasifikasi])
 
   // Fetch daerah diskon on component mount
   useEffect(() => {
@@ -152,7 +214,10 @@ export default function CreateManualPage() {
 
     if (type === 'ktp') {
       setKtpFile(file)
-      if (file.type.startsWith('image/')) {
+      // For PDF files, store the file info for display
+      if (file.type === 'application/pdf') {
+        setKtpPreview('PDF')
+      } else if (file.type.startsWith('image/')) {
         const reader = new FileReader()
         reader.onloadend = () => setKtpPreview(reader.result as string)
         reader.readAsDataURL(file)
@@ -161,6 +226,7 @@ export default function CreateManualPage() {
       }
     } else {
       setFotoFile(file)
+      // Foto only allows images, not PDF
       if (file.type.startsWith('image/')) {
         const reader = new FileReader()
         reader.onloadend = () => setFotoPreview(reader.result as string)
@@ -205,14 +271,42 @@ export default function CreateManualPage() {
     return data.url
   }
 
+  const handleCancel = () => {
+    // Reset form
+    form.reset()
+    setKtpFile(null)
+    setKtpPreview(null)
+    setFotoFile(null)
+    setFotoPreview(null)
+    setError(null)
+    setUploadProgress(0)
+    setKtpModalOpen(false)
+    setFotoModalOpen(false)
+    setKtpZoom(1)
+    setFotoZoom(1)
+  }
+
   const onSubmit = async (data: FormData) => {
-    // Validate files
-    if (!ktpFile) {
-      setError('❌ Harap upload scan KTP')
-      return
-    }
-    if (!fotoFile) {
-      setError('❌ Harap upload pas foto')
+    // Validate all fields and show toast with reasons
+    const missingFields: string[] = []
+
+    if (!data.nik) missingFields.push('NIK')
+    if (!data.nama) missingFields.push('Nama Lengkap')
+    if (!data.subklasifikasi) missingFields.push('Sub Klasifikasi')
+    if (!data.jabatanKerja) missingFields.push('Jabatan Kerja')
+    if (!data.jenjang) missingFields.push('Jenjang')
+    if (!data.noTelp) missingFields.push('No. Telepon')
+    if (!data.email) missingFields.push('Email')
+    if (!data.alamat) missingFields.push('Alamat')
+    if (!ktpFile) missingFields.push('Scan KTP')
+    if (!fotoFile) missingFields.push('Pas Foto')
+
+    if (missingFields.length > 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Tidak dapat menyimpan permohonan',
+        description: `Lengkapi data berikut: ${missingFields.join(', ')}`,
+      })
       return
     }
 
@@ -220,14 +314,14 @@ export default function CreateManualPage() {
     setUploadProgress(0)
 
     try {
-      // Upload files
+      // Upload files and get URLs
       setUploadProgress(10)
       const ktpUrl = await uploadFile(ktpFile, 'ktp')
       setUploadProgress(50)
       const fotoUrl = await uploadFile(fotoFile, 'foto')
       setUploadProgress(80)
 
-      // Create KTA request
+      // Create KTA request with URLs
       const response = await fetch('/api/kta/create-manual', {
         method: 'POST',
         headers: {
@@ -247,17 +341,32 @@ export default function CreateManualPage() {
       if (response.ok) {
         router.push(`/dashboard/permohonan?success=true&nama=${encodeURIComponent(data.nama)}`)
       } else {
-        setError(`❌ ${result.error || 'Gagal menyimpan permohonan'}`)
+        toast({
+          variant: 'destructive',
+          title: 'Gagal menyimpan permohonan',
+          description: result.error || 'Terjadi kesalahan',
+        })
       }
     } catch (error) {
-      setError('❌ Gagal mengupload file atau menyimpan data. Periksa koneksi internet Anda.')
+      toast({
+        variant: 'destructive',
+        title: 'Gagal menyimpan permohonan',
+        description: 'Gagal mengupload file atau menyimpan data. Periksa koneksi internet Anda.',
+      })
     } finally {
       setIsLoading(false)
       setUploadProgress(0)
     }
   }
 
-  const jenjangOptions = Array.from({ length: 9 }, (_, i) => (i + 1).toString())
+  const jenjangOptions = Array.from({ length: 9 }, (_, i) => {
+    const num = i + 1
+    let label = num.toString()
+    if (num <= 3) label += ' - Operator'
+    else if (num <= 6) label += ' - Teknisi/Analis'
+    else label += ' - Ahli'
+    return label
+  })
 
   return (
     <div className={cn(
@@ -327,32 +436,17 @@ export default function CreateManualPage() {
                 )}
               </div>
 
-              {/* Jabatan Kerja */}
-              <div>
-                <Label htmlFor="jabatanKerja" className="text-slate-700">
-                  Jabatan Kerja <span className="text-red-600">*</span>
-                </Label>
-                <Input
-                  id="jabatanKerja"
-                  placeholder="Contoh: Ahli K3 Muda"
-                  {...form.register('jabatanKerja')}
-                  disabled={isLoading}
-                  className="bg-white"
-                />
-                {form.formState.errors.jabatanKerja && (
-                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.jabatanKerja.message}</p>
-                )}
-              </div>
-
               {/* Sub Klasifikasi */}
               <div>
                 <Label htmlFor="subklasifikasi" className="text-slate-700">
                   Sub Klasifikasi <span className="text-red-600">*</span>
                 </Label>
-                <Input
-                  id="subklasifikasi"
-                  placeholder="Contoh: M.562.01"
-                  {...form.register('subklasifikasi')}
+                <Autocomplete
+                  value={form.watch('subklasifikasi')}
+                  onChange={(value) => form.setValue('subklasifikasi', value)}
+                  placeholder="Ketik atau pilih sub klasifikasi..."
+                  options={subklasifikasiList}
+                  loading={loadingSubklasifikasi}
                   disabled={isLoading}
                   className="bg-white"
                 />
@@ -361,22 +455,58 @@ export default function CreateManualPage() {
                 )}
               </div>
 
+              {/* Jabatan Kerja */}
+              <div>
+                <Label htmlFor="jabatanKerja" className="text-slate-700">
+                  Jabatan Kerja <span className="text-red-600">*</span>
+                </Label>
+                <Autocomplete
+                  value={form.watch('jabatanKerja')}
+                  onChange={(value) => {
+                    form.setValue('jabatanKerja', value)
+                    // Auto-fill jenjang when jabatan kerja is selected, clear when empty
+                    if (value) {
+                      const selectedJabatan = jabatanKerjaList.find(jk => jk.jabatanKerja === value)
+                      if (selectedJabatan) {
+                        form.setValue('jenjang', selectedJabatan.jenjangId)
+                      }
+                    } else {
+                      // Clear jenjang when jabatan kerja is cleared
+                      form.setValue('jenjang', '')
+                    }
+                  }}
+                  placeholder={!subklasifikasi ? 'Pilih Sub Klasifikasi dulu' : 'Ketik atau pilih jabatan kerja...'}
+                  options={jabatanKerjaList.map(jk => jk.jabatanKerja)}
+                  loading={loadingJabatanKerja}
+                  disabled={isLoading || !subklasifikasi}
+                  className="bg-white"
+                />
+                {form.formState.errors.jabatanKerja && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.jabatanKerja.message}</p>
+                )}
+              </div>
+
               {/* Jenjang */}
               <div>
                 <Label htmlFor="jenjang" className="text-slate-700">
-                  Jenjang <span className="text-red-600">*</span>
+                  Jenjang - Kualifikasi <span className="text-red-600">*</span>
+                  <span className="text-xs text-slate-500 font-normal ml-1">(Auto-fill dari Jabatan Kerja)</span>
                 </Label>
-                <select
-                  id="jenjang"
-                  {...form.register('jenjang')}
-                  disabled={isLoading}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-slate-100"
-                >
-                  <option value="">Pilih Jenjang</option>
-                  {jenjangOptions.map(j => (
-                    <option key={j} value={j}>{j}</option>
-                  ))}
-                </select>
+                {form.watch('jenjang') ? (
+                  <div
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm bg-white text-slate-600"
+                  >
+                    {jenjangOptions.find(j => j.startsWith(form.watch('jenjang'))) || form.watch('jenjang')}
+                  </div>
+                ) : (
+                  <Input
+                    id="jenjang"
+                    {...form.register('jenjang')}
+                    disabled={true}
+                    placeholder="Pilih Jabatan Kerja dulu"
+                    className="bg-white"
+                  />
+                )}
                 {form.formState.errors.jenjang && (
                   <p className="text-sm text-red-600 mt-1">{form.formState.errors.jenjang.message}</p>
                 )}
@@ -478,37 +608,46 @@ export default function CreateManualPage() {
               <div className="mt-2">
                 {ktpPreview ? (
                   <div className="relative">
-                    <div className="border-2 border-slate-200 rounded-lg p-2 bg-slate-50">
-                      <img
-                        src={ktpPreview}
-                        alt="KTP Preview"
-                        className="w-full h-48 object-contain rounded"
-                      />
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setKtpModalOpen(true)}
-                        className="flex-1 border-slate-300"
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Preview
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setKtpFile(null)
-                          setKtpPreview(null)
-                        }}
-                        className="text-red-600 border-red-300 hover:bg-red-50"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    {/* Cancel button at top right */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setKtpFile(null)
+                        setKtpPreview(null)
+                      }}
+                      className="absolute -top-2 -right-2 h-7 w-7 p-0 rounded-full bg-white border-red-300 text-red-600 hover:bg-red-50 shadow-md z-10"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                    {ktpPreview === 'PDF' ? (
+                      // PDF File Preview - using object embed
+                      <div className="border-2 border-slate-200 rounded-lg p-2 bg-slate-50">
+                        <object
+                          data={URL.createObjectURL(ktpFile!)}
+                          type="application/pdf"
+                          className="w-full h-48 rounded"
+                        >
+                          <p className="flex items-center justify-center h-full text-sm text-slate-500">
+                            Preview PDF tidak tersedia di browser ini
+                          </p>
+                        </object>
+                        <div className="text-center mt-1">
+                          <p className="text-xs font-medium text-slate-700 truncate px-1">{ktpFile?.name}</p>
+                          <p className="text-xs text-slate-500">{(ktpFile?.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                      </div>
+                    ) : (
+                      // Image Preview
+                      <div className="border-2 border-slate-200 rounded-lg p-2 bg-slate-50">
+                        <img
+                          src={ktpPreview}
+                          alt="KTP Preview"
+                          className="w-full h-48 object-contain rounded"
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:border-blue-400 transition-colors">
@@ -553,36 +692,25 @@ export default function CreateManualPage() {
               <div className="mt-2">
                 {fotoPreview ? (
                   <div className="relative">
+                    {/* Cancel button at top right */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFotoFile(null)
+                        setFotoPreview(null)
+                      }}
+                      className="absolute -top-2 -right-2 h-7 w-7 p-0 rounded-full bg-white border-red-300 text-red-600 hover:bg-red-50 shadow-md z-10"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
                     <div className="border-2 border-slate-200 rounded-lg p-2 bg-slate-50">
                       <img
                         src={fotoPreview}
                         alt="Foto Preview"
                         className="w-full h-48 object-contain rounded"
                       />
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setFotoModalOpen(true)}
-                        className="flex-1 border-slate-300"
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Preview
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setFotoFile(null)
-                          setFotoPreview(null)
-                        }}
-                        className="text-red-600 border-red-300 hover:bg-red-50"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -642,7 +770,7 @@ export default function CreateManualPage() {
 
             <div className="bg-slate-50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-600">Harga Base</span>
+                <span className="text-slate-600">Harga</span>
                 <span className="font-medium">Rp {hargaBase.toLocaleString('id-ID')}</span>
               </div>
 
@@ -663,12 +791,6 @@ export default function CreateManualPage() {
               </div>
             </div>
 
-            <Alert className="bg-blue-50 border-blue-200">
-              <AlertCircle className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800 text-sm">
-                Harga berdasarkan jenjang: 1-6 = Rp 100.000, 7-9 = Rp 300.000
-              </AlertDescription>
-            </Alert>
 
             <Alert className="bg-amber-50 border-amber-200">
               <AlertCircle className="h-4 w-4 text-amber-600" />
@@ -689,9 +811,9 @@ export default function CreateManualPage() {
               variant="outline"
               onClick={() => router.back()}
               disabled={isLoading}
-              className="border-slate-300"
+              className="border-slate-300 hover:bg-slate-50"
             >
-              Batal
+              Kembali
             </Button>
             <Button
               onClick={form.handleSubmit(onSubmit)}
@@ -699,9 +821,9 @@ export default function CreateManualPage() {
               className="flex-1 bg-slate-800 text-slate-100 hover:bg-slate-700 shadow-md"
             >
               {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <PulseLogo className="scale-50" />
-                  {uploadProgress > 0 && ` (${uploadProgress}%)`}
+                <span className="flex items-center justify-center gap-2">
+                  <LSPSpinner size="sm" />
+                  <span>Memproses{uploadProgress > 0 && ` ${uploadProgress}%`}</span>
                 </span>
               ) : (
                 'Simpan Permohonan'
@@ -722,21 +844,41 @@ export default function CreateManualPage() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
               <h3 className="font-semibold text-slate-900">Scan KTP</h3>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('ktp', 'in')}>
-                  <ZoomIn className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('ktp', 'out')}>
-                  <ZoomOut className="h-3.5 w-3.5" />
-                </Button>
+                {ktpPreview !== 'PDF' && (
+                  <>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('ktp', 'in')}>
+                      <ZoomIn className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('ktp', 'out')}>
+                      <ZoomOut className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                )}
                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={closeAllPreviews}>
                   <X className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
             <div className="p-4 bg-slate-100 overflow-auto max-h-[70vh]">
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden flex justify-center" style={{ transform: `scale(${ktpZoom})`, transformOrigin: 'top center' }}>
-                <img src={ktpPreview} alt="KTP Preview" className="max-w-full" />
-              </div>
+              {ktpPreview === 'PDF' && ktpFile ? (
+                // PDF Preview Modal
+                <div className="bg-white rounded-lg shadow-sm overflow-hidden flex justify-center p-4" style={{ minHeight: '400px' }}>
+                  <object
+                    data={URL.createObjectURL(ktpFile)}
+                    type="application/pdf"
+                    className="w-full h-[60vh] rounded"
+                  >
+                    <p className="flex items-center justify-center h-full text-sm text-slate-500">
+                      Preview PDF tidak tersedia
+                    </p>
+                  </object>
+                </div>
+              ) : (
+                // Image Preview Modal
+                <div className="bg-white rounded-lg shadow-sm overflow-hidden flex justify-center" style={{ transform: `scale(${ktpZoom})`, transformOrigin: 'top center' }}>
+                  <img src={ktpPreview} alt="KTP Preview" className="max-w-full" />
+                </div>
+              )}
             </div>
           </div>
         </>

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
-import { cacheKTAPhotos } from '@/lib/photo-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -122,15 +121,10 @@ export async function POST(request: NextRequest) {
       where: { idIzin: idIzin }
     })
 
-    // Cache photos from SIKI (download & save locally for PDF generation)
-    // Or use base64 data if provided (for geo-blocked URLs)
-    console.log('Caching photos from SIKI...')
-    const { fotoUrl: cachedFotoUrl, ktpUrl: cachedKtpUrl } = await cacheKTAPhotos(
-      sikiData.fotoUrl || null,
-      sikiData.ktpUrl || null,
-      fotoData, // Base64 from client (for geo-blocked URLs)
-      ktpData  // Base64 from client
-    )
+    // Use original SIKI URLs directly without caching
+    // Base64 data can still be provided as fallback for geo-blocked URLs
+    const fotoUrl = sikiData.fotoUrl || null
+    const ktpUrl = sikiData.ktpUrl || null
 
     let ktaRequest
     if (existingRequest) {
@@ -149,8 +143,8 @@ export async function POST(request: NextRequest) {
           email: sikiData.email || '',
           alamat: sikiData.alamat || '',
           tanggalDaftar: sikiData.tgl_daftar ? new Date(sikiData.tgl_daftar) : new Date(),
-          ktpUrl: cachedKtpUrl,
-          fotoUrl: cachedFotoUrl,
+          ktpUrl: ktpUrl,
+          fotoUrl: fotoUrl,
           fotoData: fotoData, // Store base64 data for geo-blocked URLs
           hargaRegion: hargaFinal,
           hargaBase,
@@ -182,8 +176,8 @@ export async function POST(request: NextRequest) {
           hargaBase,
           diskonPersen,
           hargaFinal,
-          ktpUrl: cachedKtpUrl,
-          fotoUrl: cachedFotoUrl,
+          ktpUrl: ktpUrl,
+          fotoUrl: fotoUrl,
           fotoData: fotoData, // Store base64 data for geo-blocked URLs
         },
       })

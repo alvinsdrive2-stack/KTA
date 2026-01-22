@@ -36,7 +36,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="text-center mt-5 text-xs text-slate-500">
-          <p>&copy; 2025 Gatensi Karya Konstruksi</p>
+          <p>&copy; 2025 Gabungan Ahli Teknik Nasional Indonesia</p>
         </div>
       </div>
     </div>

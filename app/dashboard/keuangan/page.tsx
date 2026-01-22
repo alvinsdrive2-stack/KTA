@@ -188,7 +188,7 @@ export default function KeuanganPage() {
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">Dashboard Keuangan</h1>
               <p className="text-white/90">
-                Pantau dan analisis pendapatan Gatensi Karya Konstruksi
+                Pantau dan analisis pendapatan Gabungan Ahli Teknik Nasional Indonesia
               </p>
             </div>
             <div className="flex items-center gap-3">

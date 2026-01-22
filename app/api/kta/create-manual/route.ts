@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
-import { cacheKTAPhotos } from '@/lib/photo-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,12 +33,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
     }
 
-    // Validate files (either URL or base64 data)
-    const hasKtp = ktpUrl || ktpData
-    const hasFoto = fotoUrl || fotoData
-
-    if (!hasKtp || !hasFoto) {
-      return NextResponse.json({ error: 'KTP and foto are required (URL or data)' }, { status: 400 })
+    // Validate files (require base64 data for manual KTA)
+    if (!ktpData) {
+      return NextResponse.json({ error: 'KTP file is required' }, { status: 400 })
+    }
+    if (!fotoData) {
+      return NextResponse.json({ error: 'Foto file is required' }, { status: 400 })
     }
 
     // Determine daerah
@@ -70,15 +69,9 @@ export async function POST(request: NextRequest) {
     // Generate ID Izin (M - for Manual)
     const idIzin = `M${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
-    // Cache photos (download & save locally for PDF generation)
-    // Or use base64 data if provided (for geo-blocked URLs)
-    console.log('Caching photos for manual KTA...')
-    const { fotoUrl: cachedFotoUrl, ktpUrl: cachedKtpUrl } = await cacheKTAPhotos(
-      fotoUrl || null,
-      ktpUrl || null,
-      fotoData, // Base64 from client (for geo-blocked URLs)
-      ktpData  // Base64 from client
-    )
+    // Use URLs directly for manual KTA (uploaded files)
+    const finalFotoUrl = fotoUrl || null
+    const finalKtpUrl = ktpUrl || null
 
     // Create KTA Request
     const ktaRequest = await prisma.kTARequest.create({
@@ -92,9 +85,9 @@ export async function POST(request: NextRequest) {
         noTelp,
         email,
         alamat,
-        ktpUrl: cachedKtpUrl,
-        fotoUrl: cachedFotoUrl,
-        fotoData: fotoData, // Store base64 data for geo-blocked URLs
+        ktpUrl: null, // Not using URL for manual KTA
+        fotoUrl: null, // Not using URL for manual KTA
+        fotoData: JSON.stringify(combinedData), // Store both foto and ktp base64 as JSON
         daerahId: finalDaerahId,
         requestedBy: session.user.id,
         status: 'DRAFT',
