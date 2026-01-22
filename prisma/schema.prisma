@@ -206,6 +206,34 @@ model QRScan {
   @@map("qr_scans")
 }
 
+model JabatanKerja {
+  id                  String   @id @default(cuid())
+  lspIdKlasifikasi    String
+  klasifikasi         String
+  klasifikasiEn       String?
+  lspSubKlasifikasiId String
+  subklasifikasi      String
+  subklasifikasiEn    String?
+  lspKualifikasiId    String
+  kualifikasi         String
+  kualifikasiEn       String?
+  idJabker            String
+  idJabatanKerja      String   @unique
+  jabatanKerja        String
+  workPosition        String?
+  jenjangId           String
+  acuan               String?
+  keterangan          String?
+  status              String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([subklasifikasi])
+  @@index([jenjangId])
+  @@index([idJabatanKerja])
+  @@map("jabatan_kerja")
+}
+
 enum UserRole {
   DAERAH
   PUSAT

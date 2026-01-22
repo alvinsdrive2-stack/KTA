@@ -86,7 +86,7 @@ export function VerifyKTAPageClient({ ktaData }: VerifyKTAPageClientProps) {
                       Kartu Tanda Anggota
                     </h1>
                     <p className="text-blue-200 text-sm font-medium">
-                      Gatensi Karya Konstruksi
+                      Gabungan Ahli Teknik Nasional Indonesia
                     </p>
                   </div>
                 </div>
@@ -246,7 +246,7 @@ export function VerifyKTAPageClient({ ktaData }: VerifyKTAPageClientProps) {
                   Scan QR Code untuk verifikasi keaslian dokumen
                 </p>
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  &copy; 2025 Gatensi Karya Konstruksi
+                  &copy; 2025 Gabungan Ahli Teknik Nasional Indonesia
                 </p>
               </div>
             </div>

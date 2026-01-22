@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { writeFile, mkdir } from 'fs/promises'
+import path from 'path'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,29 +43,55 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invoice is not in PENDING status' }, { status: 400 })
     }
 
-    // Convert file to base64
+    // Save payment proof file to public/uploads/payments/
+    const timestamp = Date.now()
+    const fileExtension = paymentProof.name.split('.').pop()
+    const fileName = `payment-proof-${timestamp}.${fileExtension}`
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'payments')
+
+    // Create directory if it doesn't exist
+    await mkdir(uploadDir, { recursive: true })
+
+    // Convert file to buffer and save
     const bytes = await paymentProof.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    const base64 = buffer.toString('base64')
-    const dataUrl = `data:${paymentProof.type};base64,${base64}`
+    const filePath = path.join(uploadDir, fileName)
+    await writeFile(filePath, buffer)
 
-    // Update bulk payment with proof
+    // Use URL path for accessing the file
+    const proofUrl = `/uploads/payments/${fileName}`
+
+    // Update bulk payment with proof URL and PAID status
     await prisma.bulkPayment.update({
       where: { id: bulkPaymentId },
       data: {
-        buktiPembayaranUrl: dataUrl,
-        status: 'PAID'
+        buktiPembayaranUrl: proofUrl,
+        status: 'VERIFIED',
       }
     })
 
-    // Update all related KTA requests status
+    // Update all related payments to PAID
+    await prisma.payment.updateMany({
+      where: { bulkPaymentId },
+      data: {
+        statusPembayaran: 'VERIFIED',
+        paidAt: new Date()
+      }
+    })
+
+    // Update all related KTA requests status based on role
     const ktaRequestIds = bulkPayment.payments.map(p => p.ktaRequestId)
+
+    // Get user role from session
+    const isDaerah = session.user.role === 'DAERAH'
+    const ktaStatus = isDaerah ? 'READY_FOR_PUSAT' : 'READY_TO_PRINT'
+
     await prisma.kTARequest.updateMany({
       where: {
         id: { in: ktaRequestIds }
       },
       data: {
-        status: 'WAITING_PAYMENT'
+        status: ktaStatus
       }
     })
 

@@ -5,10 +5,14 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Download, FileText, Loader2, CreditCard, CheckCircle2, Clock } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ArrowLeft, Download, FileText, Loader2, CreditCard, CheckCircle2, Clock, Upload, AlertCircle } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
 import { useMidtransPayment } from '@/hooks/use-midtrans-payment'
+import { useSession } from '@/hooks/useSession'
 
 interface Payment {
   id: string
@@ -56,10 +60,15 @@ export default function InvoiceDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
+  const { session } = useSession()
   const { pay: payWithMidtrans, isLoading: isMidtransLoading } = useMidtransPayment()
   const [invoice, setInvoice] = useState<BulkPayment | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [paymentProof, setPaymentProof] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (params.id) {
@@ -138,6 +147,64 @@ export default function InvoiceDetailPage() {
         title: 'Pembayaran Gagal',
         description: result.error,
       })
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (!file.type.match(/image\/(jpeg|jpg|png)/) && !file.type.includes('pdf')) {
+        setUploadError('Hanya menerima file JPG, JPEG, PNG, atau PDF')
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setUploadError('Ukuran file maksimal 5MB')
+        return
+      }
+      setPaymentProof(file)
+      setUploadError(null)
+    }
+  }
+
+  const handleUploadProof = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!paymentProof || !invoice) {
+      setUploadError('Harap pilih file bukti pembayaran')
+      return
+    }
+
+    setUploading(true)
+    setUploadError(null)
+
+    const formData = new FormData()
+    formData.append('paymentProof', paymentProof)
+    formData.append('bulkPaymentId', invoice.id)
+
+    try {
+      const response = await fetch('/api/payments/upload-proof', {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          variant: 'success',
+          title: 'Upload Berhasil',
+          description: 'Bukti pembayaran telah diupload dan menunggu verifikasi'
+        })
+        setShowUploadModal(false)
+        setPaymentProof(null)
+        fetchInvoice(params.id as string)
+      } else {
+        setUploadError(result.error || 'Gagal mengupload bukti pembayaran')
+      }
+    } catch (error) {
+      setUploadError('Terjadi kesalahan saat mengupload bukti pembayaran')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -323,35 +390,62 @@ export default function InvoiceDetailPage() {
 
           {/* Payment CTA */}
           {isPending ? (
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-600 rounded-full">
-                    <CreditCard className="h-6 w-6 text-white" />
+            <div className="space-y-4">
+              {/* Midtrans Payment Option */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-blue-600 rounded-full">
+                      <CreditCard className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-900">Pembayaran Online</h3>
+                      <p className="text-sm text-slate-600">Bayar dengan QRIS, GoPay, OVO, Bank Transfer, dll</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-slate-900">Pembayaran Aman & Mudah</h3>
-                    <p className="text-sm text-slate-600">Bayar dengan QRIS, GoPay, OVO, Bank Transfer, dll</p>
-                  </div>
+                  <Button
+                    onClick={handlePaymentWithMidtrans}
+                    disabled={isMidtransLoading}
+                    size="lg"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg w-full sm:w-auto"
+                  >
+                    {isMidtransLoading ? (
+                      <>
+                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                        Memproses...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="h-5 w-5 mr-2" />
+                        Bayar Online
+                      </>
+                    )}
+                  </Button>
                 </div>
-                <Button
-                  onClick={handlePaymentWithMidtrans}
-                  disabled={isMidtransLoading}
-                  size="lg"
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg w-full sm:w-auto"
-                >
-                  {isMidtransLoading ? (
-                    <>
-                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                      Memproses...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="h-5 w-5 mr-2" />
-                      Bayar Sekarang
-                    </>
-                  )}
-                </Button>
+              </div>
+
+              {/* Manual Payment Option */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-green-600 rounded-full">
+                      <Upload className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-900">Transfer Bank Manual</h3>
+                      <p className="text-sm text-slate-600">Upload bukti transfer setelah melakukan pembayaran</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => setShowUploadModal(true)}
+                    variant="outline"
+                    size="lg"
+                    className="border-green-600 text-green-700 hover:bg-green-50 w-full sm:w-auto"
+                  >
+                    <Upload className="h-5 w-5 mr-2" />
+                    Upload Bukti
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (
@@ -372,6 +466,86 @@ export default function InvoiceDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Upload Proof Modal */}
+      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload Bukti Pembayaran</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUploadProof} className="space-y-4">
+            {invoice && (
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <p className="text-sm font-medium">{invoice.invoiceNumber}</p>
+                <p className="text-2xl font-bold text-green-600 mt-2">
+                  {formatCurrency(totalTagihan)}
+                </p>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Upload Bukti Transfer
+              </label>
+              <Input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={handleFileChange}
+                required
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Format: JPG, JPEG, PNG, PDF (Maks. 5MB)
+              </p>
+            </div>
+
+            {uploadError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{uploadError}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="text-xs text-slate-500 space-y-1 bg-slate-50 p-3 rounded">
+              <p><strong>Rekening Tujuan:</strong></p>
+              <p>Bank: BNI</p>
+              <p>No. Rekening: 1234567890</p>
+              <p>a.n. Gabungan Ahli Teknik Nasional Indonesia</p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowUploadModal(false)
+                  setPaymentProof(null)
+                  setUploadError(null)
+                }}
+                className="flex-1"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={uploading || !paymentProof}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Mengupload...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -5,13 +5,18 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Dialog,
-  DialogContent
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '@/components/ui/dialog'
-import { ArrowLeft, Download, FileText, User, IdCard, Calendar, MapPin, Phone, Mail, Building, Eye } from 'lucide-react'
+import { ArrowLeft, Download, FileText, User, IdCard, Calendar, MapPin, Phone, Mail, Building, Eye, Upload, AlertCircle, Loader2 } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useSession } from '@/hooks/useSession'
+import { useToast } from '@/components/ui/use-toast'
 
 interface KTARequest {
   id: string
@@ -50,10 +55,15 @@ export default function KTADetailPage() {
   const params = useParams()
   const router = useRouter()
   const { session } = useSession()
+  const { toast } = useToast()
   const [kta, setKta] = useState<KTARequest | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentProof, setPaymentProof] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
 
   const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN'
 
@@ -117,6 +127,65 @@ export default function KTADetailPage() {
       alert('Gagal mendownload PDF')
     } finally {
       setDownloading(false)
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (!file.type.match(/image\/(jpeg|jpg|png)/) && !file.type.includes('pdf')) {
+        setPaymentError('Hanya menerima file JPG, JPEG, PNG, atau PDF')
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setPaymentError('Ukuran file maksimal 5MB')
+        return
+      }
+      setPaymentProof(file)
+      setPaymentError(null)
+    }
+  }
+
+  const handleSubmitPayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!paymentProof || !kta) {
+      setPaymentError('Harap pilih file bukti pembayaran')
+      return
+    }
+
+    setUploading(true)
+    setPaymentError(null)
+
+    const formData = new FormData()
+    formData.append('paymentProof', paymentProof)
+    formData.append('requestIds', JSON.stringify([kta.id]))
+
+    try {
+      const response = await fetch('/api/kta/bulk-payment', {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          variant: 'success',
+          title: 'Pembayaran Berhasil',
+          description: 'Bukti pembayaran telah diupload dan menunggu verifikasi'
+        })
+        setShowPaymentModal(false)
+        setPaymentProof(null)
+        // Refresh KTA data
+        fetchKTADetail(kta.id)
+      } else {
+        setPaymentError(result.error || 'Gagal mengupload pembayaran')
+      }
+    } catch (error) {
+      setPaymentError('Terjadi kesalahan saat mengupload pembayaran')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -362,6 +431,38 @@ export default function KTADetailPage() {
             </Card>
           )}
 
+          {/* Payment Card - Show if no payment exists */}
+          {(!kta.payments || kta.payments.length === 0) && (
+            <Card className="card-3d">
+              <CardHeader className="border-b border-slate-200 bg-slate-50/50">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FileText className="h-5 w-5 text-slate-700" />
+                  Pembayaran
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm text-slate-500">Harga</p>
+                    <p className="font-semibold text-slate-900">
+                      Rp {kta.hargaFinal?.toLocaleString('id-ID') || '-'}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setShowPaymentModal(true)}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Bayar Manual
+                  </Button>
+                  <p className="text-xs text-slate-500 text-center">
+                    Upload bukti pembayaran
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Download Card */}
           <Card className="card-3d">
             <CardHeader className="border-b border-slate-200 bg-slate-50/50">
@@ -424,6 +525,87 @@ export default function KTADetailPage() {
               Download PDF
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Modal */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload Bukti Pembayaran</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmitPayment} className="space-y-4">
+            {kta && (
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <p className="text-sm font-medium">{kta.nama}</p>
+                <p className="text-xs text-slate-500">{kta.idIzin}</p>
+                <p className="text-lg font-bold text-green-600 mt-2">
+                  Rp {kta.hargaFinal?.toLocaleString('id-ID')}
+                </p>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Upload Bukti Pembayaran
+              </label>
+              <Input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={handleFileChange}
+                required
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Format: JPG, JPEG, PNG, PDF (Maks. 5MB)
+              </p>
+            </div>
+
+            {paymentError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{paymentError}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="text-xs text-slate-500 space-y-1 bg-slate-50 p-3 rounded">
+              <p><strong>Rekening Tujuan:</strong></p>
+              <p>Bank: BNI</p>
+              <p>No. Rekening: 1234567890</p>
+              <p>a.n. Gabungan Ahli Teknik Nasional Indonesia</p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowPaymentModal(false)
+                  setPaymentProof(null)
+                  setPaymentError(null)
+                }}
+                className="flex-1"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={uploading || !paymentProof}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Mengupload...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

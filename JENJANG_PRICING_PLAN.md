@@ -5,7 +5,7 @@ Mengubah sistem harga KTA dari flat rate per daerah menjadi harga berdasarkan je
 
 ## 🎯 Requirements
 
-### Harga Base (Fixed)
+### Harga (Fixed)
 - **Jenjang 1-6**: Rp. 100.000
 - **Jenjang 7-9**: Rp. 300.000
 
@@ -16,7 +16,7 @@ Mengubah sistem harga KTA dari flat rate per daerah menjadi harga berdasarkan je
 
 ### Perhitungan Harga Final
 ```
-Harga Final = Harga Base - (Diskon% × Harga Base)
+Harga Final = Harga - (Diskon% × Harga)
 
 Contoh:
 - Jenjang 3, Diskon 0%   = Rp. 100.000
@@ -238,7 +238,7 @@ useEffect(() => {
       {/* Price Breakdown */}
       <div className="bg-slate-50 rounded-lg p-4 space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-slate-600">Harga Base</span>
+          <span className="text-slate-600">Harga</span>
           <span className="font-medium">Rp {hargaBase.toLocaleString('id-ID')}</span>
         </div>
 

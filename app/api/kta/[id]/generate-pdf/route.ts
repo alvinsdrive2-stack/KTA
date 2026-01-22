@@ -199,15 +199,18 @@ export async function GET(
     }
 
     // Prepare data for PDF generation
-    // Try to fetch photo via proxy for external URLs (at generation time)
+    // Fetch photo directly from SIKI URL (no caching)
     let fotoData = ktaRequest.fotoData || undefined
 
     if (!fotoData && ktaRequest.fotoUrl && ktaRequest.fotoUrl.startsWith('http')) {
-      // Try to fetch via internal proxy
+      // Fetch directly from SIKI API URL
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-        const proxyUrl = `${baseUrl}/api/proxy/image?url=${encodeURIComponent(ktaRequest.fotoUrl)}`
-        const response = await fetch(proxyUrl)
+        console.log(`📸 Fetching photo directly from SIKI: ${ktaRequest.fotoUrl}`)
+        const response = await fetch(ktaRequest.fotoUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+        })
 
         if (response.ok) {
           const arrayBuffer = await response.arrayBuffer()
@@ -215,12 +218,12 @@ export async function GET(
           const contentType = response.headers.get('content-type') || 'image/jpeg'
           const mimeType = contentType.split(';')[0].trim()
           fotoData = `data:${mimeType};base64,${buffer.toString('base64')}`
-          console.log(`✅ Fetched photo via proxy for ${ktaRequest.nama}`)
+          console.log(`✅ Fetched photo from SIKI for ${ktaRequest.nama}`)
         } else {
-          console.log(`⚠️ Proxy fetch failed: ${response.status}`)
+          console.log(`⚠️ SIKI fetch failed: ${response.status}`)
         }
       } catch (error) {
-        console.log(`⚠️ Proxy fetch error:`, error instanceof Error ? error.message : 'Unknown')
+        console.log(`⚠️ SIKI fetch error:`, error instanceof Error ? error.message : 'Unknown')
       }
     }
 
