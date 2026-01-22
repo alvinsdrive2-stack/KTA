@@ -19,10 +19,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch KTA requests
+    // For PUSAT/ADMIN, don't filter by daerahId - they can create invoices for any daerah
+    const userRole = session.user.role
+    const isPusatOrAdmin = userRole === 'PUSAT' || userRole === 'ADMIN'
+
     const ktaRequests = await prisma.kTARequest.findMany({
       where: {
         id: { in: requestIds },
-        daerahId: session.user.daerahId
+        ...(isPusatOrAdmin ? {} : { daerahId: session.user.daerahId })
       }
     })
 
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest) {
       submittedBy: session.user.id,
     })
 
-    // Create bulk payment record
+    // Create bulk payment record - same flow for PUSAT and DAERAH
     const bulkPayment = await prisma.bulkPayment.create({
       data: {
         invoiceNumber,

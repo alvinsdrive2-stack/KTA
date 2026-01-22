@@ -273,10 +273,7 @@ export default function KTAApplyPage() {
   }
 
   return (
-    <div className={cn(
-      'space-y-5 transition-all duration-300',
-      (ktpModalOpen || fotoModalOpen) && 'pr-[480px]'
-    )}>
+    <div className="space-y-5 transition-all duration-300">
       {/* Header - 3D Style */}
       <div className="animate-slide-up-stagger stagger-1">
         <h1 className="text-2xl font-semibold text-slate-900">Permohonan KTA Baru</h1>
@@ -613,92 +610,138 @@ export default function KTAApplyPage() {
       {/* Floating Preview Panels */}
       {(ktpModalOpen || fotoModalOpen) && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - Full screen on mobile, partial on desktop */}
           <div
-            className="fixed inset-y-0 left-0 right-[444px] z-30"
+            className="fixed inset-0 z-30 bg-black/50 lg:bg-transparent lg:inset-y-0 lg:left-0 lg:right-[444px]"
             onClick={closeAllPreviews}
           />
 
-          {/* Combined Preview Container */}
-          <div className="fixed top-6 bottom-6 right-6 w-[420px] flex flex-col gap-0 z-40">
-            {/* KTP Preview Panel - Top */}
-            {ktpModalOpen && sikiData.ktpUrl && (
-              <div className="flex-1 bg-white rounded-t-xl shadow-2xl overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
-                  <h3 className="font-semibold text-slate-900 text-sm">Scan KTP</h3>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('ktp', 'in')}>
-                      <ZoomIn className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('ktp', 'out')}>
-                      <ZoomOut className="h-3.5 w-3.5" />
-                    </Button>
+          {/* Combined Preview Container - Full screen on mobile */}
+          <div className="fixed inset-0 lg:inset-y-6 lg:inset-x-auto lg:right-6 lg:left-auto lg:top-6 lg:bottom-6 lg:w-[420px] flex flex-col z-40 bg-white lg:bg-transparent">
+            {/* Mobile Header - Close button */}
+            <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <h3 className="font-semibold text-slate-900">Bandingkan Dokumen</h3>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={closeAllPreviews}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Scrollable Content Area - Only on mobile */}
+            <div className="flex-1 lg:flex lg:flex-col overflow-y-auto lg:overflow-visible">
+              {/* KTP Preview Panel */}
+              {ktpModalOpen && sikiData.ktpUrl && (
+                <div className="lg:flex-1 bg-white lg:rounded-t-xl shadow-2xl overflow-hidden flex flex-col">
+                  <div className="hidden lg:flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+                    <h3 className="font-semibold text-slate-900 text-sm">Scan KTP</h3>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('ktp', 'in')}>
+                        <ZoomIn className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('ktp', 'out')}>
+                        <ZoomOut className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  {/* Mobile KTP Header */}
+                  <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+                    <h3 className="font-semibold text-slate-900">Scan KTP</h3>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleZoom('ktp', 'in')}>
+                        <ZoomIn className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleZoom('ktp', 'out')}>
+                        <ZoomOut className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex-1 p-3 lg:p-3 bg-slate-100 overflow-auto min-h-[300px] lg:min-h-0">
+                    <div className="bg-white rounded-lg shadow-sm overflow-hidden h-full flex justify-center" style={{ transform: `scale(${ktpZoom})`, transformOrigin: 'top center' }}>
+                      {sikiData.ktpUrl.toLowerCase().endsWith('.pdf') ? (
+                        <iframe
+                          src={sikiData.ktpUrl}
+                          className="w-full h-full"
+                          title="Scan KTP PDF"
+                        />
+                      ) : (
+                        <img
+                          src={sikiData.ktpUrl}
+                          alt="Scan KTP"
+                          className="w-full h-auto object-contain"
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <div className="px-3 py-2 lg:px-3 lg:py-2 border-t border-slate-200 bg-slate-50 flex justify-center">
+                    <p className="text-xs text-slate-500">{Math.round(ktpZoom * 100)}%</p>
                   </div>
                 </div>
-                <div className="flex-1 p-3 bg-slate-100 overflow-auto">
-                  <div className="bg-white rounded-lg shadow-sm overflow-hidden h-full" style={{ transform: `scale(${ktpZoom})`, transformOrigin: 'top center' }}>
-                    {sikiData.ktpUrl.toLowerCase().endsWith('.pdf') ? (
-                      <iframe
-                        src={sikiData.ktpUrl}
-                        className="w-full h-full"
-                        title="Scan KTP PDF"
-                      />
-                    ) : (
+              )}
+
+              {/* Divider */}
+              {ktpModalOpen && fotoModalOpen && (
+                <div className="h-2 lg:h-0" />
+              )}
+
+              {/* Pas Foto Preview Panel */}
+              {fotoModalOpen && sikiData.fotoUrl && (
+                <div className="lg:flex-1 bg-white lg:rounded-b-xl shadow-2xl overflow-hidden flex flex-col">
+                  <div className="hidden lg:flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+                    <h3 className="font-semibold text-slate-900 text-sm">Pas Foto</h3>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('foto', 'in')}>
+                        <ZoomIn className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('foto', 'out')}>
+                        <ZoomOut className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={closeAllPreviews}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  {/* Mobile Foto Header */}
+                  <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+                    <h3 className="font-semibold text-slate-900">Pas Foto</h3>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleZoom('foto', 'in')}>
+                        <ZoomIn className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleZoom('foto', 'out')}>
+                        <ZoomOut className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex-1 p-3 lg:p-3 bg-slate-100 overflow-auto min-h-[300px] lg:min-h-0">
+                    <div className="bg-white rounded-lg shadow-sm overflow-hidden h-full flex justify-center" style={{ transform: `scale(${fotoZoom})`, transformOrigin: 'top center' }}>
                       <img
-                        src={sikiData.ktpUrl}
-                        alt="Scan KTP"
-                        className="w-full h-auto object-contain"
+                        src={sikiData.fotoUrl}
+                        alt="Pas Foto"
+                        className="max-w-full max-h-full object-contain"
                       />
-                    )}
+                    </div>
+                  </div>
+                  <div className="px-3 py-2 lg:px-3 lg:py-2 border-t border-slate-200 bg-slate-50 flex justify-center">
+                    <p className="text-xs text-slate-500">{Math.round(fotoZoom * 100)}%</p>
                   </div>
                 </div>
-                <div className="px-3 py-2 border-t border-slate-200 bg-slate-50 flex justify-center">
-                  <p className="text-xs text-slate-500">{Math.round(ktpZoom * 100)}%</p>
-                </div>
-              </div>
-            )}
+              )}
 
-            {/* Divider */}
-            {ktpModalOpen && fotoModalOpen && (
-              <div className="h-0" />
-            )}
-
-            {/* Pas Foto Preview Panel - Bottom */}
-            {fotoModalOpen && sikiData.fotoUrl && (
-              <div className="flex-1 bg-white rounded-b-xl shadow-2xl overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
-                  <h3 className="font-semibold text-slate-900 text-sm">Pas Foto</h3>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('foto', 'in')}>
-                      <ZoomIn className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleZoom('foto', 'out')}>
-                      <ZoomOut className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0"
-                      onClick={closeAllPreviews}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex-1 p-3 bg-slate-100 overflow-auto">
-                  <div className="bg-white rounded-lg shadow-sm overflow-hidden h-full flex justify-center" style={{ transform: `scale(${fotoZoom})`, transformOrigin: 'top center' }}>
-                    <img
-                      src={sikiData.fotoUrl}
-                      alt="Pas Foto"
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                </div>
-                <div className="px-3 py-2 border-t border-slate-200 bg-slate-50 flex justify-center">
-                  <p className="text-xs text-slate-500">{Math.round(fotoZoom * 100)}%</p>
-                </div>
+              {/* Mobile Close Button at Bottom */}
+              <div className="lg:hidden p-4 border-t border-slate-200 bg-slate-50">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={closeAllPreviews}
+                >
+                  Tutup
+                </Button>
               </div>
-            )}
+            </div>
           </div>
         </>
       )}
