@@ -25,20 +25,26 @@ interface SIKIResponse {
 export class SIKIApiClient {
   private baseUrl = 'https://siki.pu.go.id/siki-api/v1'
   private baseUrlV2 = 'https://siki.pu.go.id/siki-api/v2'
-  private token: string
+  private overrideToken: string | null = null
   private testMode: boolean
 
   constructor(token?: string, testMode: boolean = false) {
-    this.token = token || process.env.SIKI_API_TOKEN || ''
+    // Store override token if provided, but read process.env lazily
+    this.overrideToken = token || null
     // Allow test mode override
     this.testMode = testMode
+  }
+
+  // Lazy getter for token - reads from process.env at runtime, not at module load
+  private getToken(): string {
+    return this.overrideToken || process.env.SIKI_API_TOKEN || ''
   }
 
   async getJabatanKerjaList(): Promise<any> {
     try {
       const response = await fetch(`${this.baseUrlV2}/jabatan-kerja`, {
         headers: {
-          'token': this.token,
+          'token': this.getToken(),
           'Content-Type': 'application/json',
         },
       })
@@ -60,7 +66,7 @@ export class SIKIApiClient {
     try {
       const response = await fetch(`${this.baseUrlV2}/subklasifikasi`, {
         headers: {
-          'token': this.token,
+          'token': this.getToken(),
           'Content-Type': 'application/json',
         },
       })
@@ -136,7 +142,7 @@ export class SIKIApiClient {
   async getPermohonanSKK(idIzin: string): Promise<SIKIResponse> {
     try {
       // Check if token is available
-      if (!this.token || this.token.trim() === '') {
+      if (!this.getToken() || this.getToken().trim() === '') {
         console.error('SIKI_API_TOKEN is not set or empty')
         return {
           success: false,
@@ -168,7 +174,7 @@ export class SIKIApiClient {
       const url = `${this.baseUrl}/permohonan-skk/${idIzin}`
 
       console.log('Fetching SIKI data from:', url)
-      console.log('Token (first 10 chars):', this.token.substring(0, 10) + '...')
+      console.log('Token (first 10 chars):', this.getToken().substring(0, 10) + '...')
 
       // Use fetch API (more compatible with Vercel)
       const controller = new AbortController()
@@ -177,7 +183,7 @@ export class SIKIApiClient {
       try {
         const response = await fetch(url, {
           headers: {
-            'token': this.token,
+            'token': this.getToken(),
             'Content-Type': 'application/json',
           },
           signal: controller.signal,
