@@ -363,7 +363,7 @@ export default function PusatPaymentPage() {
                       <tr
                         key={payment.id}
                         className="border-b border-slate-100 hover:bg-blue-50 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/dashboard/payments/pusat/invoice/${payment.id}`)}
+                        onClick={() => router.push(`/dashboard/payments/daerah/invoice/${payment.id}`)}
                       >
                         <td className="py-3 px-4">
                           <p className="font-medium text-slate-900">{payment.invoiceNumber}</p>

@@ -347,16 +347,6 @@ export default function PusatInvoiceDetailPage() {
                     {new Date(payment.createdAt).toLocaleString('id-ID')}
                   </span>
                 </div>
-                <div className="pt-2">
-                  <p className="text-gray-600 mb-2">Bukti Pembayaran</p>
-                  <div className="border rounded-lg overflow-hidden bg-slate-50">
-                    <img
-                      src={payment.buktiPembayaranUrl}
-                      alt="Bukti Pembayaran"
-                      className="w-full h-auto"
-                    />
-                  </div>
-                </div>
                 {payment.verifiedByUser && (
                   <>
                     <div className="flex justify-between border-b pb-2">

@@ -123,13 +123,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Bulk payment ID is required' }, { status: 400 })
     }
 
-    // Get the bulk payment with its payments
+    // Get the bulk payment with its payments and submitter info
     const bulkPayment = await prisma.bulkPayment.findUnique({
       where: { id: bulkPaymentId },
       include: {
         payments: {
           include: {
             ktaRequest: true
+          }
+        },
+        submittedByUser: {
+          select: {
+            role: true
           }
         }
       }
@@ -161,37 +166,64 @@ export async function POST(request: NextRequest) {
     // If approved, update KTA requests status and generate PDFs
     if (approved) {
       const ktaIds = bulkPayment.payments.map(p => p.ktaRequestId)
+      const submitterRole = bulkPayment.submittedByUser?.role
+      const isPusatOrAdminSubmitter = submitterRole === 'PUSAT' || submitterRole === 'ADMIN'
+
       console.log(`🔐 Approving bulk payment ${bulkPayment.invoiceNumber} with ${ktaIds.length} KTAs`)
+      console.log(`👤 Submitter role: ${submitterRole}, isPusatOrAdmin: ${isPusatOrAdminSubmitter}`)
 
-      await prisma.kTARequest.updateMany({
-        where: {
-          id: {
-            in: ktaIds
+      // If submitted by PUSAT/ADMIN, go directly to READY_TO_PRINT
+      // Otherwise (DAERAH), go to APPROVED_BY_PUSAT first, then READY_TO_PRINT
+      if (isPusatOrAdminSubmitter) {
+        // PUSAT/ADMIN submitted: Directly prepare for print (goes to READY_TO_PRINT)
+        console.log(`⚡ PUSAT/ADMIN submitter - directly preparing KTAs for print...`)
+
+        let succeeded = 0
+        let failed = 0
+
+        for (const ktaId of ktaIds) {
+          try {
+            await prepareKTAForPrint(ktaId)
+            succeeded++
+          } catch (error) {
+            console.error(`❌ Failed to prepare KTA ${ktaId}:`, error)
+            failed++
           }
-        },
-        data: {
-          status: 'APPROVED_BY_PUSAT'
         }
-      })
 
-      console.log(`✅ Updated KTA statuses to APPROVED_BY_PUSAT`)
+        console.log(`✅ Prepared ${succeeded} KTAs for bulk payment ${bulkPayment.invoiceNumber}${failed > 0 ? ` (${failed} failed)` : ''}`)
+      } else {
+        // DAERAH submitted: Update to APPROVED_BY_PUSAT first, then prepare for print
+        await prisma.kTARequest.updateMany({
+          where: {
+            id: {
+              in: ktaIds
+            }
+          },
+          data: {
+            status: 'APPROVED_BY_PUSAT'
+          }
+        })
 
-      // Generate nomorKTA for all KTAs SEQUENTIALLY to avoid race condition on unique constraint
-      console.log(`🎨 Preparing ${ktaIds.length} KTAs for print...`)
-      let succeeded = 0
-      let failed = 0
+        console.log(`✅ Updated KTA statuses to APPROVED_BY_PUSAT`)
 
-      for (const ktaId of ktaIds) {
-        try {
-          await prepareKTAForPrint(ktaId)
-          succeeded++
-        } catch (error) {
-          console.error(`❌ Failed to prepare KTA ${ktaId}:`, error)
-          failed++
+        // Generate nomorKTA for all KTAs SEQUENTIALLY to avoid race condition on unique constraint
+        console.log(`🎨 Preparing ${ktaIds.length} KTAs for print...`)
+        let succeeded = 0
+        let failed = 0
+
+        for (const ktaId of ktaIds) {
+          try {
+            await prepareKTAForPrint(ktaId)
+            succeeded++
+          } catch (error) {
+            console.error(`❌ Failed to prepare KTA ${ktaId}:`, error)
+            failed++
+          }
         }
+
+        console.log(`✅ Prepared ${succeeded} KTAs for bulk payment ${bulkPayment.invoiceNumber}${failed > 0 ? ` (${failed} failed)` : ''}`)
       }
-
-      console.log(`✅ Prepared ${succeeded} KTAs for bulk payment ${bulkPayment.invoiceNumber}${failed > 0 ? ` (${failed} failed)` : ''}`)
     } else {
       // If rejected, reset KTA status to DRAFT
       await prisma.kTARequest.updateMany({
