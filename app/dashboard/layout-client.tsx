@@ -1,7 +1,7 @@
 'use client'
 
 import { DashboardNav } from '@/components/dashboard/dashboard-nav'
-import { ShieldCheck, LogOut, Bell, Search, Menu, X, ChevronLeft, ChevronRight, HardHat, ArrowRight, FileText, CheckCircle, XCircle, Loader2, Download, Package } from 'lucide-react'
+import { ShieldCheck, LogOut, Bell, Search, Menu, X, ChevronLeft, ChevronRight, HardHat, ArrowRight, FileText, CheckCircle, XCircle, Loader2, Download, Package, MenuIcon, PanelLeftClose } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CurrentDate } from '@/components/ui/current-date'
 import { signOut } from 'next-auth/react'
@@ -591,7 +591,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
       {/* Sidebar - Gatensi Theme */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 overflow-hidden transition-all duration-300 ease-in-out lg:translate-x-0 animate-fade-in
+          fixed inset-y-0 left-0 z-50 overflow-hidden transition-all duration-300 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           ${sidebarCollapsed ? 'lg:-translate-x-full lg:w-0 lg:opacity-0' : 'lg:w-64 lg:opacity-100'}
           w-64 shadow-2xl
@@ -671,15 +671,6 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
               </div>
             </div>
 
-            {/* Close Button - Mobile */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="lg:hidden absolute right-4 text-white hover:bg-white/10 relative z-10"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </Button>
           </div>
 
           {/* Navigation */}
@@ -710,22 +701,18 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
         {/* Background Image - Indonesia Map with Primary Color */}
         <div className="fixed inset-0 pointer-events-none -z-10">
           <Image
-            src="/indonesia-map.png"
+            src="/indonesia-map_red-and-blue.png"
             alt="Indonesia Map"
             fill
             sizes="100vw"
             className="object-cover"
-            style={{
-              filter: 'grayscale(100%) sepia(100%) saturate(500%) hue-rotate(200deg) brightness(0.7) opacity(0.3)',
-              WebkitFilter: 'grayscale(100%) sepia(100%) saturate(500%) hue-rotate(200deg) brightness(0.7) opacity(0.3)'
-            }}
             priority
           />
         </div>
 
         {/* Primary Color Overlay - 70% opacity */}
         <div className="fixed inset-0 pointer-events-none -z-10" style={{
-          backgroundColor: 'rgba(30, 58, 138, 0.05)'
+          backgroundColor: 'rgba(300, 300, 300, 0.5)'
         }}></div>
 
         {/* Header */}
@@ -747,7 +734,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                 title={sidebarCollapsed ? 'Tampilkan Sidebar' : 'Sembunyikan Sidebar'}
               >
-                {sidebarCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+                {sidebarCollapsed ? <MenuIcon className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">

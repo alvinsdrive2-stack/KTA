@@ -11,7 +11,8 @@ import {
   Receipt,
   ChevronRight,
   Download,
-  History
+  History,
+  CheckCircleIcon as Confirmicon
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useSession } from '@/hooks/useSession'
@@ -66,7 +67,7 @@ const navItems: NavItem[] = [
   {
     title: 'Konfirmasi',
     href: '/dashboard/payments',
-    icon: CreditCard,
+    icon: Confirmicon,
     roles: ['PUSAT', 'ADMIN'],
     badge: null,
   },
@@ -308,7 +309,7 @@ export function DashboardNav({ isPusat }: DashboardNavProps) {
               {section.title}
             </p>
           </div>
-          {section.items.map((item, index) => renderNavItem(item, index, true))}
+          {section.items.map((item, index) => renderNavItem(item, index))}
         </div>
       ))}
     </nav>
