@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, FileText, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { ArrowLeft, FileText, Clock, CheckCircle, XCircle, Search } from 'lucide-react'
 import Link from 'next/link'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 
@@ -25,6 +26,7 @@ export default function PusatInvoicesHistoryPage() {
   const router = useRouter()
   const [invoices, setInvoices] = useState<BulkPayment[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     fetchInvoices()
@@ -71,6 +73,12 @@ export default function PusatInvoicesHistoryPage() {
     return badges[status] || { label: status, className: 'bg-gray-100 text-gray-800', icon: null }
   }
 
+  // Filter invoices based on search term
+  const filteredInvoices = invoices.filter((invoice) =>
+    invoice.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
+    invoice.id.toLowerCase().includes(search.toLowerCase())
+  )
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -98,16 +106,32 @@ export default function PusatInvoicesHistoryPage() {
       {/* Invoices Table */}
       <Card className="card-3d animate-slide-up-stagger stagger-2">
         <CardHeader className="border-b border-slate-200">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-5 w-5 text-slate-700" />
-            Daftar Invoice
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <FileText className="h-5 w-5 text-slate-700" />
+              Daftar Invoice
+            </CardTitle>
+            <div className="relative w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Cari invoice..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {invoices.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
               <p className="text-slate-500">Belum ada invoice pembayaran</p>
+            </div>
+          ) : filteredInvoices.length === 0 ? (
+            <div className="text-center py-12">
+              <Search className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500">Tidak ada invoice yang cocok dengan "{search}"</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -123,7 +147,7 @@ export default function PusatInvoicesHistoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.map((invoice) => {
+                  {filteredInvoices.map((invoice) => {
                     const statusBadge = getStatusBadge(invoice.status)
                     return (
                       <tr

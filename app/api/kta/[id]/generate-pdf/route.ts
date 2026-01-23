@@ -72,6 +72,7 @@ export async function POST(
       where: { id: ktaId },
       select: {
         id: true,
+        nik: true,
         nomorKTA: true,
         daerahId: true,
         jenjang: true,
@@ -87,7 +88,8 @@ export async function POST(
     // Check if KTA is approved
     if (ktaRequest.status !== 'APPROVED_BY_PUSAT' &&
         ktaRequest.status !== 'READY_TO_PRINT' &&
-        ktaRequest.status !== 'PRINTED') {
+        ktaRequest.status !== 'PRINTED' &&
+        ktaRequest.status !== 'UPGRADE_PAID') {
       return NextResponse.json({ error: 'KTA must be approved first' }, { status: 400 })
     }
 
@@ -97,12 +99,11 @@ export async function POST(
       nomorKTA = await generateNomorKTA(ktaRequest.daerahId, ktaRequest.jenjang)
     }
 
-    // Generate QR code if not exists
+    // Generate QR code if not exists (using NIK-based format)
     let qrCodePath = ktaRequest.qrCodePath
     if (!qrCodePath) {
       qrCodePath = await QRCodeGenerator.generateKTAQR({
-        id: ktaId,
-        nomorKTA: nomorKTA,
+        nik: ktaRequest.nik,
       })
     }
 
@@ -141,6 +142,7 @@ export async function GET(
       where: { id: params.id },
       select: {
         id: true,
+        nik: true,
         nama: true,
         alamat: true,
         createdAt: true,
@@ -165,7 +167,9 @@ export async function GET(
     }
 
     // Check if KTA is approved
-    if (ktaRequest.status !== 'READY_TO_PRINT' && ktaRequest.status !== 'PRINTED') {
+    if (ktaRequest.status !== 'READY_TO_PRINT' &&
+        ktaRequest.status !== 'PRINTED' &&
+        ktaRequest.status !== 'UPGRADE_PAID') {
       return NextResponse.json({ error: 'KTA must be approved first' }, { status: 400 })
     }
 
@@ -179,13 +183,12 @@ export async function GET(
       })
     }
 
-    // Generate QR code path if not exists
+    // Generate QR code path if not exists (using NIK-based format)
     let qrCodePath = ktaRequest.qrCodePath
-    if (!qrCodePath && nomorKTA) {
-      // Generate QR code for verification
+    if (!qrCodePath) {
+      // Generate QR code for verification using NIK
       qrCodePath = await QRCodeGenerator.generateKTAQR({
-        id: ktaRequest.id,
-        nomorKTA: nomorKTA,
+        nik: ktaRequest.nik,
       })
 
       // Save QR code path to database
@@ -193,9 +196,6 @@ export async function GET(
         where: { id: params.id },
         data: { qrCodePath }
       })
-    } else if (!qrCodePath) {
-      // Fallback if no nomorKTA yet
-      qrCodePath = '/qr-placeholder.png'
     }
 
     // Prepare data for PDF generation

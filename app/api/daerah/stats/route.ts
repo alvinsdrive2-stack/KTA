@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only PUSAT and ADMIN can access
-    if (session.user.role !== 'PUSAT' && session.user.role !== 'ADMIN') {
+    // Only ADMIN and KEUANGAN can access
+    if (session.user.role !== 'ADMIN' && session.user.role !== 'KEUANGAN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

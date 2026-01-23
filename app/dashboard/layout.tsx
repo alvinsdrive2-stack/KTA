@@ -15,11 +15,12 @@ export default async function DashboardLayout({
   }
 
   const isPusat = session.user.role === 'PUSAT' || session.user.role === 'ADMIN'
+  const isKeuangan = session.user.role === 'KEUANGAN'
 
   // Only pass isPusat, not session object
   // Client components will use useSession() hook instead
   return (
-    <DashboardClient isPusat={isPusat}>
+    <DashboardClient isPusat={isPusat} isKeuangan={isKeuangan}>
       {children}
     </DashboardClient>
   )

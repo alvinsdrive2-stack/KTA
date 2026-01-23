@@ -19,9 +19,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch KTA requests
-    // For PUSAT/ADMIN, don't filter by daerahId - they can create invoices for any daerah
+    // For ADMIN/KEUANGAN, don't filter by daerahId - they can create invoices for any daerah
     const userRole = session.user.role
-    const isPusatOrAdmin = userRole === 'PUSAT' || userRole === 'ADMIN'
+    const isPusatOrAdmin = userRole === 'ADMIN' || userRole === 'KEUANGAN'
 
     const ktaRequests = await prisma.kTARequest.findMany({
       where: {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     // Calculate total
     const totalNominal = ktaRequests.reduce((sum, req) => sum + (req.hargaFinal || 0), 0)
 
-    // Generate invoice number: KTA-INV/LSP-GKK/[tahun]/[bulan]-[sequence]
+    // Generate invoice number: INV/KTA-BPP/[tahun]/[bulan].[sequence]
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const existingInvoices = await prisma.bulkPayment.findMany({
       where: {
         invoiceNumber: {
-          startsWith: `KTA-INV/LSP-GKK/${year}/${month}-`
+          startsWith: `INV/KTA-BPP/${year}/${month}.`
         }
       },
       orderBy: {
@@ -58,12 +58,12 @@ export async function POST(request: NextRequest) {
     let sequence = 1
     if (existingInvoices.length > 0) {
       const lastInvoiceNumber = existingInvoices[0].invoiceNumber
-      const lastSequence = parseInt(lastInvoiceNumber.split('-').pop() || 0)
+      const lastSequence = parseInt(lastInvoiceNumber.split('.').pop() || 0)
       sequence = lastSequence + 1
     }
 
-    const sequenceStr = String(sequence).padStart(4, '0')
-    const invoiceNumber = `KTA-INV/LSP-GKK/${year}/${month}-${sequenceStr}`
+    const sequenceStr = String(sequence).padStart(3, '0')
+    const invoiceNumber = `INV/KTA-BPP/${year}/${month}.${sequenceStr}`
 
     console.log('Creating bulk payment with data:', {
       invoiceNumber,
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       submittedBy: session.user.id,
     })
 
-    // Create bulk payment record - same flow for PUSAT and DAERAH
+    // Create bulk payment record - same flow for ADMIN/KEUANGAN and DAERAH
     const bulkPayment = await prisma.bulkPayment.create({
       data: {
         invoiceNumber,
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
           ktaRequestId: req.id,
           bulkPaymentId: bulkPayment.id,
           invoiceNumber,
-          rekeningTujuan: 'BNI - 1234567890 - a.n. Gabungan Ahli Teknik Nasional Indonesia',
+          rekeningTujuan: 'BTN KC Jakarta Kuningan - 00001.01.30.000986.9 - a.n. Gabungan Ahli Teknik Nasional Indonesia',
           jumlah: req.hargaFinal || 0,
           statusPembayaran: 'PENDING'
         }

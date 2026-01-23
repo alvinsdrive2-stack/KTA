@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only PUSAT and ADMIN can view all payments
-    if (session.user.role !== 'PUSAT' && session.user.role !== 'ADMIN') {
+    // Only ADMIN and KEUANGAN can view all payments
+    if (session.user.role !== 'ADMIN' && session.user.role !== 'KEUANGAN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

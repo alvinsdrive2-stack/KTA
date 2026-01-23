@@ -18,8 +18,8 @@ export async function GET(
 
     const user = session.user as any
 
-    // Only PUSAT and ADMIN can access
-    if (user.role !== 'PUSAT' && user.role !== 'ADMIN') {
+    // Only KEUANGAN role can access
+    if (user.role !== 'KEUANGAN') {
       return NextResponse.json(
         { success: false, error: 'Anda tidak memiliki akses' },
         { status: 403 }

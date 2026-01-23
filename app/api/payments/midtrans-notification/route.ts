@@ -74,12 +74,12 @@ export async function POST(request: NextRequest) {
     } else if (transaction_status === 'capture' && fraud_status === 'accept') {
       // Check role: DAERAH -> PAID, PUSAT/ADMIN -> VERIFIED
       const isDaerah = bulkPayment.submittedByUser.role === 'DAERAH'
-      newStatus = isDaerah ? 'PAID' : 'VERIFIED'
+      newStatus = isDaerah ? 'PAID' : 'PAID'
       console.log(`Payment status set to: ${newStatus} (role: ${bulkPayment.submittedByUser.role})`)
     } else if (newStatus === 'PAID') {
       // For settlement status or any other PAID status, also check role
       const isDaerah = bulkPayment.submittedByUser.role === 'DAERAH'
-      newStatus = isDaerah ? 'PAID' : 'VERIFIED'
+      newStatus = isDaerah ? 'PAID' : 'PAID'
       console.log(`Payment status set to: ${newStatus} (role: ${bulkPayment.submittedByUser.role})`)
     }
 
@@ -92,8 +92,8 @@ export async function POST(request: NextRequest) {
         status: newStatus,
         midtransTransactionId: transaction_id,
         midtransPaymentType: payment_type,
-        verifiedAt: (newStatus === 'PAID' || newStatus === 'VERIFIED') ? new Date() : null,
-        verifiedBy: (newStatus === 'PAID' || newStatus === 'VERIFIED') ? bulkPayment.submittedBy : null // Auto-verify for Midtrans payments
+        verifiedAt: (newStatus === 'PAID' || newStatus === 'PAID') ? new Date() : null,
+        verifiedBy: (newStatus === 'PAID' || newStatus === 'PAID') ? bulkPayment.submittedBy : null // Auto-verify for Midtrans payments
       }
     })
 
@@ -102,17 +102,17 @@ export async function POST(request: NextRequest) {
       where: { bulkPaymentId: bulkPayment.id },
       data: {
         statusPembayaran: newStatus,
-        paidAt: (newStatus === 'PAID' || newStatus === 'VERIFIED') ? new Date() : null
+        paidAt: (newStatus === 'PAID' || newStatus === 'PAID') ? new Date() : null
       }
     })
 
     // If payment is successful, update KTA request status based on role
-    if (newStatus === 'PAID' || newStatus === 'VERIFIED') {
+    if (newStatus === 'PAID' || newStatus === 'PAID') {
       const ktaRequestIds = bulkPayment.payments.map(p => p.ktaRequestId)
 
       // DAERAH -> READY_FOR_PUSAT, PUSAT/ADMIN -> READY_TO_PRINT
       const isDaerah = bulkPayment.submittedByUser.role === 'DAERAH'
-      const ktaStatus = isDaerah ? 'READY_FOR_PUSAT' : 'READY_TO_PRINT'
+      const ktaStatus = isDaerah ? 'READY_FOR_PUSAT' : 'READY_FOR_PUSAT'
 
       await prisma.kTARequest.updateMany({
         where: {

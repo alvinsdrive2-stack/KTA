@@ -61,8 +61,8 @@ export default function PermohonanPage() {
   // Track if we've already shown the toast
   const hasShownToast = useRef(false)
 
-  // Check if user is PUSAT or ADMIN
-  const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN'
+  // Check if user is PUSAT, ADMIN, or KEUANGAN
+  const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN' || session?.user.role === 'KEUANGAN'
 
   // Check for success params and show toast (only once)
   useEffect(() => {

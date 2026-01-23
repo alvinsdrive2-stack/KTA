@@ -17,7 +17,7 @@ async function generateNomorKTA(daerahId: string, jenjang: string): Promise<stri
     jenjangCategory = 'Operator'
   } else if (jenjangNum >= 4 && jenjangNum <= 6) {
     jenjangCode = '02'
-    jenjangCategory = 'Teknisi'
+    jenjangCategory = 'Teknisi/Analis'
   } else if (jenjangNum >= 7 && jenjangNum <= 9) {
     jenjangCode = '01'
     jenjangCategory = 'Ahli'
@@ -112,8 +112,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only PUSAT and ADMIN can verify payments
-    if (session.user.role !== 'PUSAT' && session.user.role !== 'ADMIN') {
+    // Only KEUANGAN role can verify payments
+    if (session.user.role !== 'KEUANGAN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
     await prisma.payment.updateMany({
       where: { bulkPaymentId },
       data: {
-        statusPembayaran: approved ? 'PAID' : 'REJECTED',
+        statusPembayaran: approved ? 'VERIFIED' : 'REJECTED',
         paidAt: approved ? new Date() : null
       }
     })
@@ -167,65 +167,111 @@ export async function POST(request: NextRequest) {
     if (approved) {
       const ktaIds = bulkPayment.payments.map(p => p.ktaRequestId)
       const submitterRole = bulkPayment.submittedByUser?.role
-      const isPusatOrAdminSubmitter = submitterRole === 'PUSAT' || submitterRole === 'ADMIN'
+      const isPusatOrAdminSubmitter = submitterRole === 'PUSAT' || submitterRole === 'ADMIN' || submitterRole === 'KEUANGAN'
 
       console.log(`🔐 Approving bulk payment ${bulkPayment.invoiceNumber} with ${ktaIds.length} KTAs`)
       console.log(`👤 Submitter role: ${submitterRole}, isPusatOrAdmin: ${isPusatOrAdminSubmitter}`)
 
-      // If submitted by PUSAT/ADMIN, go directly to READY_TO_PRINT
-      // Otherwise (DAERAH), go to APPROVED_BY_PUSAT first, then READY_TO_PRINT
-      if (isPusatOrAdminSubmitter) {
-        // PUSAT/ADMIN submitted: Directly prepare for print (goes to READY_TO_PRINT)
-        console.log(`⚡ PUSAT/ADMIN submitter - directly preparing KTAs for print...`)
+      // Separate upgrade and non-upgrade KTAs
+      const upgradeKtaIds: string[] = []
+      const normalKtaIds: string[] = []
 
-        let succeeded = 0
-        let failed = 0
-
-        for (const ktaId of ktaIds) {
-          try {
-            await prepareKTAForPrint(ktaId)
-            succeeded++
-          } catch (error) {
-            console.error(`❌ Failed to prepare KTA ${ktaId}:`, error)
-            failed++
-          }
+      for (const payment of bulkPayment.payments) {
+        if (payment.ktaRequest.isUpgrade) {
+          upgradeKtaIds.push(payment.ktaRequestId)
+        } else {
+          normalKtaIds.push(payment.ktaRequestId)
         }
+      }
 
-        console.log(`✅ Prepared ${succeeded} KTAs for bulk payment ${bulkPayment.invoiceNumber}${failed > 0 ? ` (${failed} failed)` : ''}`)
-      } else {
-        // DAERAH submitted: Update to APPROVED_BY_PUSAT first, then prepare for print
+      console.log(`📊 Found ${upgradeKtaIds.length} upgrade KTA(s) and ${normalKtaIds.length} normal KTA(s)`)
+
+      // Process upgrade KTAs - set to UPGRADE_PAID
+      if (upgradeKtaIds.length > 0) {
         await prisma.kTARequest.updateMany({
           where: {
-            id: {
-              in: ktaIds
-            }
+            id: { in: upgradeKtaIds }
           },
           data: {
-            status: 'APPROVED_BY_PUSAT'
+            status: 'UPGRADE_PAID'
           }
         })
+        console.log(`✅ Updated ${upgradeKtaIds.length} upgrade KTA(s) to UPGRADE_PAID`)
 
-        console.log(`✅ Updated KTA statuses to APPROVED_BY_PUSAT`)
-
-        // Generate nomorKTA for all KTAs SEQUENTIALLY to avoid race condition on unique constraint
-        console.log(`🎨 Preparing ${ktaIds.length} KTAs for print...`)
+        // Prepare upgrade KTAs for print
         let succeeded = 0
         let failed = 0
 
-        for (const ktaId of ktaIds) {
+        for (const ktaId of upgradeKtaIds) {
           try {
             await prepareKTAForPrint(ktaId)
             succeeded++
           } catch (error) {
-            console.error(`❌ Failed to prepare KTA ${ktaId}:`, error)
+            console.error(`❌ Failed to prepare upgrade KTA ${ktaId}:`, error)
             failed++
           }
         }
 
-        console.log(`✅ Prepared ${succeeded} KTAs for bulk payment ${bulkPayment.invoiceNumber}${failed > 0 ? ` (${failed} failed)` : ''}`)
+        console.log(`✅ Prepared ${succeeded} upgrade KTA(s) for print${failed > 0 ? ` (${failed} failed)` : ''}`)
+      }
+
+      // Process normal KTAs
+      if (normalKtaIds.length > 0) {
+        // If submitted by PUSAT/ADMIN, go directly to READY_TO_PRINT
+        // Otherwise (DAERAH), go to APPROVED_BY_PUSAT first, then READY_TO_PRINT
+        if (isPusatOrAdminSubmitter) {
+          // PUSAT/ADMIN submitted: Directly prepare for print (goes to READY_TO_PRINT)
+          console.log(`⚡ PUSAT/ADMIN submitter - directly preparing normal KTAs for print...`)
+
+          let succeeded = 0
+          let failed = 0
+
+          for (const ktaId of normalKtaIds) {
+            try {
+              await prepareKTAForPrint(ktaId)
+              succeeded++
+            } catch (error) {
+              console.error(`❌ Failed to prepare KTA ${ktaId}:`, error)
+              failed++
+            }
+          }
+
+          console.log(`✅ Prepared ${succeeded} normal KTA(s) for print${failed > 0 ? ` (${failed} failed)` : ''}`)
+        } else {
+          // DAERAH submitted: Update to APPROVED_BY_PUSAT first, then prepare for print
+          await prisma.kTARequest.updateMany({
+            where: {
+              id: {
+                in: normalKtaIds
+              }
+            },
+            data: {
+              status: 'APPROVED_BY_PUSAT'
+            }
+          })
+
+          console.log(`✅ Updated normal KTA statuses to APPROVED_BY_PUSAT`)
+
+          // Generate nomorKTA for all KTAs SEQUENTIALLY to avoid race condition on unique constraint
+          console.log(`🎨 Preparing ${normalKtaIds.length} normal KTAs for print...`)
+          let succeeded = 0
+          let failed = 0
+
+          for (const ktaId of normalKtaIds) {
+            try {
+              await prepareKTAForPrint(ktaId)
+              succeeded++
+            } catch (error) {
+              console.error(`❌ Failed to prepare KTA ${ktaId}:`, error)
+              failed++
+            }
+          }
+
+          console.log(`✅ Prepared ${succeeded} normal KTA(s) for print${failed > 0 ? ` (${failed} failed)` : ''}`)
+        }
       }
     } else {
-      // If rejected, reset KTA status to DRAFT
+      // If rejected, reset KTA status to DRAFT (for both upgrade and normal)
       await prisma.kTARequest.updateMany({
         where: {
           id: {

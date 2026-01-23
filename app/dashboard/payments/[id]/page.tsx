@@ -78,11 +78,11 @@ export default function PaymentDetailPage() {
       return
     }
 
-    // Check access control
+    // Check access control - only KEUANGAN can access
     const userRole = session?.user?.role
-    const isPusatOrAdmin = userRole === 'PUSAT' || userRole === 'ADMIN'
+    const isKeuangan = userRole === 'KEUANGAN'
 
-    if (!isPusatOrAdmin) {
+    if (!isKeuangan) {
       setError('Anda tidak memiliki akses ke halaman ini')
       setLoading(false)
       return
@@ -121,15 +121,15 @@ export default function PaymentDetailPage() {
 
   // Access control check (after loading)
   const userRole = session?.user?.role
-  const isPusatOrAdmin = userRole === 'PUSAT' || userRole === 'ADMIN'
+  const isKeuangan = userRole === 'KEUANGAN'
 
-  if (!loading && !isPusatOrAdmin && session) {
+  if (!loading && !isKeuangan && session) {
     return (
       <div className="space-y-4">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Anda tidak memiliki akses ke halaman ini. Halaman ini hanya dapat diakses oleh user PUSAT atau ADMIN.
+            Anda tidak memiliki akses ke halaman ini. Halaman ini hanya dapat diakses oleh user KEUANGAN.
           </AlertDescription>
         </Alert>
         <Button onClick={() => router.push('/dashboard/payments')}>
@@ -361,7 +361,7 @@ export default function PaymentDetailPage() {
                     {new Date(payment.createdAt).toLocaleString('id-ID')}
                   </span>
                 </div>
-                
+
                 {payment.verifiedByUser && (
                   <>
                     <div className="flex justify-between border-b pb-2">
@@ -379,12 +379,43 @@ export default function PaymentDetailPage() {
                   </>
                 )}
               </div>
+
+              {/* Bukti Pembayaran Section */}
+              <div className="pt-4 border-t">
+                <p className="text-sm font-medium text-gray-700 mb-3">Bukti Pembayaran</p>
+                {payment.buktiPembayaranUrl ? (
+                  <div className="border rounded-lg overflow-hidden bg-slate-50">
+                    {payment.buktiPembayaranUrl.toLowerCase().endsWith('.pdf') ? (
+                      <iframe
+                        src={payment.buktiPembayaranUrl}
+                        className="w-full h-[300px]"
+                        title="Bukti Pembayaran PDF"
+                      />
+                    ) : (
+                      <img
+                        src={payment.buktiPembayaranUrl}
+                        alt="Bukti Pembayaran"
+                        className="w-full h-[300px] object-contain cursor-pointer hover:scale-105 transition-transform"
+                        onClick={() => window.open(payment.buktiPembayaranUrl, '_blank')}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <Alert className="bg-green-50 border-green-200">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <AlertDescription className="text-green-800">
+                      <p className="font-semibold">Pembayaran Online</p>
+                      <p className="text-sm">Pembayaran terverifikasi otomatis melalui Midtrans</p>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Daftar KTA */}
-        <Card className="card-3d animate-slide-up-stagger stagger-5">
+        <Card className="card-3d animate-slide-up-stagger stagger-6">
           <CardHeader>
             <CardTitle>Daftar KTA ({payment.payments.length})</CardTitle>
           </CardHeader>

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { FileText, CreditCard, CheckCircle, Clock, Eye, UserCheck, RefreshCw } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { StatsGrid } from '@/components/dashboard/stats-card'
+import { StatsCard, TotalAnggotaCard, PertumbuhanAnggotaCard } from '@/components/dashboard/stats-card'
 import { TableCard, TableRow, StatusBadge } from '@/components/dashboard/table-card'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import {
@@ -23,6 +23,7 @@ interface KTARequest {
   nama: string
   nik: string
   jabatanKerja: string
+  jenjang: string
   status: string
   createdAt: string
   daerah?: {
@@ -36,8 +37,8 @@ interface DailyData {
 }
 
 interface DaerahComparisonData {
-  last6Months: number
-  previous6Months: number
+  thisMonthCount: number
+  lastMonthCount: number
   growthPercentage: number
   totalPrinted: number
 }
@@ -54,6 +55,13 @@ interface DashboardCache {
     waitingApproval: number
     approvedKTA: number
     printedKTA: number
+    totalAhli: number
+    totalTeknisi: number
+    totalOperator: number
+    growthAhli: number
+    growthTeknisi: number
+    growthOperator: number
+    overallGrowth: number
   }
   timestamp: number
 }
@@ -71,6 +79,13 @@ export default function DashboardPage() {
     waitingApproval: 0,
     approvedKTA: 0,
     printedKTA: 0,
+    totalAhli: 0,
+    totalTeknisi: 0,
+    totalOperator: 0,
+    growthAhli: 0,
+    growthTeknisi: 0,
+    growthOperator: 0,
+    overallGrowth: 0,
   })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -90,8 +105,8 @@ export default function DashboardPage() {
   const [daerahPeriod, setDaerahPeriod] = useState<TimePeriod>('month')
   const [loadingDaerahChart, setLoadingDaerahChart] = useState(true)
   const [daerahComparison, setDaerahComparison] = useState<DaerahComparisonData>({
-    last6Months: 0,
-    previous6Months: 0,
+    thisMonthCount: 0,
+    lastMonthCount: 0,
     growthPercentage: 0,
     totalPrinted: 0,
   })
@@ -104,18 +119,104 @@ export default function DashboardPage() {
   const displayRequests = ktaRequests.slice(0, displayLimit)
   const hasMore = ktaRequests.length > displayLimit
 
-  const calculateStats = (data: KTARequest[]) => ({
-    totalKTA: data.length,
-    draftKTA: data.filter((kta) => kta.status === 'DRAFT').length,
-    waitingPayment: data.filter((kta) => kta.status === 'WAITING_PAYMENT').length,
-    waitingApproval: data.filter((kta) =>
-      kta.status === 'READY_FOR_PUSAT' || kta.status === 'WAITING_PAYMENT'
-    ).length,
-    approvedKTA: data.filter((kta) =>
+  const calculateStats = (data: KTARequest[]) => {
+    const approvedKTA = data.filter((kta) =>
       kta.status === 'APPROVED_BY_PUSAT' || kta.status === 'READY_TO_PRINT' || kta.status === 'PRINTED'
-    ).length,
-    printedKTA: data.filter((kta) => kta.status === 'READY_TO_PRINT' || kta.status === 'PRINTED').length,
-  })
+    )
+
+    // Calculate qualification breakdown based on jenjang
+    let totalAhli = 0
+    let totalTeknisi = 0
+    let totalOperator = 0
+
+    approvedKTA.forEach((kta) => {
+      const jenjangNum = parseInt(kta.jenjang, 10)
+      if (jenjangNum >= 1 && jenjangNum <= 3) {
+        totalOperator++
+      } else if (jenjangNum >= 4 && jenjangNum <= 6) {
+        totalTeknisi++
+      } else if (jenjangNum >= 7 && jenjangNum <= 9) {
+        totalAhli++
+      }
+    })
+
+    // Calculate growth (this month vs previous month)
+    const now = new Date()
+    const thisMonth = now.getMonth()
+    const thisYear = now.getFullYear()
+
+    const thisMonthKTA = approvedKTA.filter((kta) => {
+      const ktaDate = new Date(kta.createdAt)
+      return ktaDate.getMonth() === thisMonth && ktaDate.getFullYear() === thisYear
+    })
+
+    let thisMonthAhli = 0
+    let thisMonthTeknisi = 0
+    let thisMonthOperator = 0
+
+    thisMonthKTA.forEach((kta) => {
+      const jenjangNum = parseInt(kta.jenjang, 10)
+      if (jenjangNum >= 1 && jenjangNum <= 3) {
+        thisMonthOperator++
+      } else if (jenjangNum >= 4 && jenjangNum <= 6) {
+        thisMonthTeknisi++
+      } else if (jenjangNum >= 7 && jenjangNum <= 9) {
+        thisMonthAhli++
+      }
+    })
+
+    // Previous month
+    const prevMonth = thisMonth === 0 ? 11 : thisMonth - 1
+    const prevMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear
+
+    const prevMonthKTA = approvedKTA.filter((kta) => {
+      const ktaDate = new Date(kta.createdAt)
+      return ktaDate.getMonth() === prevMonth && ktaDate.getFullYear() === prevMonthYear
+    })
+
+    let prevMonthAhli = 0
+    let prevMonthTeknisi = 0
+    let prevMonthOperator = 0
+
+    prevMonthKTA.forEach((kta) => {
+      const jenjangNum = parseInt(kta.jenjang, 10)
+      if (jenjangNum >= 1 && jenjangNum <= 3) {
+        prevMonthOperator++
+      } else if (jenjangNum >= 4 && jenjangNum <= 6) {
+        prevMonthTeknisi++
+      } else if (jenjangNum >= 7 && jenjangNum <= 9) {
+        prevMonthAhli++
+      }
+    })
+
+    // Calculate growth percentages
+    const growthAhli = prevMonthAhli > 0 ? ((thisMonthAhli - prevMonthAhli) / prevMonthAhli) * 100 : (thisMonthAhli > 0 ? 100 : 0)
+    const growthTeknisi = prevMonthTeknisi > 0 ? ((thisMonthTeknisi - prevMonthTeknisi) / prevMonthTeknisi) * 100 : (thisMonthTeknisi > 0 ? 100 : 0)
+    const growthOperator = prevMonthOperator > 0 ? ((thisMonthOperator - prevMonthOperator) / prevMonthOperator) * 100 : (thisMonthOperator > 0 ? 100 : 0)
+
+    // Calculate overall growth from total counts
+    const prevMonthTotal = prevMonthAhli + prevMonthTeknisi + prevMonthOperator
+    const thisMonthTotal = thisMonthAhli + thisMonthTeknisi + thisMonthOperator
+    const overallGrowth = prevMonthTotal > 0 ? ((thisMonthTotal - prevMonthTotal) / prevMonthTotal) * 100 : (thisMonthTotal > 0 ? 100 : 0)
+
+    return {
+      totalKTA: data.length,
+      draftKTA: data.filter((kta) => kta.status === 'DRAFT').length,
+      waitingPayment: data.filter((kta) => kta.status === 'WAITING_PAYMENT').length,
+      waitingApproval: data.filter((kta) =>
+        kta.status === 'READY_FOR_PUSAT' || kta.status === 'WAITING_PAYMENT'
+      ).length,
+      approvedKTA: approvedKTA.length,
+      printedKTA: data.filter((kta) => kta.status === 'READY_TO_PRINT' || kta.status === 'PRINTED').length,
+      totalAhli,
+      totalTeknisi,
+      totalOperator,
+      growthAhli: Math.round(growthAhli),
+      growthTeknisi: Math.round(growthTeknisi),
+      growthOperator: Math.round(growthOperator),
+      overallGrowth: Math.round(overallGrowth),
+    }
+  }
 
   // Load from cache with useState lazy initializer (runs once on mount)
   const [cachedData, setCachedData] = useState<DashboardCache | null>(() => {
@@ -173,7 +274,7 @@ export default function DashboardPage() {
   }
 
   const fetchRoleBasedCharts = () => {
-    if (userRole === 'PUSAT' || userRole === 'ADMIN') {
+    if (userRole === 'PUSAT' || userRole === 'ADMIN'|| userRole === 'KEUANGAN') {
       fetchDailySubmissions(timePeriod)
       fetchRegionSubmissions(regionTimePeriod)
     } else if (userRole === 'DAERAH') {
@@ -331,11 +432,10 @@ export default function DashboardPage() {
   const statsData = [
     { title: 'Total KTA', value: stats.totalKTA, icon: FileText, description: 'Total permohonan KTA', color: 'slate' as const },
     { title: 'Menunggu Pembayaran', value: stats.waitingPayment, icon: Clock, description: 'Belum melakukan pembayaran', color: 'orange' as const },
-    { title: 'Disetujui', value: stats.approvedKTA, icon: CheckCircle, description: stats.printedKTA + ' sudah dicetak', color: 'green' as const },
     { title: 'Menunggu Persetujuan', value: stats.waitingApproval, icon: UserCheck, description: 'Sedang dalam proses verifikasi', color: 'blue' as const },
   ]
 
-  const isPusatOrAdmin = userRole === 'PUSAT' || userRole === 'ADMIN'
+  const isPusatOrAdmin = userRole === 'PUSAT' || userRole === 'ADMIN' || userRole === 'KEUANGAN'
   const isDaerah = userRole === 'DAERAH'
 
   return (
@@ -382,7 +482,35 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="animate-slide-up-stagger stagger-2">
-        <StatsGrid stats={statsData} />
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          {/* Total Anggota Card with Breakdown - Wider */}
+          <div className="flex-shrink-0 w-full md:w-auto md:flex-[2] min-w-[340px]">
+            <TotalAnggotaCard
+              totalAhli={stats.totalAhli}
+              totalTeknisi={stats.totalTeknisi}
+              totalOperator={stats.totalOperator}
+              delay={0}
+            />
+          </div>
+
+          {/* Pertumbuhan Anggota Card - Wider */}
+          <div className="flex-shrink-0 w-full md:w-auto md:flex-[2] min-w-[420px]">
+            <PertumbuhanAnggotaCard
+              growthAhli={stats.growthAhli}
+              growthTeknisi={stats.growthTeknisi}
+              growthOperator={stats.growthOperator}
+              overallGrowth={stats.overallGrowth}
+              delay={75}
+            />
+          </div>
+
+          {/* Other Stats Cards - Normal width */}
+          {statsData.slice(1).map((stat, index) => (
+            <div key={stat.title} className="flex-shrink-0 w-full md:w-auto md:flex-1 min-w-[190px]">
+              <StatsCard {...stat} delay={(index + 2) * 75} />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Charts Section - Role Based */}

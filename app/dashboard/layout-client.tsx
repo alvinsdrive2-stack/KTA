@@ -22,6 +22,7 @@ import { ErrorBoundary } from '@/components/debug/error-boundary'
 interface DashboardClientProps {
   children: React.ReactNode
   isPusat: boolean
+  isKeuangan: boolean
 }
 
 // Floating Payment Bar Component
@@ -194,7 +195,7 @@ function VerificationFloatingBar() {
   // Only show on /dashboard/payments/[id] pages for PUSAT/ADMIN (NOT on /payments/pusat or /payments/daerah list pages)
   const paymentId = pathname?.match(/\/dashboard\/payments\/([^/]+)/)?.[1]
   const isListPage = pathname?.includes('/payments/pusat') || pathname?.includes('/payments/daerah')
-  const shouldShow = paymentId && session?.user?.role && ['PUSAT', 'ADMIN'].includes(session.user.role) && !isListPage && !pathname?.includes('/invoice')
+  const shouldShow = paymentId && session?.user?.role && ['KEUANGAN', 'ADMIN'].includes(session.user.role) && !isListPage && !pathname?.includes('/invoice')
 
   useEffect(() => {
     if (shouldShow && paymentId) {
@@ -539,7 +540,7 @@ function KTAFloatingBar() {
   )
 }
 
-function DashboardContent({ children, isPusat }: DashboardClientProps) {
+function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProps) {
   const { session } = useSession()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -675,7 +676,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
 
           {/* Navigation */}
           <div className="relative flex-1 overflow-y-auto">
-            <DashboardNav isPusat={isPusat} />
+            <DashboardNav isPusat={isPusat}  isKeuangan={isKeuangan}/>
           </div>
 
           {/* Logout Button */}
@@ -738,7 +739,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">
-                  {isPusat ? 'Sistem KTA Pusat' : 'Sistem KTA Daerah'}
+                  {isPusat ? 'Sistem KTA Pusat' : isKeuangan ? 'Sistem KTA Keuangan' : 'Sistem KTA Daerah'}
                 </h1>
                 <p className="text-sm text-slate-500">Selamat datang kembali, {session?.user?.name?.split(' ')[0] || 'User'}</p>
               </div>
@@ -758,7 +759,7 @@ function DashboardContent({ children, isPusat }: DashboardClientProps) {
                     {session?.user?.name || 'Loading...'}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {session?.user?.role === 'PUSAT' ? 'BPP' : session?.user?.role === 'DAERAH' ? 'BPD' : session?.user?.role?.toLowerCase() || 'Loading...'}
+                    {session?.user?.role === 'PUSAT' ? 'BPP' : session?.user?.role === 'ADMIN' ? 'Admin' : session?.user?.role === 'KEUANGAN' ? 'Keuangan' : session?.user?.role === 'DAERAH' ? 'BPD' : session?.user?.role?.toLowerCase() || 'Loading...'}
                     {session?.user?.daerah?.namaDaerah && ` • ${session.user.daerah.namaDaerah}`}
                   </p>
                 </div>

@@ -18,11 +18,14 @@ async function getKTAData(id: string, nomorKTA: string) {
         email: true,
         createdAt: true,
         jenjang: true,
+        jabatanKerja: true,
         status: true,
+        fotoUrl: true,
         daerah: {
           select: {
             id: true,
             namaDaerah: true,
+            kodeDaerah: true,
           },
         },
       },
@@ -63,15 +66,15 @@ async function getKTAData(id: string, nomorKTA: string) {
       }
     }
 
-    // Tentukan keahlian berdasarkan jenjang
-    let keahlian = ''
+    // Tentukan kualifikasi berdasarkan jenjang
+    let kualifikasi = ''
     const jenjangNum = parseInt(ktaRequest.jenjang, 10)
     if (jenjangNum >= 1 && jenjangNum <= 3) {
-      keahlian = 'Operator'
+      kualifikasi = 'Operator'
     } else if (jenjangNum >= 4 && jenjangNum <= 6) {
-      keahlian = 'Teknisi'
+      kualifikasi = 'Teknisi/Analis'
     } else if (jenjangNum >= 7 && jenjangNum <= 9) {
-      keahlian = 'Ahli'
+      kualifikasi = 'Ahli'
     }
 
     return {
@@ -82,7 +85,11 @@ async function getKTAData(id: string, nomorKTA: string) {
       email: formattedEmail,
       tanggalKadaluarsa: expiredDate.toISOString().split('T')[0],
       daerah: ktaRequest.daerah?.namaDaerah || '',
-      keahlian,
+      kodeDaerah: ktaRequest.daerah?.kodeDaerah || '',
+      kualifikasi,
+      jenjang: ktaRequest.jenjang,
+      jabatanKerja: ktaRequest.jabatanKerja,
+      fotoUrl: ktaRequest.fotoUrl,
     }
   } catch (error) {
     console.error('Error fetching KTA:', error)

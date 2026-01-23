@@ -71,8 +71,8 @@ interface ChartData {
 }
 
 interface ComparisonData {
-  last6Months: number
-  previous6Months: number
+  thisMonthCount: number
+  lastMonthCount: number
   growthPercentage: number
   totalPrinted: number
 }
@@ -96,7 +96,7 @@ export default function DaerahDetailPage() {
 
   const hasFetched = useRef(false)
 
-  const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN'
+  const isPusatOrAdmin = session?.user.role === 'ADMIN' || session?.user.role === 'KEUANGAN'
 
   const fetchDaerahDetail = useCallback(async () => {
     if (hasFetched.current) return

@@ -39,8 +39,8 @@ export default function DaerahDiskonPage() {
   // Use ref to track if initial fetch has happened
   const initialFetchDone = useRef(false)
 
-  // Only PUSAT and ADMIN can access
-  const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN'
+  // Only PUSAT, ADMIN, and KEUANGAN can access
+  const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN' || session?.user.role === 'KEUANGAN'
 
   // Single useEffect for initial load and access control
   useEffect(() => {
