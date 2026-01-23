@@ -24,6 +24,14 @@ interface Payment {
     jenjang: string
     jabatanKerja: string
     hargaBase: number | null
+    hargaFinal: number | null
+    isUpgrade?: boolean
+    upgradeFromKtaId?: string | null
+    previousKta?: {
+      hargaBase: number
+      hargaFinal: number
+      jenjang: string
+    } | null
   }
   jumlah: number
   statusPembayaran: string
@@ -268,8 +276,24 @@ export default function InvoiceDetailPage() {
   }
 
   const statusBadge = getStatusBadge(invoice.status)
-  const totalHargaBase = invoice.payments.reduce((sum, p) => sum + (p.ktaRequest.hargaBase || 0), 0)
-  const diskonAmount = Math.floor(totalHargaBase * (invoice.daerah.diskonPersen || 0) / 100)
+
+  // Calculate effective harga for each payment
+  const paymentsWithHarga = invoice.payments.map(p => {
+    if (p.ktaRequest.isUpgrade && p.ktaRequest.previousKta) {
+      return {
+        ...p,
+        effectiveHarga: (p.ktaRequest.hargaBase || 0) - p.ktaRequest.previousKta.hargaBase
+      }
+    }
+    return {
+      ...p,
+      effectiveHarga: p.ktaRequest.hargaBase || 0
+    }
+  })
+
+  const totalHargaBase = paymentsWithHarga.reduce((sum, p) => sum + p.effectiveHarga, 0)
+  const diskon = invoice.daerah.diskonPersen || 0
+  const diskonAmount = Math.floor(totalHargaBase * diskon / 100)
   const totalTagihan = totalHargaBase - diskonAmount
   const isPending = invoice.status === 'PENDING'
 
@@ -348,21 +372,39 @@ export default function InvoiceDetailPage() {
                     <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase">ID Izin</th>
                     <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase">Nama</th>
                     <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase">NIK</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase">Jenjang</th>
                     <th className="text-right py-3 px-4 text-xs font-semibold text-slate-700 uppercase">Harga</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {invoice.payments.map((payment, index) => (
-                    <tr key={payment.id} className="hover:bg-slate-50">
-                      <td className="py-3 px-4 text-sm text-slate-600">{index + 1}</td>
-                      <td className="py-3 px-4 text-sm font-medium text-slate-900">{payment.ktaRequest.idIzin}</td>
-                      <td className="py-3 px-4 text-sm text-slate-900">{payment.ktaRequest.nama}</td>
-                      <td className="py-3 px-4 text-sm text-slate-600">{payment.ktaRequest.nik}</td>
-                      <td className="py-3 px-4 text-sm text-right font-medium text-slate-900">
-                        {formatCurrency(payment.ktaRequest.hargaBase || 0)}
-                      </td>
-                    </tr>
-                  ))}
+                  {paymentsWithHarga.map((payment, index) => {
+                    const jenjangText = payment.ktaRequest.isUpgrade
+                      ? `${payment.ktaRequest.jenjang} (UPG)`
+                      : payment.ktaRequest.jenjang
+                    const isUpgrade = payment.ktaRequest.isUpgrade
+                    const prevKta = payment.ktaRequest.previousKta
+                    return (
+                      <tr key={payment.id} className="hover:bg-slate-50">
+                        <td className="py-3 px-4 text-sm text-slate-600">{index + 1}</td>
+                        <td className="py-3 px-4 text-sm font-medium text-slate-900">{payment.ktaRequest.idIzin}</td>
+                        <td className="py-3 px-4 text-sm text-slate-900">{payment.ktaRequest.nama}</td>
+                        <td className="py-3 px-4 text-sm text-slate-600">{payment.ktaRequest.nik}</td>
+                        <td className="py-3 px-4 text-sm text-slate-900">
+                          <span className={isUpgrade ? 'text-purple-700 font-medium' : ''}>
+                            {jenjangText}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-right font-medium text-slate-900">
+                          {formatCurrency(payment.effectiveHarga)}
+                          {isUpgrade && prevKta && (
+                            <div className="text-xs text-purple-600">
+                              {formatCurrency(payment.ktaRequest.hargaBase || 0)} - {formatCurrency(prevKta.hargaBase)}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -376,7 +418,7 @@ export default function InvoiceDetailPage() {
             </div>
             {diskonAmount > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-slate-600">Diskon ({invoice.daerah.diskonPersen}%)</span>
+                <span className="text-slate-600">Porsi BPD ({diskon}%)</span>
                 <span className="font-medium text-red-600">-{formatCurrency(diskonAmount)}</span>
               </div>
             )}
@@ -507,8 +549,8 @@ export default function InvoiceDetailPage() {
 
             <div className="text-xs text-slate-500 space-y-1 bg-slate-50 p-3 rounded">
               <p><strong>Rekening Tujuan:</strong></p>
-              <p>Bank: BNI</p>
-              <p>No. Rekening: 1234567890</p>
+              <p>Bank: BTN KC Jakarta Kuningan</p>
+              <p>No. Rekening: 00001.01.30.000986.9</p>
               <p>a.n. Gabungan Ahli Teknik Nasional Indonesia</p>
             </div>
 

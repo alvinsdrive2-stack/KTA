@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
   try {
     // Check authentication and admin role
     const session = await authMiddleware(request)
-    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'PUSAT')) {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'KEUANGAN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

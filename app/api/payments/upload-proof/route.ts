@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       where: { id: bulkPaymentId },
       data: {
         buktiPembayaranUrl: proofUrl,
-        status: 'VERIFIED',
+        status: 'PAID',
       }
     })
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     await prisma.payment.updateMany({
       where: { bulkPaymentId },
       data: {
-        statusPembayaran: 'VERIFIED',
+        statusPembayaran: 'PAID',
         paidAt: new Date()
       }
     })
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     // Get user role from session
     const isDaerah = session.user.role === 'DAERAH'
-    const ktaStatus = isDaerah ? 'READY_FOR_PUSAT' : 'READY_TO_PRINT'
+    const ktaStatus = isDaerah ? 'READY_FOR_PUSAT' : 'READY_FOR_PUSAT'
 
     await prisma.kTARequest.updateMany({
       where: {

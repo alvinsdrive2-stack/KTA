@@ -3,8 +3,7 @@ import fs from 'fs/promises'
 import path from 'path'
 
 interface QRCodeOptions {
-  id: string
-  nomorKTA: string
+  nik: string
   baseUrl?: string
 }
 
@@ -16,13 +15,16 @@ export class QRCodeGenerator {
    * Generate QR code for KTA verification
    * Returns base64 data URL for direct embedding in PDF
    * QR code contains URL to public verification page
-   * URL format: {baseUrl}/qr/{id}/{nomorKTA}
+   * URL format: {baseUrl}/qr/{nik}
+   *
+   * NIK-based format ensures QR remains valid after KTA upgrades
+   * (always shows the latest approved KTA for that NIK)
    */
   static async generateKTAQR(options: QRCodeOptions): Promise<string> {
-    const { id, nomorKTA, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ktagatensi.vercel.app/' } = options
+    const { nik, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ktagatensi.vercel.app/' } = options
 
-    // Generate QR code URL
-    const qrUrl = `${baseUrl}/qr/${id}/${nomorKTA}`
+    // Generate QR code URL using NIK
+    const qrUrl = `${baseUrl}/qr/${nik}`
 
     // Generate QR code as base64 data URL (no file writing needed)
     const qrDataUrl = await QRCode.toDataURL(qrUrl, {
@@ -51,10 +53,10 @@ export class QRCodeGenerator {
    * Generate QR code as buffer (for file operations if needed)
    */
   static async generateKTAQRBuffer(options: QRCodeOptions): Promise<Buffer> {
-    const { id, nomorKTA, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ktagatensi.vercel.app/' } = options
+    const { nik, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ktagatensi.vercel.app/' } = options
 
-    // Generate QR code URL
-    const qrUrl = `${baseUrl}/qr/${id}/${nomorKTA}`
+    // Generate QR code URL using NIK
+    const qrUrl = `${baseUrl}/qr/${nik}`
 
     // Generate QR code as PNG buffer
     return await QRCode.toBuffer(qrUrl, {

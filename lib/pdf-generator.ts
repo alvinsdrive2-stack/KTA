@@ -377,7 +377,7 @@ export class KTAPDFGenerator {
     // All lines: top 183px + (index * 24)px, left 330px
     alamatLines.forEach((line, index) => {
       const xPos = toX(330)
-      const yPos = toY(183 + index * 24 + 16)
+      const yPos = toY(183 + index * 28 + 16)
       page.drawText(line, {
         x: xPos,
         y: yPos,

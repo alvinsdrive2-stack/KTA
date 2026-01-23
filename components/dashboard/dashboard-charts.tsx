@@ -415,8 +415,8 @@ export function RegionSubmissionChart({
 }
 
 interface DaerahComparisonData {
-  last6Months: number
-  previous6Months: number
+  thisMonthCount: number
+  lastMonthCount: number
   growthPercentage: number
   totalPrinted: number
 }
@@ -428,19 +428,19 @@ export function DaerahComparisonCard({ data, className }: { data: DaerahComparis
     <Card className={'card-3d animate-slide-up ' + (className || '')}>
       <CardHeader>
         <CardTitle className="text-lg font-semibold text-slate-900">
-          Perbandingan 6 Bulan
+          Perbandingan Bulanan
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 shadow-sm">
-              <div className="text-xs text-slate-600 mb-1">6 Bulan Terakhir</div>
-              <div className="text-3xl font-bold text-slate-900 count-up">{data.last6Months}</div>
+              <div className="text-xs text-slate-600 mb-1">Bulan Ini</div>
+              <div className="text-3xl font-bold text-slate-900 count-up">{data.thisMonthCount}</div>
             </div>
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 shadow-sm">
-              <div className="text-xs text-slate-600 mb-1">6 Bulan Sebelumnya</div>
-              <div className="text-3xl font-bold text-slate-900 count-up">{data.previous6Months}</div>
+              <div className="text-xs text-slate-600 mb-1">Bulan Lalu</div>
+              <div className="text-3xl font-bold text-slate-900 count-up">{data.lastMonthCount}</div>
             </div>
           </div>
 

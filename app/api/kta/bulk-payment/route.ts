@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
           jumlah: request.hargaFinal || 0, // Use hargaFinal from each request
           statusPembayaran: 'PENDING',
           invoiceNumber,
-          rekeningTujuan: 'BNI - 1234567890 - a.n. Gabungan Ahli Teknik Nasional Indonesia'
+          rekeningTujuan: 'BTN KC Jakarta Kuningan - 00001.01.30.000986.9 - a.n. Gabungan Ahli Teknik Nasional Indonesia'
         }
       })
     )

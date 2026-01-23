@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Autocomplete } from '@/components/ui/autocomplete'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle, Upload, X, CreditCard, User, FileImage, IdCard, Eye, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
+import { AlertCircle, Upload, X, CreditCard, User, FileImage, IdCard, Eye, ZoomIn, ZoomOut, RotateCcw, Info } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { PulseLogo, LSPSpinner } from '@/components/ui/loading-spinner'
 import { Separator as UISeparator } from '@/components/ui/separator'
@@ -49,6 +49,9 @@ export default function CreateManualPage() {
   const [diskonPersen, setDiskonPersen] = useState(0)
   const [hargaBase, setHargaBase] = useState(0)
   const [hargaFinal, setHargaFinal] = useState(0)
+
+  // Upgrade state
+  const [upgradeInfo, setUpgradeInfo] = useState<any>(null)
 
   // Reference data states
   const [subklasifikasiList, setSubklasifikasiList] = useState<string[]>([])
@@ -187,9 +190,50 @@ export default function CreateManualPage() {
       const jenjangNum = parseInt(jenjang, 10)
       const base = jenjangNum >= 7 ? 300000 : 100000
       setHargaBase(base)
-      setHargaFinal(base - (base * diskonPersen / 100))
+      const hargaAfterDiskon = base - (base * diskonPersen / 100)
+      setHargaFinal(hargaAfterDiskon)
     }
   }, [jenjang, diskonPersen])
+
+  // Watch nik for upgrade check
+  const nik = form.watch('nik')
+
+  // Check for upgrade scenario when nik, jenjang, and subklasifikasi change
+  useEffect(() => {
+    const checkUpgrade = async () => {
+      if (nik?.length === 16 && jenjang && subklasifikasi) {
+        try {
+          const response = await fetch('/api/kta/check-upgrade', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nik: nik,
+              jenjang: jenjang,
+              subklasifikasi: subklasifikasi
+            })
+          })
+          const result = await response.json()
+          if (result.success) {
+            setUpgradeInfo(result.data)
+            // Update pricing if upgrade
+            if (result.data.isUpgrade) {
+              setHargaBase(result.data.hargaBaru)
+              // Calculate remaining amount (hargaBaru - hargaLama), THEN apply discount
+              const selisih = result.data.hargaBaru - result.data.hargaLama
+              const hargaFinalAfterDiskon = selisih - (selisih * diskonPersen / 100)
+              setHargaFinal(hargaFinalAfterDiskon)
+            }
+          }
+        } catch (error) {
+          console.error('Failed to check upgrade:', error)
+        }
+      } else {
+        // Reset upgrade info if data is incomplete
+        setUpgradeInfo(null)
+      }
+    }
+    checkUpgrade()
+  }, [nik, jenjang, subklasifikasi, diskonPersen])
 
   // Check if user can assign to any daerah
   const canAssignAnyDaerah = session?.user?.role === 'PUSAT' ||
@@ -201,14 +245,26 @@ export default function CreateManualPage() {
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setError('❌ Ukuran file maksimal 5MB')
+      const errorMsg = '❌ Ukuran file maksimal 5MB'
+      setError(errorMsg)
+      toast({
+        variant: 'destructive',
+        title: 'File terlalu besar',
+        description: 'Ukuran file maksimal 5MB',
+      })
       return
     }
 
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
     if (!allowedTypes.includes(file.type)) {
-      setError('❌ Format file harus JPG, PNG, atau PDF')
+      const errorMsg = '❌ Format file harus JPG, PNG, atau PDF'
+      setError(errorMsg)
+      toast({
+        variant: 'destructive',
+        title: 'Format file tidak valid',
+        description: 'Format file harus JPG, PNG, atau PDF',
+      })
       return
     }
 
@@ -224,6 +280,7 @@ export default function CreateManualPage() {
       } else {
         setKtpPreview(null)
       }
+      console.log('KTP file set:', file.name, file.size, file.type)
     } else {
       setFotoFile(file)
       // Foto only allows images, not PDF
@@ -234,6 +291,7 @@ export default function CreateManualPage() {
       } else {
         setFotoPreview(null)
       }
+      console.log('Foto file set:', file.name, file.size, file.type)
     }
   }
 
@@ -286,7 +344,33 @@ export default function CreateManualPage() {
     setFotoZoom(1)
   }
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
   const onSubmit = async (data: FormData) => {
+    // Debug logging
+    console.log('=== Submit Debug ===')
+    console.log('ktpFile:', ktpFile?.name, ktpFile?.size, ktpFile?.type)
+    console.log('fotoFile:', fotoFile?.name, fotoFile?.size, fotoFile?.type)
+    console.log('upgradeInfo:', upgradeInfo)
+    console.log('==================')
+
+    // Check upgrade restriction first
+    if (upgradeInfo && !upgradeInfo.canUpgrade) {
+      toast({
+        variant: 'destructive',
+        title: 'Tidak dapat membuat permohonan KTA',
+        description: upgradeInfo.reason || 'NIK ini sudah memiliki KTA dengan jenjang yang sama atau lebih tinggi.',
+      })
+      return
+    }
+
     // Validate all fields and show toast with reasons
     const missingFields: string[] = []
 
@@ -662,7 +746,14 @@ export default function CreateManualPage() {
                         accept="image/jpeg,image/jpg,image/png,application/pdf"
                         onChange={(e) => {
                           const file = e.target.files?.[0]
-                          if (file) handleFileChange('ktp', file)
+                          if (file) {
+                            console.log('KTP file selected:', file.name, file.size, file.type)
+                            handleFileChange('ktp', file)
+                          } else {
+                            console.log('No KTP file selected')
+                          }
+                          // Reset input value so same file can be selected again if needed
+                          e.target.value = ''
                         }}
                         disabled={isLoading}
                         className="hidden"
@@ -726,7 +817,14 @@ export default function CreateManualPage() {
                         accept="image/jpeg,image/jpg,image/png"
                         onChange={(e) => {
                           const file = e.target.files?.[0]
-                          if (file) handleFileChange('foto', file)
+                          if (file) {
+                            console.log('Foto file selected:', file.name, file.size, file.type)
+                            handleFileChange('foto', file)
+                          } else {
+                            console.log('No Foto file selected')
+                          }
+                          // Reset input value so same file can be selected again if needed
+                          e.target.value = ''
                         }}
                         disabled={isLoading}
                         className="hidden"
@@ -761,6 +859,29 @@ export default function CreateManualPage() {
         </CardHeader>
         <CardContent className="pt-5">
           <div className="space-y-4">
+            {/* Upgrade Alert */}
+            {upgradeInfo?.isUpgrade && (
+              <Alert className="bg-blue-50 border-blue-200">
+                <Info className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
+                  <p className="font-semibold">Upgrade KTA Terdeteksi!</p>
+                  <p className="text-sm mt-1">KTA Lama: Jenjang {upgradeInfo.oldJenjang} - Rp {upgradeInfo.hargaLama.toLocaleString('id-ID')}</p>
+                  <p className="text-sm">KTA Baru: Jenjang {upgradeInfo.newJenjang} - Rp {upgradeInfo.hargaBaru.toLocaleString('id-ID')}</p>
+                  <p className="text-lg font-bold mt-1">Biaya Upgrade: Rp {upgradeInfo.hargaUpgrade.toLocaleString('id-ID')}</p>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Error Alert if cannot upgrade */}
+            {upgradeInfo && !upgradeInfo.canUpgrade && (
+              <Alert variant="destructive" className="border-red-200 bg-red-50">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-800 text-sm">
+                  {upgradeInfo.reason}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div>
               <Label className="text-sm font-medium text-slate-700">Jenjang</Label>
               <p className="mt-1 text-lg font-semibold text-slate-900">
@@ -769,26 +890,55 @@ export default function CreateManualPage() {
             </div>
 
             <div className="bg-slate-50 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-600">Harga</span>
-                <span className="font-medium">Rp {hargaBase.toLocaleString('id-ID')}</span>
-              </div>
-
-              {diskonPersen > 0 && (
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-slate-600">Diskon</span>
-                  <span className="font-medium text-green-600">-Rp {(hargaBase - hargaFinal).toLocaleString('id-ID')}</span>
-                </div>
+              {upgradeInfo?.isUpgrade ? (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Harga KTA Baru</span>
+                    <span className="font-medium">Rp {upgradeInfo.hargaBaru.toLocaleString('id-ID')}</span>
+                  </div>
+                  <div className="flex justify-between text-sm items-center">
+                    <span className="text-slate-600">Sudah Dibayar (KTA Lama)</span>
+                    <span className="font-medium text-green-600">-Rp {upgradeInfo.hargaLama.toLocaleString('id-ID')}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Selisih (Yang Harus Dibayar)</span>
+                    <span className="font-medium">Rp {(upgradeInfo.hargaBaru - upgradeInfo.hargaLama).toLocaleString('id-ID')}</span>
+                  </div>
+                  {diskonPersen > 0 && (
+                    <div className="flex justify-between text-sm items-center">
+                      <span className="text-slate-600">Porsi BPD ({diskonPersen}%)</span>
+                      <span className="font-medium text-green-600">-Rp {((upgradeInfo.hargaBaru - upgradeInfo.hargaLama) * diskonPersen / 100).toLocaleString('id-ID')}</span>
+                    </div>
+                  )}
+                  <UISeparator />
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-slate-900">Total Bayar (Upgrade)</span>
+                    <span className="text-xl font-bold text-blue-600">
+                      Rp {hargaFinal.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Harga</span>
+                    <span className="font-medium">Rp {hargaBase.toLocaleString('id-ID')}</span>
+                  </div>
+                  {diskonPersen > 0 && (
+                    <div className="flex justify-between text-sm items-center">
+                      <span className="text-slate-600">Porsi BPD</span>
+                      <span className="font-medium text-green-600">-Rp {(hargaBase - hargaFinal).toLocaleString('id-ID')}</span>
+                    </div>
+                  )}
+                  <UISeparator />
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-slate-900">Total Bayar</span>
+                    <span className="text-xl font-bold text-blue-600">
+                      Rp {hargaFinal.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </>
               )}
-
-              <UISeparator />
-
-              <div className="flex justify-between">
-                <span className="font-semibold text-slate-900">Total Bayar</span>
-                <span className="text-xl font-bold text-blue-600">
-                  Rp {hargaFinal.toLocaleString('id-ID')}
-                </span>
-              </div>
             </div>
 
 
@@ -822,8 +972,7 @@ export default function CreateManualPage() {
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <LSPSpinner size="sm" />
-                  <span>Memproses{uploadProgress > 0 && ` ${uploadProgress}%`}</span>
+                  <PulseLogo text="Memproses..." />
                 </span>
               ) : (
                 'Simpan Permohonan'

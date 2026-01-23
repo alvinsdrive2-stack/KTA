@@ -37,8 +37,8 @@ export default function KeuanganPage() {
   const sessionLoading = sessionStatus === 'loading'
   const userRole = session?.user?.role as string
 
-  // Only PUSAT and ADMIN can access
-  const isAuthorized = userRole === 'PUSAT' || userRole === 'ADMIN'
+  // Only ADMIN and KEUANGAN can access
+  const isAuthorized = userRole === 'ADMIN' || userRole === 'KEUANGAN'
 
   const [period, setPeriod] = useState<PeriodFilter>('ytd')
   const [stats, setStats] = useState<FinanceStats | null>(null)

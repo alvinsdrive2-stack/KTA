@@ -46,6 +46,10 @@ export async function GET(request: NextRequest) {
         // ADMIN can see all requests
         break
 
+      case 'KEUANGAN':
+        // KEUANGAN users can see all requests
+        break
+
       default:
         // Unknown role - return empty
         return NextResponse.json({
@@ -55,8 +59,8 @@ export async function GET(request: NextRequest) {
         })
     }
 
-    // Additional daerah filter only applies to PUSAT/ADMIN
-    if ((session.user.role === 'PUSAT' || session.user.role === 'ADMIN') && daerahKode && daerahKode !== 'all') {
+    // Additional daerah filter only applies to PUSAT/ADMIN/KEUANGAN
+    if ((session.user.role === 'PUSAT' || session.user.role === 'ADMIN' || session.user.role === 'KEUANGAN') && daerahKode && daerahKode !== 'all') {
       whereClause.daerah = {
         kodeDaerah: daerahKode
       }
@@ -71,8 +75,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (daerahKode && (session.user.role === 'PUSAT' || session.user.role === 'ADMIN')) {
-      // Only allow daerah filter for PUSAT/ADMIN users
+    if (daerahKode && (session.user.role === 'PUSAT' || session.user.role === 'ADMIN' || session.user.role === 'KEUANGAN')) {
+      // Only allow daerah filter for PUSAT/ADMIN/KEUANGAN users
       whereClause.daerah = {
         kodeDaerah: daerahKode
       }

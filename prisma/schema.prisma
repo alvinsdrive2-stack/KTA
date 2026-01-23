@@ -117,6 +117,10 @@ model KTARequest {
   diskonPersen       Int?            @default(0)
   hargaBase          Int?
   hargaFinal         Int?
+  isUpgrade          Boolean         @default(false)
+  upgradeFromKtaId   String?
+  hargaLama          Int?
+  hargaUpgrade       Int?
   approvals          Approval[]
   documents          KTADocument[]
   daerah             Daerah          @relation(fields: [daerahId], references: [id])
@@ -124,6 +128,8 @@ model KTARequest {
   klasifikasi        Subklasifikasi? @relation(fields: [subklasifikasiId], references: [id])
   payments           Payment[]
   qrScans            QRScan[]
+  upgradeFromKta     KTARequest?     @relation("KTAUpgrade", fields: [upgradeFromKtaId], references: [id])
+  upgradeToKtas      KTARequest[]    @relation("KTAUpgrade")
 
   @@map("kta_requests")
 }
@@ -238,6 +244,7 @@ enum UserRole {
   DAERAH
   PUSAT
   ADMIN
+  KEUANGAN
 }
 
 enum KTAStatus {
@@ -250,6 +257,8 @@ enum KTAStatus {
   READY_TO_PRINT
   PRINTED
   REJECTED
+  UPGRADE_PENDING
+  UPGRADE_PAID
 }
 
 enum DocumentType {

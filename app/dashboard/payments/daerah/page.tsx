@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Search, CreditCard, ArrowRight, FileText, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { Search, CreditCard, ArrowRight, FileText, Clock, CheckCircle, XCircle, TrendingUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { Separator } from '@/components/ui/separator'
@@ -24,6 +24,9 @@ interface KTARequest {
   status: string
   hargaFinal: number
   createdAt: string
+  isUpgrade?: boolean
+  upgradeFromKtaId?: string | null
+  hargaUpgrade?: number | null
 }
 
 interface BulkPayment {
@@ -108,9 +111,9 @@ export default function DaerahPaymentPage() {
     try {
       setLoading(true)
 
-      // Only fetch KTAs that need payment (DRAFT, FETCHED_FROM_SIKI, EDITED, WAITING_PAYMENT)
+      // Only fetch KTAs that need payment (DRAFT, FETCHED_FROM_SIKI, EDITED, WAITING_PAYMENT, UPGRADE_PENDING)
       const params = new URLSearchParams()
-      const payableStatuses = ['DRAFT', 'FETCHED_FROM_SIKI', 'EDITED', 'WAITING_PAYMENT']
+      const payableStatuses = ['DRAFT', 'FETCHED_FROM_SIKI', 'EDITED', 'WAITING_PAYMENT', 'UPGRADE_PENDING']
       payableStatuses.forEach(status => params.append('status', status))
       if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
 
@@ -150,6 +153,7 @@ export default function DaerahPaymentPage() {
       FETCHED_FROM_SIKI: { label: 'Diambil dari SIKI', className: 'bg-blue-100 text-blue-800 border-blue-200' },
       EDITED: { label: 'Edited', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
       WAITING_PAYMENT: { label: 'Menunggu Pembayaran', className: 'bg-orange-100 text-orange-800 border-orange-200' },
+      UPGRADE_PENDING: { label: 'Upgrade - Menunggu Pembayaran', className: 'bg-purple-100 text-purple-800 border-purple-200' },
     }
     return badges[status] || { label: status, className: 'bg-gray-100 text-gray-800' }
   }
@@ -306,6 +310,12 @@ export default function DaerahPaymentPage() {
                         <div className="flex items-center gap-3 mb-1">
                           <p className="font-medium text-slate-900">{request.nama}</p>
                           <Badge className={badge.className}>{badge.label}</Badge>
+                          {request.isUpgrade && (
+                            <Badge className="bg-purple-50 text-purple-700 border-purple-300 flex items-center gap-1">
+                              <TrendingUp className="h-3 w-3" />
+                              Upgrade
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-4 text-sm text-slate-500">
                           <span className="font-mono">{request.idIzin}</span>
@@ -313,6 +323,12 @@ export default function DaerahPaymentPage() {
                           <span className="font-mono">{request.nik}</span>
                           <span>•</span>
                           <span>Jenjang {request.jenjang}</span>
+                          {request.isUpgrade && request.upgradeFromKtaId && (
+                            <>
+                              <span>•</span>
+                              <span className="text-purple-600 font-medium">Upgrade dari KTA sebelumnya</span>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -321,6 +337,11 @@ export default function DaerahPaymentPage() {
                         <p className="text-lg font-semibold text-slate-900">
                           Rp {request.hargaFinal?.toLocaleString('id-ID') || '-'}
                         </p>
+                        {request.isUpgrade && request.hargaUpgrade && (
+                          <p className="text-xs text-purple-600">
+                            Biaya Upgrade: Rp {request.hargaUpgrade.toLocaleString('id-ID')}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

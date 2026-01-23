@@ -34,7 +34,9 @@ export async function GET(
                 jenjang: true,
                 jabatanKerja: true,
                 hargaBase: true,
-                hargaFinal: true
+                hargaFinal: true,
+                isUpgrade: true,
+                upgradeFromKtaId: true
               }
             }
           },
@@ -50,6 +52,57 @@ export async function GET(
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
+
+    // Fetch previous KTA data for upgrades
+    const upgradedKtaIds = invoice.payments
+      .filter(p => p.ktaRequest.isUpgrade && p.ktaRequest.upgradeFromKtaId)
+      .map(p => p.ktaRequest.upgradeFromKtaId!)
+
+    let previousKtas: Record<string, { hargaBase: number; hargaFinal: number; jenjang: string }> = {}
+
+    if (upgradedKtaIds.length > 0) {
+      const prevKtas = await prisma.kTARequest.findMany({
+        where: {
+          id: { in: upgradedKtaIds }
+        },
+        select: {
+          id: true,
+          hargaBase: true,
+          hargaFinal: true,
+          jenjang: true
+        }
+      })
+
+      previousKtas = prevKtas.reduce((acc, kta) => {
+        acc[kta.id] = {
+          hargaBase: kta.hargaBase || 0,
+          hargaFinal: kta.hargaFinal || 0,
+          jenjang: kta.jenjang
+        }
+        return acc
+      }, {} as Record<string, { hargaBase: number; hargaFinal: number; jenjang: string }>)
+    }
+
+    // Attach previous KTA data and calculate effective harga
+    const paymentsWithPrev = invoice.payments.map(p => {
+      const prevData = p.ktaRequest.isUpgrade && p.ktaRequest.upgradeFromKtaId
+        ? previousKtas[p.ktaRequest.upgradeFromKtaId]
+        : null
+
+      let effectiveHarga = p.ktaRequest.hargaBase || 0
+      if (p.ktaRequest.isUpgrade && prevData) {
+        effectiveHarga = (p.ktaRequest.hargaBase || 0) - prevData.hargaBase
+      }
+
+      return {
+        ...p,
+        ktaRequest: {
+          ...p.ktaRequest,
+          previousKta: prevData
+        },
+        effectiveHarga
+      }
+    })
 
     // Create PDF
     const pdfDoc = await PDFDocument.create()
@@ -301,7 +354,7 @@ export async function GET(
     yPosition -= tableHeaderHeight
 
     // Table rows with alternating background
-    invoice.payments.forEach((payment, index) => {
+    paymentsWithPrev.forEach((payment, index) => {
       // Alternating row background
       if (index % 2 === 0) {
         page.drawRectangle({
@@ -315,13 +368,16 @@ export async function GET(
 
       // Draw cell data - No truncation, full text
       xPos = margin
+      const jenjangText = payment.ktaRequest.isUpgrade
+        ? `${payment.ktaRequest.jenjang} (UPG)`
+        : payment.ktaRequest.jenjang
       const cells = [
         `${index + 1}`,
         payment.ktaRequest.idIzin,
         payment.ktaRequest.nama,  // No truncation
         payment.ktaRequest.nik,
-        payment.ktaRequest.jenjang,
-        formatCurrency(payment.ktaRequest.hargaBase || 0)
+        jenjangText,
+        formatCurrency(payment.effectiveHarga)
       ]
 
       cells.forEach((cell, i) => {
@@ -334,6 +390,9 @@ export async function GET(
         })
         xPos += colWidths[i]
       })
+
+      // Draw upgrade calculation info
+     
 
       // Row border
       page.drawLine({
@@ -365,8 +424,8 @@ export async function GET(
     const centerX = margin + sectionWidth + 10
     const rightX = margin + (sectionWidth * 2) + 20
 
-    // Calculate total from hargaBase
-    const totalHargaBase = invoice.payments.reduce((sum, p) => sum + (p.ktaRequest.hargaBase || 0), 0)
+    // Calculate from effectiveHarga
+    const totalHargaBase = paymentsWithPrev.reduce((sum, p) => sum + p.effectiveHarga, 0)
     const diskon = invoice.daerah.diskonPersen || 0
     const diskonAmount = Math.floor(totalHargaBase * diskon / 100)
     const totalTagihan = totalHargaBase - diskonAmount
@@ -387,7 +446,7 @@ export async function GET(
       font: font,
       color: darkGray
     })
-    page.drawText('BNI', {
+    page.drawText('BTN KC Jakarta Kuningan', {
       x: leftX + 10,
       y: yPosition - 43,
       size: 10,
@@ -402,7 +461,7 @@ export async function GET(
       font: font,
       color: darkGray
     })
-    page.drawText('1234567890', {
+    page.drawText('00001.01.30.000986.9', {
       x: leftX + 10,
       y: yPosition - 71,
       size: 10,
@@ -486,8 +545,8 @@ export async function GET(
     })
     summaryY -= lineHeight
 
-    // Diskon
-    page.drawText('Porsi:', {
+    // Porsi BPD
+    page.drawText('Porsi BPD:', {
       x: rightX + 10,
       y: summaryY,
       size: 8,

@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import { ArrowLeft, Download, FileText, User, IdCard, Calendar, MapPin, Phone, Mail, Building, Eye, Upload, AlertCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Download, FileText, User, IdCard, Calendar, MapPin, Phone, Mail, Building, Eye, Upload, AlertCircle, Loader2, RefreshCw, Info } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useSession } from '@/hooks/useSession'
 import { useToast } from '@/components/ui/use-toast'
@@ -65,7 +65,12 @@ export default function KTADetailPage() {
   const [uploading, setUploading] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
 
-  const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN'
+  // Refresh states
+  const [refreshing, setRefreshing] = useState(false)
+  const [showRefreshModal, setShowRefreshModal] = useState(false)
+  const [sikiChanges, setSikiChanges] = useState<any>(null)
+
+  const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN' || session?.user.role === 'KEUANGAN'
 
   useEffect(() => {
     if (params.id) {
@@ -86,6 +91,132 @@ export default function KTADetailPage() {
       console.error('Error fetching KTA detail:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRefreshFromSIKI = async () => {
+    if (!kta) return
+
+    setRefreshing(true)
+    try {
+      const response = await fetch('/api/siki/get-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idIzin: kta.idIzin })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || result.error) {
+        toast({
+          variant: 'destructive',
+          title: 'Gagal Refresh Data',
+          description: result.error || 'Gagal mengambil data dari SIKI'
+        })
+        return
+      }
+
+      const newSikiData = result.data
+
+      // Compare fields
+      const changes: any = {}
+
+      // Fields to compare
+      const fieldsToCompare = [
+        { key: 'nama', label: 'Nama Lengkap' },
+        { key: 'nik', label: 'NIK' },
+        { key: 'jabatanKerja', label: 'Jabatan Kerja', altKey: 'jabatan' },
+        { key: 'jenjang', label: 'Jenjang' },
+        { key: 'telp', label: 'No. Telepon', altKey: 'noTelp' },
+        { key: 'email', label: 'Email' },
+        { key: 'alamat', label: 'Alamat' },
+        { key: 'klasifikasi.subklasifikasi', label: 'Subklasifikasi' }
+      ]
+
+      fieldsToCompare.forEach(field => {
+        const keys = field.key.split('.')
+        let oldValue = kta[field.key as keyof KTARequest]
+
+        // Try alt key if main key doesn't exist
+        if (oldValue === undefined && field.altKey) {
+          oldValue = kta[field.altKey as keyof KTARequest]
+        }
+
+        let newValue = newSikiData
+        keys.forEach(k => {
+          newValue = newValue?.[k]
+        })
+
+        // For subklasifikasi, compare with current value
+        if (field.key === 'klasifikasi.subklasifikasi') {
+          oldValue = kta.subklasifikasi
+          newValue = newSikiData.klasifikasi?.subklasifikasi || newSikiData.subklasifikasi
+        }
+
+        if (oldValue !== newValue && oldValue?.toString() !== newValue?.toString()) {
+          changes[field.label] = { old: oldValue, new: newValue }
+        }
+      })
+
+      if (Object.keys(changes).length > 0) {
+        setSikiChanges({ changes, newSikiData })
+        setShowRefreshModal(true)
+      } else {
+        toast({
+          variant: 'default',
+          title: 'Data SAMA',
+          description: 'Tidak ada perubahan data dari SIKI'
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Refresh Data',
+        description: 'Terjadi kesalahan saat mengambil data dari SIKI'
+      })
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const confirmRefreshUpdate = async () => {
+    if (!kta || !sikiChanges) return
+
+    setRefreshing(true)
+    setShowRefreshModal(false)
+
+    try {
+      // The existing API fetches directly from SIKI, no need to send sikiData
+      const response = await fetch(`/api/kta/${kta.id}/refresh-siki`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          variant: 'success',
+          title: 'Data Berhasil Diupdate',
+          description: 'Data KTA telah diperbarui dengan data terbaru dari SIKI'
+        })
+        fetchKTADetail(kta.id)
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Gagal Update Data',
+          description: result.error || 'Terjadi kesalahan saat mengupdate data'
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Update Data',
+        description: 'Terjadi kesalahan saat mengupdate data'
+      })
+    } finally {
+      setRefreshing(false)
+      setSikiChanges(null)
     }
   }
 
@@ -228,19 +359,40 @@ export default function KTADetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4 animate-slide-up-stagger stagger-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.back()}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Kembali
-        </Button>
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Detail KTA</h1>
-          <p className="text-slate-500 text-sm">Informasi lengkap Kartu Tanda Anggota</p>
+      <div className="flex items-center justify-between animate-slide-up-stagger stagger-1">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.back()}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Kembali
+          </Button>
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">Detail KTA</h1>
+            <p className="text-slate-500 text-sm">Informasi lengkap Kartu Tanda Anggota</p>
+          </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefreshFromSIKI}
+          disabled={refreshing}
+          className="gap-2"
+        >
+          {refreshing ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Refreshing...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4" />
+              Refresh SIKI
+            </>
+          )}
+        </Button>
       </div>
 
       {/* No. KTA Card */}
@@ -569,8 +721,8 @@ export default function KTADetailPage() {
 
             <div className="text-xs text-slate-500 space-y-1 bg-slate-50 p-3 rounded">
               <p><strong>Rekening Tujuan:</strong></p>
-              <p>Bank: BNI</p>
-              <p>No. Rekening: 1234567890</p>
+              <p>Bank: BTN KC Jakarta Kuningan</p>
+              <p>No. Rekening: 00001.01.30.000986.9</p>
               <p>a.n. Gabungan Ahli Teknik Nasional Indonesia</p>
             </div>
 
@@ -606,6 +758,74 @@ export default function KTADetailPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refresh Confirmation Modal */}
+      <Dialog open={showRefreshModal} onOpenChange={setShowRefreshModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="h-5 w-5 text-blue-600" />
+              Perubahan Data dari SIKI
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Alert className="bg-blue-50 border-blue-200">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                Ditemukan {Object.keys(sikiChanges?.changes || {}).length} field yang berbeda dari data SIKI terbaru.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-3">
+              {sikiChanges?.changes && Object.entries(sikiChanges.changes).map(([field, values]: [string, any]) => (
+                <div key={field} className="border border-slate-200 rounded-lg p-3">
+                  <p className="font-semibold text-sm text-slate-700 mb-2">{field}</p>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-xs text-red-600 font-medium mb-1">Data Lama:</p>
+                      <p className="text-slate-600 bg-red-50 p-2 rounded">{values.old || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-green-600 font-medium mb-1">Data Baru (SIKI):</p>
+                      <p className="text-slate-600 bg-green-50 p-2 rounded">{values.new || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRefreshModal(false)
+                  setSikiChanges(null)
+                }}
+                className="flex-1"
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={confirmRefreshUpdate}
+                disabled={refreshing}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+              >
+                {refreshing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Mengupdate...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Update Data
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

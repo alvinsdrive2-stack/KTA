@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { checkUpgradeScenario } from '@/lib/kta-upgrade'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,13 +81,8 @@ export async function POST(request: NextRequest) {
     const hargaBase = getHargaBaseByJenjang(jenjang)
     const hargaFinal = hargaBase - (hargaBase * diskonPersen / 100)
 
-    // Debug logging
-    console.log('=== KTA Create Debug ===')
-    console.log('subklasifikasiId from sikiData:', sikiData.subklasifikasiId)
-    console.log('klasifikasi from sikiData:', sikiData.klasifikasi)
-    console.log('=====================')
-
     // Find subklasifikasi by kodeSubklasifikasi to ensure it exists
+    // This needs to be done BEFORE upgrade check since it uses subklasifikasiText
     let finalSubklasifikasiId = sikiData.subklasifikasiId
     let subklasifikasiText = null
     if (sikiData.klasifikasi?.kodeSubklasifikasi) {
@@ -114,6 +110,35 @@ export async function POST(request: NextRequest) {
         subklasifikasiText = newSub.subklasifikasi
         console.log('Created new subklasifikasi with ID:', finalSubklasifikasiId)
       }
+    }
+
+    // Check for upgrade scenario
+    const jenjangNum = parseInt(jenjang, 10)
+    const upgradeCheck = await checkUpgradeScenario(
+      sikiData.nik,
+      jenjangNum,
+      subklasifikasiText || ''
+    )
+
+    if (!upgradeCheck.canUpgrade) {
+      return NextResponse.json({
+        error: upgradeCheck.reason || 'Tidak dapat membuat permohonan KTA'
+      }, { status: 400 })
+    }
+
+    // Calculate final price with upgrade discount if applicable
+    let finalHargaBase = hargaBase
+    let finalHargaFinal = hargaFinal
+    let finalHargaUpgrade: number | undefined
+    let finalHargaLama: number | undefined
+
+    if (upgradeCheck.isUpgrade) {
+      finalHargaBase = upgradeCheck.hargaBaru
+      // Apply discount to hargaBaru, then subtract hargaLama (what they already paid)
+      const hargaBaruAfterDiskon = upgradeCheck.hargaBaru - (upgradeCheck.hargaBaru * diskonPersen / 100)
+      finalHargaFinal = hargaBaruAfterDiskon - upgradeCheck.hargaLama
+      finalHargaUpgrade = upgradeCheck.hargaUpgrade
+      finalHargaLama = upgradeCheck.hargaLama
     }
 
     // Check if KTA request already exists
@@ -146,10 +171,14 @@ export async function POST(request: NextRequest) {
           ktpUrl: ktpUrl,
           fotoUrl: fotoUrl,
           fotoData: fotoData, // Store base64 data for geo-blocked URLs
-          hargaRegion: hargaFinal,
-          hargaBase,
+          hargaRegion: finalHargaFinal,
+          hargaBase: finalHargaBase,
           diskonPersen,
-          hargaFinal,
+          hargaFinal: finalHargaFinal,
+          isUpgrade: upgradeCheck.isUpgrade,
+          upgradeFromKtaId: upgradeCheck.existingKta?.id,
+          hargaLama: finalHargaLama,
+          hargaUpgrade: finalHargaUpgrade,
         }
       })
       console.log('After update, subklasifikasiId:', ktaRequest.subklasifikasiId)
@@ -171,14 +200,18 @@ export async function POST(request: NextRequest) {
           email: sikiData.email || '',
           alamat: sikiData.alamat || '',
           tanggalDaftar: sikiData.tgl_daftar ? new Date(sikiData.tgl_daftar) : new Date(),
-          status: 'DRAFT',
-          hargaRegion: hargaFinal,
-          hargaBase,
+          status: upgradeCheck.isUpgrade ? 'UPGRADE_PENDING' : 'DRAFT',
+          hargaRegion: finalHargaFinal,
+          hargaBase: finalHargaBase,
           diskonPersen,
-          hargaFinal,
+          hargaFinal: finalHargaFinal,
           ktpUrl: ktpUrl,
           fotoUrl: fotoUrl,
           fotoData: fotoData, // Store base64 data for geo-blocked URLs
+          isUpgrade: upgradeCheck.isUpgrade,
+          upgradeFromKtaId: upgradeCheck.existingKta?.id,
+          hargaLama: finalHargaLama,
+          hargaUpgrade: finalHargaUpgrade,
         },
       })
       console.log('After create, subklasifikasiId:', ktaRequest.subklasifikasiId)
@@ -191,9 +224,17 @@ export async function POST(request: NextRequest) {
         sikiData: sikiData,
         pricing: {
           jenjang,
-          hargaBase,
+          hargaBase: finalHargaBase,
           diskonPersen,
-          hargaFinal
+          hargaFinal: finalHargaFinal,
+          isUpgrade: upgradeCheck.isUpgrade,
+          upgradeInfo: upgradeCheck.isUpgrade ? {
+            oldJenjang: upgradeCheck.oldJenjang,
+            newJenjang: upgradeCheck.newJenjang,
+            hargaLama: upgradeCheck.hargaLama,
+            hargaBaru: upgradeCheck.hargaBaru,
+            hargaUpgrade: upgradeCheck.hargaUpgrade,
+          } : null
         }
       },
     })

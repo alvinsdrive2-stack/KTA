@@ -97,33 +97,31 @@ export async function GET(request: NextRequest) {
       count,
     }))
 
-    // Calculate comparison: last 6 months vs previous 6 months
-    const sixMonthsAgo = new Date()
-    sixMonthsAgo.setMonth(now.getMonth() - 6)
+    // Calculate comparison: current month vs previous month
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
 
-    const twelveMonthsAgo = new Date()
-    twelveMonthsAgo.setMonth(now.getMonth() - 12)
-
-    // Last 6 months printed KTA
-    const last6Months = await prisma.kTARequest.count({
+    // Current month printed KTA
+    const thisMonthCount = await prisma.kTARequest.count({
       where: {
         daerahId: userDaerahId,
         status: 'READY_TO_PRINT',
         createdAt: {
-          gte: sixMonthsAgo,
+          gte: thisMonthStart,
           lte: now,
         },
       },
     })
 
-    // Previous 6 months printed KTA
-    const previous6Months = await prisma.kTARequest.count({
+    // Previous month printed KTA
+    const lastMonthCount = await prisma.kTARequest.count({
       where: {
         daerahId: userDaerahId,
         status: 'READY_TO_PRINT',
         createdAt: {
-          gte: twelveMonthsAgo,
-          lt: sixMonthsAgo,
+          gte: lastMonthStart,
+          lte: lastMonthEnd,
         },
       },
     })
@@ -137,16 +135,16 @@ export async function GET(request: NextRequest) {
     })
 
     // Calculate growth percentage
-    const growthPercentage = previous6Months > 0
-      ? ((last6Months - previous6Months) / previous6Months) * 100
-      : (last6Months > 0 ? 100 : 0)
+    const growthPercentage = lastMonthCount > 0
+      ? ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100
+      : (thisMonthCount > 0 ? 100 : 0)
 
     return NextResponse.json({
       success: true,
       data: chartData,
       comparison: {
-        last6Months,
-        previous6Months,
+        thisMonthCount,
+        lastMonthCount,
         growthPercentage: Math.round(growthPercentage * 10) / 10,
         totalPrinted,
       },

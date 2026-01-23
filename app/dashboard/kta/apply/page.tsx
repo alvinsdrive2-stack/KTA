@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle, Search, User, Mail, Phone, MapPin, Calendar, CreditCard, Eye, Maximize2, X, ZoomIn, ZoomOut, RotateCw, Download, Separator } from 'lucide-react'
+import { AlertCircle, Search, User, Mail, Phone, MapPin, Calendar, CreditCard, Eye, Maximize2, X, ZoomIn, ZoomOut, RotateCw, Download, Separator, Info, ChevronLeft, ChevronRight, Trash2, CheckCircle2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import Image from 'next/image'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -34,6 +34,11 @@ export default function KTAApplyPage() {
   const [sikiData, setSikiData] = useState<any>(null)
   const [ktaRequestId, setKtaRequestId] = useState<string | null>(null)
 
+  // Multi-ID states
+  const [allIdIzin, setAllIdIzin] = useState<string[]>([])
+  const [currentIdIndex, setCurrentIdIndex] = useState(0)
+  const [inspectedData, setInspectedData] = useState<Map<number, any>>(new Map())
+
   // Daerah states
   const [daerahList, setDaerahList] = useState<any[]>([])
   const [selectedDaerahId, setSelectedDaerahId] = useState<string>('')
@@ -42,6 +47,9 @@ export default function KTAApplyPage() {
   const [diskonPersen, setDiskonPersen] = useState(0)
   const [hargaBase, setHargaBase] = useState(0)
   const [hargaFinal, setHargaFinal] = useState(0)
+
+  // Upgrade state
+  const [upgradeInfo, setUpgradeInfo] = useState<any>(null)
 
   // Modal states
   const [ktpModalOpen, setKtpModalOpen] = useState(false)
@@ -120,18 +128,70 @@ export default function KTAApplyPage() {
     }
   }, [sikiData?.jenjang, diskonPersen])
 
+  // Check for upgrade scenario when sikiData is fetched
+  useEffect(() => {
+    const checkUpgrade = async () => {
+      if (sikiData?.nik && sikiData.jenjang) {
+        try {
+          const response = await fetch('/api/kta/check-upgrade', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nik: sikiData.nik,
+              jenjang: sikiData.jenjang,
+              subklasifikasi: sikiData.klasifikasi?.subklasifikasi || ''
+            })
+          })
+          const result = await response.json()
+          if (result.success) {
+            setUpgradeInfo(result.data)
+            // Update pricing if upgrade
+            if (result.data.isUpgrade) {
+              setHargaBase(result.data.hargaBaru)
+              // Apply discount to hargaBaru, then subtract hargaLama (what they already paid)
+              const hargaBaruAfterDiskon = result.data.hargaBaru - (result.data.hargaBaru * diskonPersen / 100)
+              setHargaFinal(hargaBaruAfterDiskon - result.data.hargaLama)
+            }
+          }
+        } catch (error) {
+          console.error('Failed to check upgrade:', error)
+        }
+      }
+    }
+    checkUpgrade()
+  }, [sikiData?.nik, sikiData?.jenjang, sikiData?.klasifikasi?.subklasifikasi, diskonPersen])
+
   const onSearch = async (data: FormData) => {
     setIsLoading(true)
     setError(null)
 
     try {
+      // Parse multiple IDs separated by comma or space
+      const rawInput = data.idIzin.trim()
+      const ids = rawInput.split(/[, \s]+/).filter(id => id.length > 0).map(id => id.trim())
+
+      if (ids.length === 0) {
+        setError('❌ Masukkan setidaknya satu ID Izin')
+        setIsLoading(false)
+        return
+      }
+
+      setAllIdIzin(ids)
+
+      // Search for the first un-inspected ID
+      const searchIndex = inspectedData.size > 0
+        ? Array.from({ length: ids.length }, (_, i) => i).find(i => !inspectedData.has(i)) ?? 0
+        : 0
+
+      const idToSearch = ids[searchIndex]
+
       // Direct API call to SIKI without saving to database
       const response = await fetch('/api/siki/get-data', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ idIzin: data.idIzin }),
+        body: JSON.stringify({ idIzin: idToSearch }),
       })
 
       const result = await response.json()
@@ -156,6 +216,9 @@ export default function KTAApplyPage() {
 
         setError(errorMessage)
       } else {
+        // Find which index this data belongs to
+        const foundIndex = ids.indexOf(idToSearch)
+        setCurrentIdIndex(foundIndex)
         setSikiData(result.data)
         setKtaRequestId(null) // Reset since not saved yet
       }
@@ -164,6 +227,89 @@ export default function KTAApplyPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Fetch single ID data without resetting bulk state (for navigation)
+  const fetchSingleIdData = async (idIzin: string, index: number) => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/siki/get-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idIzin }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || result.error) {
+        setError(result.error || 'Gagal mengambil data dari SIKI')
+      } else {
+        setCurrentIdIndex(index)
+        setSikiData(result.data)
+        setKtaRequestId(null)
+      }
+    } catch (error) {
+      setError('❌ Tidak dapat terhubung ke server.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Mark current data as inspected and move to next
+  const markInspectedAndNext = () => {
+    // Close all modals first
+    setKtpModalOpen(false)
+    setFotoModalOpen(false)
+    setSidebarCollapsed(false)
+
+    // Create new Map with current data marked as inspected
+    const newData = new Map(inspectedData)
+    if (sikiData) {
+      newData.set(currentIdIndex, sikiData)
+    }
+    setInspectedData(newData)
+
+    // Find next uninspected ID (starting from current index + 1, since we just marked current)
+    const nextIndex = allIdIzin.findIndex((_, i) => !newData.has(i) && i > currentIdIndex)
+    if (nextIndex !== -1) {
+      setCurrentIdIndex(nextIndex)
+      setSikiData(null)
+      setKtaRequestId(null)
+      // Fetch data for next ID using the new function
+      fetchSingleIdData(allIdIzin[nextIndex], nextIndex)
+    }
+  }
+
+  // Navigate to specific ID
+  const goToId = (index: number) => {
+    // Close all modals first
+    setKtpModalOpen(false)
+    setFotoModalOpen(false)
+    setSidebarCollapsed(false)
+
+    const data = inspectedData.get(index)
+    if (data) {
+      setCurrentIdIndex(index)
+      setSikiData(data)
+      setKtaRequestId(null)
+    } else {
+      setCurrentIdIndex(index)
+      setSikiData(null)
+      setKtaRequestId(null)
+      // Fetch data for this ID using the new function
+      fetchSingleIdData(allIdIzin[index], index)
+    }
+  }
+
+  // Reset all multi-ID state
+  const resetMultiIdState = () => {
+    setAllIdIzin([])
+    setCurrentIdIndex(0)
+    setInspectedData(new Map())
   }
 
   const handleZoom = (type: 'ktp' | 'foto' | 'compareKtp' | 'compareFoto', direction: 'in' | 'out') => {
@@ -218,52 +364,146 @@ export default function KTAApplyPage() {
     document.body.removeChild(link)
   }
 
-  const onSubmit = async () => {
-    setIsLoading(true)
+  // Helper function to check upgrade for individual items (for bulk submission)
+  const checkUpgradeForItem = async (itemSikiData: any) => {
+    if (!itemSikiData?.nik || !itemSikiData?.jenjang) {
+      return null
+    }
 
     try {
-      // Validate required fields before submitting
-      if (!sikiData.nik || !sikiData.nama) {
-        setError('❌ NIK dan Nama harus diisi sebelum menyimpan.')
-        return
-      }
-
-      // Save KTA request with edited data
-      const response = await fetch('/api/kta/create', {
+      const response = await fetch('/api/kta/check-upgrade', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          idIzin: form.getValues().idIzin,
-          sikiData: sikiData,
-          daerahId: canAssignAnyDaerah ? selectedDaerahId : undefined
-        }),
+          nik: itemSikiData.nik,
+          jenjang: itemSikiData.jenjang,
+          subklasifikasi: itemSikiData.klasifikasi?.subklasifikasi || ''
+        })
       })
-
       const result = await response.json()
+      if (result.success) {
+        return result.data
+      }
+    } catch (error) {
+      console.error('Failed to check upgrade:', error)
+    }
+    return null
+  }
 
-      if (response.ok) {
-        router.push(`/dashboard/permohonan?success=true&nama=${encodeURIComponent(sikiData.nama)}`)
-      } else {
-        // More specific error messages
-        let errorMessage = result.error || 'Gagal menyimpan permohonan'
+  const onSubmit = async () => {
+    setIsLoading(true)
+    setError(null)
 
-        if (response.status === 400) {
-          if (errorMessage.includes('ID Izin')) {
-            errorMessage = '❌ ID Izin tidak ditemukan. Silakan cari ulang data SIKI.'
-          } else if (errorMessage.includes('required')) {
-            errorMessage = '❌ Data yang diperlukan tidak lengkap. Pastikan semua field terisi dengan benar.'
-          } else {
-            errorMessage = `❌ ${errorMessage}`
-          }
-        } else if (response.status === 401) {
-          errorMessage = '❌ Sesi Anda telah berakhir. Silakan login kembali.'
-        } else if (response.status === 500) {
-          errorMessage = '❌ Terjadi kesalahan pada server saat menyimpan data. Silakan coba beberapa saat lagi.'
+    try {
+      // Check if bulk mode
+      if (allIdIzin.length > 1) {
+        // Bulk mode: Save all inspected items
+        let successCount = 0
+        let failedCount = 0
+        const errors: string[] = []
+
+        // Collect all data to save (inspected + current)
+        const allData = new Map(inspectedData)
+        if (sikiData && !allData.has(currentIdIndex)) {
+          allData.set(currentIdIndex, sikiData)
         }
 
-        setError(errorMessage)
+        // Save each item
+        for (let i = 0; i < allIdIzin.length; i++) {
+          const data = allData.get(i)
+          if (!data) {
+            failedCount++
+            errors.push(`ID #${i + 1} (${allIdIzin[i]}): Belum diinspeksi`)
+            continue
+          }
+
+          // Check upgrade restriction for each item
+          const itemUpgradeInfo = await checkUpgradeForItem(data)
+          if (itemUpgradeInfo && !itemUpgradeInfo.canUpgrade) {
+            failedCount++
+            errors.push(`ID #${i + 1} (${allIdIzin[i]}): ${itemUpgradeInfo.reason || 'Tidak dapat membuat KTA'}`)
+            continue
+          }
+
+          try {
+            const response = await fetch('/api/kta/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                idIzin: allIdIzin[i],
+                sikiData: data,
+                daerahId: canAssignAnyDaerah ? selectedDaerahId : undefined
+              }),
+            })
+
+            const result = await response.json()
+
+            if (response.ok) {
+              successCount++
+            } else {
+              failedCount++
+              errors.push(`ID #${i + 1} (${allIdIzin[i]}): ${result.error || 'Gagal menyimpan'}`)
+            }
+          } catch (err) {
+            failedCount++
+            errors.push(`ID #${i + 1} (${allIdIzin[i]}): Error koneksi`)
+          }
+        }
+
+        // Show results
+        if (successCount === allIdIzin.length) {
+          router.push(`/dashboard/permohonan?success=true&nama=${successCount}+KTA`)
+        } else if (successCount > 0) {
+          setError(`⚠️ ${successCount} berhasil, ${failedCount} gagal:\n${errors.join('\n')}`)
+        } else {
+          setError(`❌ Semua gagal disimpan:\n${errors.join('\n')}`)
+        }
+      } else {
+        // Single mode: Save current item only
+        if (!sikiData?.nik || !sikiData?.nama) {
+          setError('❌ NIK dan Nama harus diisi sebelum menyimpan.')
+          return
+        }
+
+        // Check upgrade restriction
+        if (upgradeInfo && !upgradeInfo.canUpgrade) {
+          setError(upgradeInfo.reason || 'Tidak dapat membuat permohonan KTA baru untuk NIK ini.')
+          return
+        }
+
+        const response = await fetch('/api/kta/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            idIzin: allIdIzin[currentIdIndex],
+            sikiData: sikiData,
+            daerahId: canAssignAnyDaerah ? selectedDaerahId : undefined
+          }),
+        })
+
+        const result = await response.json()
+
+        if (response.ok) {
+          router.push(`/dashboard/permohonan?success=true&nama=${encodeURIComponent(sikiData.nama)}`)
+        } else {
+          let errorMessage = result.error || 'Gagal menyimpan permohonan'
+
+          if (response.status === 400) {
+            if (errorMessage.includes('ID Izin')) {
+              errorMessage = '❌ ID Izin tidak ditemukan. Silakan cari ulang data SIKI.'
+            } else if (errorMessage.includes('required')) {
+              errorMessage = '❌ Data yang diperlukan tidak lengkap. Pastikan semua field terisi dengan benar.'
+            } else {
+              errorMessage = `❌ ${errorMessage}`
+            }
+          } else if (response.status === 401) {
+            errorMessage = '❌ Sesi Anda telah berakhir. Silakan login kembali.'
+          } else if (response.status === 500) {
+            errorMessage = '❌ Terjadi kesalahan pada server saat menyimpan data. Silakan coba beberapa saat lagi.'
+          }
+
+          setError(errorMessage)
+        }
       }
     } catch (error) {
       setError('❌ Tidak dapat menyimpan data. Periksa koneksi internet Anda dan coba lagi.')
@@ -305,19 +545,85 @@ export default function KTAApplyPage() {
               <Label htmlFor="idIzin" className="text-slate-700">ID Izin <span className="text-red-600">*</span></Label>
               <Input
                 id="idIzin"
-                placeholder="Contoh: 1234567890123456"
+                placeholder="Contoh: 1234567890123456 atau 123, 456, 789 (pisahkan dengan koma/spasi)"
                 {...form.register('idIzin')}
                 disabled={isLoading || !!sikiData}
                 className="bg-white"
               />
               <p className="text-xs text-slate-500">
-                Masukkan 21 digit nomor ID Izin yang Anda dapatkan dari SIKI
+                Masukkan 21 digit nomor ID Izin. Untuk multiple, pisahkan dengan koma atau spasi.
               </p>
               {form.formState.errors.idIzin && (
                 <p className="text-sm text-red-600 flex items-center gap-1">
                   <AlertCircle className="h-4 w-4" />
                   {form.formState.errors.idIzin.message}
                 </p>
+              )}
+
+              {/* Progress Indicator */}
+              {allIdIzin.length > 1 && (
+                <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-4 border border-slate-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <span className="text-sm font-semibold text-slate-700">Progress Inspeksi</span>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {allIdIzin.length - inspectedData.size} permohonan belum diinspeksi
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-blue-600">
+                        {inspectedData.size}
+                      </span>
+                      <span className="text-sm font-medium text-slate-500">/{allIdIzin.length}</span>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full bg-slate-200 rounded-full h-2.5 mb-3 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${(inspectedData.size / allIdIzin.length) * 100}%` }}
+                    />
+                  </div>
+
+                  {/* ID Navigation Pills */}
+                  <div className="flex gap-2 flex-wrap">
+                    {allIdIzin.map((id, index) => {
+                      const isCurrent = currentIdIndex === index
+                      const isInspected = inspectedData.has(index)
+                      const isPast = index < currentIdIndex
+
+                      // Truncate ID if too long for display
+                      const displayId = id.length > 12 ? `${id.slice(0, 6)}...${id.slice(-4)}` : id
+
+                      return (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => goToId(index)}
+                          className={`
+                            px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200
+                            ${isCurrent
+                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105'
+                              : isInspected
+                              ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-md'
+                              : isPast
+                              ? 'bg-slate-300 text-slate-600 hover:bg-slate-400'
+                              : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
+                            }
+                          `}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            {isCurrent && <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />}
+                            {isInspected && <CheckCircle2 className="h-3 w-3" />}
+                            {isPast && <Eye className="h-3 w-3" />}
+                            {displayId}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               )}
             </div>
 
@@ -349,7 +655,7 @@ export default function KTAApplyPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-slate-800 text-slate-100 hover:bg-slate-700 shadow-md"
+                className="w-full bg-blue-900 text-slate-100 hover:bg-slate-700 shadow-md"
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center">
@@ -519,6 +825,29 @@ export default function KTAApplyPage() {
             </CardHeader>
             <CardContent className="pt-5">
               <div className="space-y-4">
+                {/* Upgrade Alert */}
+                {upgradeInfo?.isUpgrade && (
+                  <Alert className="bg-blue-50 border-blue-200">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-blue-800">
+                      <p className="font-semibold">Upgrade KTA Terdeteksi!</p>
+                      <p className="text-sm mt-1">KTA Lama: Jenjang {upgradeInfo.oldJenjang} - Rp {upgradeInfo.hargaLama.toLocaleString('id-ID')}</p>
+                      <p className="text-sm">KTA Baru: Jenjang {upgradeInfo.newJenjang} - Rp {upgradeInfo.hargaBaru.toLocaleString('id-ID')}</p>
+                      <p className="text-lg font-bold mt-1">Biaya Upgrade: Rp {upgradeInfo.hargaUpgrade.toLocaleString('id-ID')}</p>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Error Alert if cannot upgrade */}
+                {upgradeInfo && !upgradeInfo.canUpgrade && (
+                  <Alert variant="destructive" className="border-red-200 bg-red-50">
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                    <AlertDescription className="text-red-800 text-sm">
+                      {upgradeInfo.reason}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* Jenjang Info */}
                 <div>
                   <Label className="text-sm font-medium text-slate-700">Jenjang</Label>
@@ -529,26 +858,55 @@ export default function KTAApplyPage() {
 
                 {/* Price Breakdown */}
                 <div className="bg-slate-50 rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Harga</span>
-                    <span className="font-medium">Rp {hargaBase.toLocaleString('id-ID')}</span>
-                  </div>
-
-                  {diskonPersen > 0 && (
-                    <div className="flex justify-between text-sm items-center">
-                      <span className="text-slate-600">Diskon</span>
-                      <span className="font-medium text-green-600">-Rp {(hargaBase - hargaFinal).toLocaleString('id-ID')}</span>
-                    </div>
+                  {upgradeInfo?.isUpgrade ? (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Harga KTA Baru</span>
+                        <span className="font-medium">Rp {upgradeInfo.hargaBaru.toLocaleString('id-ID')}</span>
+                      </div>
+                      {diskonPersen > 0 && (
+                        <div className="flex justify-between text-sm items-center">
+                          <span className="text-slate-600">Diskon ({diskonPersen}%)</span>
+                          <span className="font-medium text-green-600">-Rp {(upgradeInfo.hargaBaru * diskonPersen / 100).toLocaleString('id-ID')}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Harga Setelah Diskon</span>
+                        <span className="font-medium">Rp {(upgradeInfo.hargaBaru - (upgradeInfo.hargaBaru * diskonPersen / 100)).toLocaleString('id-ID')}</span>
+                      </div>
+                      <div className="flex justify-between text-sm items-center">
+                        <span className="text-slate-600">Sudah Dibayar (KTA Lama)</span>
+                        <span className="font-medium text-green-600">-Rp {upgradeInfo.hargaLama.toLocaleString('id-ID')}</span>
+                      </div>
+                      <UISeparator />
+                      <div className="flex justify-between">
+                        <span className="font-semibold text-slate-900">Total Bayar (Upgrade)</span>
+                        <span className="text-xl font-bold text-blue-600">
+                          Rp {hargaFinal.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Harga</span>
+                        <span className="font-medium">Rp {hargaBase.toLocaleString('id-ID')}</span>
+                      </div>
+                      {diskonPersen > 0 && (
+                        <div className="flex justify-between text-sm items-center">
+                          <span className="text-slate-600">Diskon</span>
+                          <span className="font-medium text-green-600">-Rp {(hargaBase - hargaFinal).toLocaleString('id-ID')}</span>
+                        </div>
+                      )}
+                      <UISeparator />
+                      <div className="flex justify-between">
+                        <span className="font-semibold text-slate-900">Total Bayar</span>
+                        <span className="text-xl font-bold text-blue-600">
+                          Rp {hargaFinal.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    </>
                   )}
-
-                  <UISeparator />
-
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-slate-900">Total Bayar</span>
-                    <span className="text-xl font-bold text-blue-600">
-                      Rp {hargaFinal.toLocaleString('id-ID')}
-                    </span>
-                  </div>
                 </div>
 
                 <Alert className="bg-blue-50 border-blue-200">
@@ -571,34 +929,152 @@ export default function KTAApplyPage() {
           {/* Action Buttons - Floating Bottom */}
           <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-2xl z-50 animate-slide-up">
             <div className="max-w-5xl mx-auto px-6 py-4">
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setSikiData(null)
-                    setKtaRequestId(null)
-                    form.reset()
-                  }}
-                  disabled={isLoading}
-                  className="border-slate-300"
-                >
-                  Cari Ulang
-                </Button>
-                <Button
-                  onClick={onSubmit}
-                  disabled={isLoading}
-                  className="flex-1 bg-slate-800 text-slate-100 hover:bg-slate-700 shadow-md"
-                >
-                  {isLoading ? (
-                    <span className="flex items-center justify-center">
-                      <PulseLogo className="scale-50" />
-                    </span>
-                  ) : (
-                    'Ajukan Permohonan'
-                  )}
-                </Button>
-              </div>
+              {/* Multi-ID: Show navigation buttons */}
+              {allIdIzin.length > 1 ? (
+                <div className="space-y-3">
+                  {/* Top row: Navigation controls */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (currentIdIndex > 0) {
+                            goToId(currentIdIndex - 1)
+                          }
+                        }}
+                        disabled={isLoading || currentIdIndex === 0}
+                        className="border-slate-300"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Sebelumnya
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (currentIdIndex < allIdIzin.length - 1) {
+                            goToId(currentIdIndex + 1)
+                          }
+                        }}
+                        disabled={isLoading || currentIdIndex >= allIdIzin.length - 1}
+                        className="border-slate-300"
+                      >
+                        Selanjutnya
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      ID: {allIdIzin[currentIdIndex]} ({currentIdIndex + 1}/{allIdIzin.length})
+                    </div>
+                  </div>
+
+                  {/* Bottom row: Action buttons */}
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setSikiData(null)
+                        setKtaRequestId(null)
+                        resetMultiIdState()
+                        form.reset()
+                      }}
+                      disabled={isLoading}
+                      className="border-slate-300"
+                    >
+                      Cari Ulang
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        // Hapus ID saat ini dari list
+                        if (allIdIzin.length > 1) {
+                          const newIds = allIdIzin.filter((_, i) => i !== currentIdIndex)
+                          const newInspected = new Map<number, any>()
+                          inspectedData.forEach((value, key) => {
+                            if (key < currentIdIndex) {
+                              newInspected.set(key, value)
+                            } else if (key > currentIdIndex) {
+                              newInspected.set(key - 1, value)
+                            }
+                          })
+                          setAllIdIzin(newIds)
+                          setInspectedData(newInspected)
+
+                          // Go to previous or reset
+                          if (newIds.length === 0) {
+                            resetMultiIdState()
+                            form.reset()
+                          } else if (currentIdIndex >= newIds.length) {
+                            goToId(newIds.length - 1)
+                          } else {
+                            goToId(currentIdIndex)
+                          }
+                        }
+                      }}
+                      disabled={isLoading}
+                      className="border-red-300 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Hapus
+                    </Button>
+                    <Button
+                      onClick={currentIdIndex < allIdIzin.length - 1 ? markInspectedAndNext : onSubmit}
+                      disabled={isLoading || !sikiData}
+                      className="flex-1 bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+                    >
+                      {isLoading ? (
+                        <span className="flex items-center justify-center">
+                          <PulseLogo className="scale-50" />
+                        </span>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          {currentIdIndex < allIdIzin.length - 1
+                            ? `Simpan & Lanjut (#${currentIdIndex + 2}/${allIdIzin.length})`
+                            : 'Selesai - Submit'
+                          }
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                /* Single ID: Show normal submit button */
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setSikiData(null)
+                      setKtaRequestId(null)
+                      resetMultiIdState()
+                      form.reset()
+                    }}
+                    disabled={isLoading}
+                    className="border-slate-300"
+                  >
+                    Cari Ulang
+                  </Button>
+                  <Button
+                    onClick={onSubmit}
+                    disabled={isLoading}
+                    className="flex-1 bg-slate-800 text-slate-100 hover:bg-slate-700 shadow-md"
+                  >
+                    {isLoading ? (
+                      <span className="flex items-center justify-center">
+                        <PulseLogo className="scale-50" />
+                      </span>
+                    ) : (
+                      'Ajukan Permohonan'
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 

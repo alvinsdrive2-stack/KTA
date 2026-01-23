@@ -78,7 +78,7 @@ export async function GET(
     if (jenjangNum >= 1 && jenjangNum <= 3) {
       keahlian = 'Operator'
     } else if (jenjangNum >= 4 && jenjangNum <= 6) {
-      keahlian = 'Teknisi'
+      keahlian = 'Teknisi/Analis'
     } else if (jenjangNum >= 7 && jenjangNum <= 9) {
       keahlian = 'Ahli'
     }

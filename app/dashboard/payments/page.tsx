@@ -68,8 +68,8 @@ export default function PaymentsPage() {
   // Use ref to track if initial fetch has happened
   const initialFetchDone = useRef(false)
 
-  // Only PUSAT and ADMIN can access
-  const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN'
+  // Only ADMIN and KEUANGAN can access
+  const isPusatOrAdmin = session?.user.role === 'ADMIN' || session?.user.role === 'KEUANGAN'
 
   // Single useEffect for initial load and access control
   useEffect(() => {
@@ -211,7 +211,7 @@ export default function PaymentsPage() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Anda tidak memiliki akses ke halaman konfirmasi pembayaran. Halaman ini hanya dapat diakses oleh user PUSAT atau ADMIN.
+            Anda tidak memiliki akses ke halaman konfirmasi pembayaran. Halaman ini hanya dapat diakses oleh user ADMIN atau KEUANGAN.
           </AlertDescription>
         </Alert>
         <Link href="/dashboard">

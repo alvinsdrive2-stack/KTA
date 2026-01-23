@@ -4,27 +4,27 @@ import type { NextRequest } from 'next/server'
 // Route access configuration
 const routeAccessMap: Record<string, string[]> = {
   // DAERAH routes - PUSAT/ADMIN can also view
-  '/dashboard/payments/daerah': ['DAERAH', 'PUSAT', 'ADMIN'],
-  '/dashboard/payments/daerah/invoice': ['DAERAH', 'PUSAT', 'ADMIN'],
-  '/dashboard/payments/daerah/invoice/[id]': ['DAERAH', 'PUSAT', 'ADMIN'],
-  '/dashboard/payments/daerah/upload/[id]': ['DAERAH', 'PUSAT', 'ADMIN'],
-  '/dashboard/payments/daerah/invoices': ['DAERAH', 'PUSAT', 'ADMIN'],
+  '/dashboard/payments/daerah': ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/payments/daerah/invoice': ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/payments/daerah/invoice/[id]': ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/payments/daerah/upload/[id]': ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/payments/daerah/invoices': ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
 
   // PUSAT routes - PUSAT/ADMIN only (DAERAH forbidden)
-  '/dashboard/payments/pusat': ['PUSAT', 'ADMIN'],
-  '/dashboard/payments/pusat/invoice': ['PUSAT', 'ADMIN'],
-  '/dashboard/payments/pusat/invoice/[id]': ['PUSAT', 'ADMIN'],
-  '/dashboard/payments/pusat/upload/[id]': ['PUSAT', 'ADMIN'],
-  '/dashboard/payments/pusat/invoices': ['PUSAT', 'ADMIN'],
+  '/dashboard/payments/pusat': ['PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/payments/pusat/invoice': ['PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/payments/pusat/invoice/[id]': ['PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/payments/pusat/upload/[id]': ['PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/payments/pusat/invoices': ['PUSAT', 'ADMIN','KEUANGAN'],
 
   // Verification - PUSAT/ADMIN only
-  '/dashboard/payments/[id]': ['PUSAT', 'ADMIN'],
+  '/dashboard/payments/[id]': ['PUSAT', 'ADMIN','KEUANGAN'],
 
   // Admin only
-  '/dashboard/admin/daerah-diskon': ['PUSAT', 'ADMIN'],
-  '/dashboard/keuangan': ['PUSAT', 'ADMIN'],
-  '/dashboard/daerah': ['PUSAT', 'ADMIN'],
-  '/dashboard/daerah/[id]': ['PUSAT', 'ADMIN'],
+  '/dashboard/admin/daerah-diskon': ['PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/keuangan': ['PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/daerah': ['PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/daerah/[id]': ['PUSAT', 'ADMIN','KEUANGAN'],
 }
 
 function matchRoute(pathname: string, pattern: string): boolean {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { checkUpgradeScenario } from '@/lib/kta-upgrade'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,11 +34,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
     }
 
-    // Validate files (require base64 data for manual KTA)
-    if (!ktpData) {
+    // Validate files (require URLs for uploaded files)
+    if (!ktpUrl) {
       return NextResponse.json({ error: 'KTP file is required' }, { status: 400 })
     }
-    if (!fotoData) {
+    if (!fotoUrl) {
       return NextResponse.json({ error: 'Foto file is required' }, { status: 400 })
     }
 
@@ -66,12 +67,36 @@ export async function POST(request: NextRequest) {
     const diskonPersen = daerah?.diskonPersen || 0
     const hargaFinal = Math.floor(hargaBase - (hargaBase * diskonPersen / 100))
 
+    // Check for upgrade scenario
+    const upgradeCheck = await checkUpgradeScenario(
+      nik,
+      jenjangNum,
+      subklasifikasi
+    )
+
+    if (!upgradeCheck.canUpgrade) {
+      return NextResponse.json({
+        error: upgradeCheck.reason || 'Tidak dapat membuat permohonan KTA'
+      }, { status: 400 })
+    }
+
+    // Calculate final price with upgrade discount if applicable
+    let finalHargaBase = hargaBase
+    let finalHargaFinal = hargaFinal
+    let finalHargaUpgrade: number | undefined
+    let finalHargaLama: number | undefined
+
+    if (upgradeCheck.isUpgrade) {
+      finalHargaBase = upgradeCheck.hargaBaru
+      // Apply discount to hargaBaru, then subtract hargaLama (what they already paid)
+      const hargaBaruAfterDiskon = upgradeCheck.hargaBaru - (upgradeCheck.hargaBaru * diskonPersen / 100)
+      finalHargaFinal = hargaBaruAfterDiskon - upgradeCheck.hargaLama
+      finalHargaUpgrade = upgradeCheck.hargaUpgrade
+      finalHargaLama = upgradeCheck.hargaLama
+    }
+
     // Generate ID Izin (M - for Manual)
     const idIzin = `M${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`
-
-    // Use URLs directly for manual KTA (uploaded files)
-    const finalFotoUrl = fotoUrl || null
-    const finalKtpUrl = ktpUrl || null
 
     // Create KTA Request
     const ktaRequest = await prisma.kTARequest.create({
@@ -85,24 +110,39 @@ export async function POST(request: NextRequest) {
         noTelp,
         email,
         alamat,
-        ktpUrl: null, // Not using URL for manual KTA
-        fotoUrl: null, // Not using URL for manual KTA
-        fotoData: JSON.stringify(combinedData), // Store both foto and ktp base64 as JSON
+        ktpUrl: ktpUrl,
+        fotoUrl: fotoUrl,
         daerahId: finalDaerahId,
         requestedBy: session.user.id,
-        status: 'DRAFT',
-        hargaRegion: hargaBase,
+        status: upgradeCheck.isUpgrade ? 'UPGRADE_PENDING' : 'DRAFT',
+        hargaRegion: finalHargaFinal,
         diskonPersen,
-        hargaBase,
-        hargaFinal,
+        hargaBase: finalHargaBase,
+        hargaFinal: finalHargaFinal,
         tanggalDaftar: new Date(),
+        isUpgrade: upgradeCheck.isUpgrade,
+        upgradeFromKtaId: upgradeCheck.existingKta?.id,
+        hargaLama: finalHargaLama,
+        hargaUpgrade: finalHargaUpgrade,
       }
     })
 
     return NextResponse.json({
       success: true,
       message: 'Permohonan KTA berhasil dibuat',
-      data: ktaRequest
+      data: {
+        ...ktaRequest,
+        pricing: {
+          isUpgrade: upgradeCheck.isUpgrade,
+          upgradeInfo: upgradeCheck.isUpgrade ? {
+            oldJenjang: upgradeCheck.oldJenjang,
+            newJenjang: upgradeCheck.newJenjang,
+            hargaLama: upgradeCheck.hargaLama,
+            hargaBaru: upgradeCheck.hargaBaru,
+            hargaUpgrade: upgradeCheck.hargaUpgrade,
+          } : null
+        }
+      }
     })
 
   } catch (error) {

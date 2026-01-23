@@ -292,8 +292,8 @@ export default function PaymentPage() {
                 {/* Payment Info */}
                 <div className="text-xs text-gray-500 space-y-1">
                   <p><strong>Rekening Tujuan:</strong></p>
-                  <p>Bank: BNI</p>
-                  <p>No. Rekening: 1234567890</p>
+                  <p>Bank: BTN KC Jakarta Kuningan</p>
+                  <p>No. Rekening: 00001.01.30.000986.9</p>
                   <p>a.n. Gabungan Ahli Teknik Nasional Indonesia</p>
                 </div>
               </form>

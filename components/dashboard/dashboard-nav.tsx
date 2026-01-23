@@ -12,13 +12,15 @@ import {
   ChevronRight,
   Download,
   History,
-  CheckCircleIcon as Confirmicon
+  CheckCircleIcon as Confirmicon,
+  UserCog
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useSession } from '@/hooks/useSession'
 
 interface DashboardNavProps {
   isPusat: boolean
+  isKeuangan: boolean
 }
 
 interface NavItem {
@@ -40,14 +42,14 @@ const navItems: NavItem[] = [
     title: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
-    roles: ['DAERAH', 'PUSAT', 'ADMIN'],
+    roles: ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
     badge: null,
   },
         {
         title: 'Data Permohonan',
         href: '/dashboard/permohonan',
         icon: FileText,
-        roles: ['DAERAH', 'PUSAT', 'ADMIN'],
+        roles: ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
         badge: null,
       },
   {
@@ -61,14 +63,14 @@ const navItems: NavItem[] = [
     title: 'Pembayaran',
     href: '/dashboard/payments/pusat',
     icon: CreditCard,
-    roles: ['PUSAT', 'ADMIN'],
+    roles: ['PUSAT', 'ADMIN','KEUANGAN'],
     badge: null,
   },
   {
     title: 'Konfirmasi',
     href: '/dashboard/payments',
     icon: Confirmicon,
-    roles: ['PUSAT', 'ADMIN'],
+    roles: ['ADMIN','KEUANGAN'],
     badge: null,
   },
 ]
@@ -76,14 +78,14 @@ const navItems: NavItem[] = [
 const navSections: NavSection[] = [
   {
     title: 'Data',
-    roles: ['DAERAH', 'PUSAT', 'ADMIN'],
+    roles: ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
     items: [
 
       {
         title: 'Data KTA',
         href: '/dashboard/kta',
         icon: Download,
-        roles: ['DAERAH', 'PUSAT', 'ADMIN'],
+        roles: ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
         badge: null,
       }
     ]
@@ -103,46 +105,59 @@ const navSections: NavSection[] = [
   },
   {
     title: 'Riwayat',
-    roles: ['PUSAT', 'ADMIN'],
+    roles: ['PUSAT', 'ADMIN','KEUANGAN'],
     items: [
       {
         title: 'Riwayat Invoice',
         href: '/dashboard/payments/pusat/invoices',
         icon: History,
-        roles: ['PUSAT', 'ADMIN'],
+        roles: ['PUSAT', 'ADMIN','KEUANGAN'],
         badge: null,
       }
     ]
   },
   {
     title: 'Daerah',
-    roles: ['PUSAT', 'ADMIN'],
+    roles: ['KEUANGAN'],
     items: [
       {
         title: 'Kelola Daerah',
         href: '/dashboard/daerah',
         icon: Building,
-        roles: ['PUSAT', 'ADMIN'],
+        roles: ['KEUANGAN'],
         badge: null,
       }
     ]
   },
   {
     title: 'Keuangan',
-    roles: ['PUSAT', 'ADMIN'],
+    roles: ['KEUANGAN'],
     items: [
       {
         title: 'Laporan',
         href: '/dashboard/keuangan',
         icon: Receipt,
-        roles: ['PUSAT', 'ADMIN'],
+        roles: ['KEUANGAN'],
+        badge: null,
+      }
+    ]
+  },
+  {
+    title: 'ADMIN',
+    roles: ['ADMIN','KEUANGAN'],
+    items: [
+      {
+        title: 'Kelola User',
+        href: '/dashboard/admin/users',
+        icon: UserCog,
+        roles: ['ADMIN'],
         badge: null,
       }
     ]
   },
 ]
 
-export function DashboardNav({ isPusat }: DashboardNavProps) {
+export function DashboardNav({ isPusat, isKeuangan }: DashboardNavProps) {
   const pathname = usePathname()
   const { session } = useSession()
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
@@ -185,22 +200,31 @@ export function DashboardNav({ isPusat }: DashboardNavProps) {
   }))
 
   const filteredItems = navItems.filter(item => {
+    if (userRole === 'KEUANGAN') {
+      return item.roles.includes('KEUANGAN')
+    }
     if (isPusat) {
-      return item.roles.includes('PUSAT') || item.roles.includes('ADMIN')
+      return item.roles.includes('PUSAT') || item.roles.includes('ADMIN','KEUANGAN')
     }
     return item.roles.includes('DAERAH')
   })
 
   const filteredSections = navSectionsWithBadges.filter(section => {
+    if (userRole === 'KEUANGAN') {
+      return section.roles.includes('KEUANGAN')
+    }
     if (isPusat) {
-      return section.roles.includes('PUSAT') || section.roles.includes('ADMIN')
+      return section.roles.includes('PUSAT') || section.roles.includes('ADMIN','KEUANGAN')
     }
     return section.roles.includes('DAERAH')
   }).map(section => ({
     ...section,
     items: section.items.filter(item => {
+      if (userRole === 'KEUANGAN') {
+        return item.roles.includes('KEUANGAN')
+      }
       if (isPusat) {
-        return item.roles.includes('PUSAT') || item.roles.includes('ADMIN')
+        return item.roles.includes('PUSAT') || item.roles.includes('ADMIN','KEUANGAN')
       }
       return item.roles.includes('DAERAH')
     })
@@ -234,7 +258,7 @@ export function DashboardNav({ isPusat }: DashboardNavProps) {
         className={cn(
           'group relative flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200 nav-link',
           isActive
-            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md'
+            ? 'bg-gradient-to-r from-blue-700 to-blue-600 text-white shadow-md'
             : 'text-slate-600 hover:bg-slate-100',
           !isSubmenuItem && 'opacity-0 animate-fade-in'
         )}

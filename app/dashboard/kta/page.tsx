@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Search, Download, Filter, FileText, CheckCircle, Package, CheckSquare, X } from 'lucide-react'
+import { Search, Download, Filter, FileText, CheckCircle, Package, CheckSquare, X, Calendar, FileSpreadsheet, Loader2 } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useKTASelection } from '@/contexts/KTASelectionContext'
 import {
@@ -56,8 +56,13 @@ export default function KTAPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [selectionMode, setSelectionMode] = useState(false)
 
-  // Check if user is PUSAT or ADMIN
-  const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN'
+  // Date filter states
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [downloading, setDownloading] = useState(false)
+
+  // Check if user is PUSAT, ADMIN, or KEUANGAN
+  const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN' || session?.user.role === 'KEUANGAN'
 
   // Debounce search term
   useEffect(() => {
@@ -176,6 +181,54 @@ export default function KTAPage() {
     return request.payments?.[0]?.bulkPayment?.invoiceNumber || '-'
   }
 
+  const handleDownloadExcel = async () => {
+    setDownloading(true)
+    try {
+      const params = new URLSearchParams()
+
+      // Add date filters
+      if (startDate) params.append('startDate', startDate)
+      if (endDate) params.append('endDate', endDate)
+
+      // Add status filter
+      const verifiedStatuses = ['APPROVED_BY_PUSAT', 'READY_TO_PRINT', 'PRINTED']
+      if (statusFilter && statusFilter !== 'all') {
+        params.append('status', statusFilter)
+      } else {
+        verifiedStatuses.forEach(status => params.append('status', status))
+      }
+
+      // Add search filter
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
+
+      const response = await fetch(`/api/kta/export/excel?${params}`)
+
+      if (!response.ok) {
+        throw new Error('Failed to download')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+
+      // Generate filename with date range (use .csv extension)
+      const dateStr = startDate && endDate
+        ? `${startDate}_sd_${endDate}`
+        : new Date().toISOString().split('T')[0]
+      a.download = `Data_Anggota_KTA_${dateStr}.csv`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Error downloading file:', error)
+      alert('Gagal mendownload file')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -249,28 +302,73 @@ export default function KTAPage() {
         {/* Search and Filter Bar */}
         <Card className="card-3d animate-slide-up-stagger stagger-3">
           <CardContent className="pt-5">
-            <div className="flex gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-                <Input
-                  placeholder="Cari berdasarkan nama, ID Izin, atau NIK..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-white"
-                />
+            <div className="space-y-4">
+              {/* Top row: Search and Date Filters */}
+              <div className="flex flex-wrap gap-3">
+                <div className="relative flex-1 min-w-[250px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                  <Input
+                    placeholder="Cari berdasarkan nama, ID Izin, atau NIK..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-white"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-slate-400" />
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-[160px] bg-white"
+                  />
+                  <span className="text-slate-500">sd</span>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-[160px] bg-white"
+                  />
+                </div>
+
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-48 bg-white">
+                    <SelectValue placeholder="Filter Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Status</SelectItem>
+                    <SelectItem value="APPROVED_BY_PUSAT">Terverifikasi</SelectItem>
+                    <SelectItem value="READY_TO_PRINT">Siap Cetak</SelectItem>
+                    <SelectItem value="PRINTED">Sudah Cetak</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  onClick={handleDownloadExcel}
+                  disabled={downloading}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {downloading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Download Excel
+                    </>
+                  )}
+                </Button>
               </div>
 
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-48 bg-white">
-                  <SelectValue placeholder="Filter Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Status</SelectItem>
-                  <SelectItem value="APPROVED_BY_PUSAT">Terverifikasi</SelectItem>
-                  <SelectItem value="READY_TO_PRINT">Siap Cetak</SelectItem>
-                  <SelectItem value="PRINTED">Sudah Cetak</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Filter info */}
+              {(startDate || endDate) && (
+                <div className="text-sm text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
+                  <span className="font-medium">Filter Tanggal:</span> {startDate || 'Awal'} sd {endDate || 'Akhir'}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

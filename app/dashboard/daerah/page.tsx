@@ -45,8 +45,8 @@ export default function DaerahListPage() {
 
   const initialFetchDone = useRef(false)
 
-  // Only PUSAT and ADMIN can access
-  const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN'
+  // Only ADMIN and KEUANGAN can access
+  const isPusatOrAdmin = session?.user.role === 'ADMIN' || session?.user.role === 'KEUANGAN'
 
   useEffect(() => {
     if (session === null || session === undefined) {
