@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { QRCodeGenerator } from '@/lib/qr-generator'
 
 export const dynamic = 'force-dynamic'
 
@@ -124,6 +125,16 @@ export async function PATCH(
       updateData.status = body.status
     }
 
+    // Regenerate QR code if requested
+    if (body.regenerateQrCode === true && existingKta.nik) {
+      console.log('Regenerating QR code for KTA:', existingKta.id)
+      const qrCodePath = await QRCodeGenerator.generateKTAQR({
+        nik: existingKta.nik,
+      })
+      updateData.qrCodePath = qrCodePath
+      console.log('QR code regenerated successfully, new size:', qrCodePath.length)
+    }
+
     // Update KTA
     const updatedKta = await prisma.kTARequest.update({
       where: { id: ktaId },
@@ -133,6 +144,7 @@ export async function PATCH(
         ktpUrl: true,
         fotoUrl: true,
         status: true,
+        qrCodePath: true,
       }
     })
 

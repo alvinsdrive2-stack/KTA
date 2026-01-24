@@ -28,7 +28,12 @@ export async function GET(request: NextRequest) {
     let whereClause: any = {}
 
     if (status && status !== 'all') {
-      whereClause.status = status
+      if (status === 'NEEDS_VERIFICATION') {
+        // Payments that need verification: PAID or WAITING_PAYMENT
+        whereClause.status = { in: ['PAID', 'WAITING_PAYMENT'] }
+      } else {
+        whereClause.status = status
+      }
     }
 
     if (daerahKode && daerahKode !== 'all') {

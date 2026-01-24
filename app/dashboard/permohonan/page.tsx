@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
+import { JenjangBadge } from '@/components/ui/jenjang-badge'
 import {
   Select,
   SelectContent,
@@ -311,9 +312,7 @@ export default function PermohonanPage() {
                       <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.idIzin}</td>
                       <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.nik}</td>
                       <td className="py-3 px-4">
-                        <Badge variant="outline" className="border-blue-200 text-blue-700">
-                          {request.jenjang || '-'}
-                        </Badge>
+                        {request.jenjang ? <JenjangBadge jenjang={request.jenjang} /> : '-'}
                       </td>
                       <td className="py-3 px-4 text-sm text-slate-600">{request.jabatanKerja}</td>
                       {(isPusatOrAdmin || session?.user.daerahId) && (

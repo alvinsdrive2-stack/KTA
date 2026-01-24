@@ -607,7 +607,7 @@ export default function DashboardPage() {
                   <TableRow key={request.id} hover className="opacity-0 animate-fade-in" style={{ animationDelay: (450 + index * 50) + 'ms' }}>
                     <td>
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-Gatensi-blue flex items-center justify-center text-white font-medium text-xs shadow-md">
+                        <div className="w-9 h-9 rounded-xl bg-Gatensi-blue flex items-center justify-center text-white font-medium text-xs shadow-md mt-1 mb-1 ml-1">
                           {request.nama.charAt(0).toUpperCase()}
                         </div>
                         <div>
