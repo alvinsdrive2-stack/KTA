@@ -16,7 +16,9 @@ import {
   Clock,
   AlertCircle,
   ArrowLeft,
-  Loader2
+  Loader2,
+  Gift,
+  Info
 } from 'lucide-react'
 
 interface BulkPaymentDetail {
@@ -26,6 +28,8 @@ interface BulkPaymentDetail {
   totalNominal: number
   buktiPembayaranUrl: string
   status: 'PENDING' | 'VERIFIED' | 'REJECTED'
+  isEnrolment: boolean
+  keterangan?: string
   submittedByUser: {
     name: string
   }
@@ -310,28 +314,94 @@ export default function PaymentDetailPage() {
           </span>
         </div>
 
+        {/* Enrolment Banner */}
+        {payment.isEnrolment && (
+          <div className="animate-slide-up-stagger stagger-3">
+            <Alert className="bg-purple-50 border-purple-200">
+              <Gift className="h-5 w-5 text-purple-600" />
+              <AlertDescription className="text-purple-800">
+                <div className="flex items-start gap-2">
+                  <div className="flex-1">
+                    <p className="font-semibold text-purple-900">Enrolment (GRATIS - SUDAH DIBAYAR)</p>
+                    <p className="text-sm text-purple-700 mt-1">
+                      Ini adalah enrolment gratis - pembayaran sudah terkonfirmasi. KTA status: READY_FOR_PUSAT, menunggu konfirmasi dari Keuangan.
+                    </p>
+                    {payment.keterangan && (
+                      <div className="mt-2 p-2 bg-purple-100 rounded-md">
+                        <p className="text-xs font-medium text-purple-900 flex items-center gap-1">
+                          <Info className="h-3 w-3" />
+                          Keterangan:
+                        </p>
+                        <p className="text-xs text-purple-800 mt-1">{payment.keterangan}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left: Invoice PDF */}
-          <Card className="card-3d animate-slide-up-stagger stagger-3">
-            <CardHeader>
-              <CardTitle>Invoice</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="border rounded-lg overflow-hidden bg-slate-50">
-                <iframe
-                  src={`/api/payments/invoice/${payment.id}/pdf`}
-                  className="w-full h-[600px]"
-                  title="Invoice PDF"
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Left: Invoice PDF or Enrolment Info */}
+          {payment.isEnrolment ? (
+            <Card className="card-3d animate-slide-up-stagger stagger-4">
+              <CardHeader>
+                <CardTitle>Informasi Enrolment</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <Gift className="h-10 w-10 text-purple-600" />
+                    <div>
+                      <p className="font-semibold text-purple-900">Enrolment Gratis</p>
+                      <p className="text-sm text-purple-700">Tidak ada invoice untuk enrolment</p>
+                    </div>
+                  </div>
+
+                  {payment.keterangan && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Keterangan:</p>
+                      <div className="p-3 bg-slate-50 rounded-lg border">
+                        <p className="text-sm text-gray-800">{payment.keterangan}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <p className="text-sm font-medium text-green-900 flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4" />
+                      Status: Sudah Dibayar
+                    </p>
+                    <p className="text-sm text-green-800 mt-1">
+                      Enrolment ini sudah terkonfirmasi dan pembayaran sudah selesai (GRATIS). KTA dengan status READY_FOR_PUSAT menunggu konfirmasi dari Keuangan.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="card-3d animate-slide-up-stagger stagger-4">
+              <CardHeader>
+                <CardTitle>Invoice</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden bg-slate-50">
+                  <iframe
+                    src={`/api/payments/invoice/${payment.id}/pdf`}
+                    className="w-full h-[600px]"
+                    title="Invoice PDF"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Right: Data Pembayaran */}
-          <Card className="card-3d animate-slide-up-stagger stagger-4">
+          <Card className={`card-3d animate-slide-up-stagger stagger-5 ${payment.isEnrolment ? 'border-purple-200' : ''}`}>
             <CardHeader>
-              <CardTitle>Informasi Pembayaran</CardTitle>
+              <CardTitle>{payment.isEnrolment ? 'Informasi Enrolment' : 'Informasi Pembayaran'}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
@@ -346,9 +416,13 @@ export default function PaymentDetailPage() {
                   <span className="font-medium">{payment.totalJumlah} KTA</span>
                 </div>
                 <div className="flex justify-between border-b pb-2">
-                  <span className="text-gray-600">Total Pembayaran</span>
-                  <span className="font-bold text-green-600">
-                    Rp {payment.totalNominal.toLocaleString('id-ID')}
+                  <span className="text-gray-600">{payment.isEnrolment ? 'Total' : 'Total Pembayaran'}</span>
+                  <span className={`font-bold ${payment.isEnrolment ? 'text-purple-600' : 'text-green-600'}`}>
+                    {payment.isEnrolment ? (
+                      <>GRATIS</>
+                    ) : (
+                      <>Rp {payment.totalNominal.toLocaleString('id-ID')}</>
+                    )}
                   </span>
                 </div>
                 <div className="flex justify-between border-b pb-2">
@@ -453,7 +527,7 @@ export default function PaymentDetailPage() {
       </div>
 
       {/* Floating Bar for Actions */}
-      {payment.status === 'PENDING' && (
+      {!payment.isEnrolment && payment.status === 'PENDING' && (
         <div className="fixed bottom-0 left-0 right-0 z-50">
           <Card className="rounded-none shadow-2xl animate-slide-up">
             <CardContent className="py-4 px-6 lg:px-8">

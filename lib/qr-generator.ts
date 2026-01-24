@@ -15,7 +15,7 @@ export class QRCodeGenerator {
    * Generate QR code for KTA verification
    * Returns base64 data URL for direct embedding in PDF
    * QR code contains URL to public verification page
-   * URL format: {baseUrl}/qr/{nik}
+   * URL format: {baseUrl}/verify/{nik}
    *
    * NIK-based format ensures QR remains valid after KTA upgrades
    * (always shows the latest approved KTA for that NIK)
@@ -24,7 +24,7 @@ export class QRCodeGenerator {
     const { nik, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ktagatensi.vercel.app/' } = options
 
     // Generate QR code URL using NIK
-    const qrUrl = `${baseUrl}/qr/${nik}`
+    const qrUrl = `${baseUrl}/verify/${nik}`
 
     // Generate QR code as base64 data URL (no file writing needed)
     const qrDataUrl = await QRCode.toDataURL(qrUrl, {
@@ -56,7 +56,7 @@ export class QRCodeGenerator {
     const { nik, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ktagatensi.vercel.app/' } = options
 
     // Generate QR code URL using NIK
-    const qrUrl = `${baseUrl}/qr/${nik}`
+    const qrUrl = `${baseUrl}/verify/${nik}`
 
     // Generate QR code as PNG buffer
     return await QRCode.toBuffer(qrUrl, {

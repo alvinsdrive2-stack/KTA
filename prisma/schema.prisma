@@ -176,6 +176,8 @@ model BulkPayment {
   submittedBy           String
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
+  isEnrolment           Boolean       @default(false)
+  keterangan            String?
   daerah                Daerah        @relation(fields: [daerahId], references: [id])
   submittedByUser       User          @relation("BulkPaymentSubmittedBy", fields: [submittedBy], references: [id])
   verifiedByUser        User?         @relation("BulkPaymentVerifiedBy", fields: [verifiedBy], references: [id])
@@ -259,6 +261,7 @@ enum KTAStatus {
   REJECTED
   UPGRADE_PENDING
   UPGRADE_PAID
+  IMPORTED_PENDING_DOCS
 }
 
 enum DocumentType {

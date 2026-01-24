@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { KTAPDFGenerator } from '@/lib/pdf-generator'
+import { QRCodeGenerator } from '@/lib/qr-generator'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
         status: true,
         fotoUrl: true,
         fotoData: true, // Include fotoData from database
+        nik: true, // Need NIK for QR code generation
         daerah: {
           select: {
             kodeDaerah: true,
@@ -145,7 +147,30 @@ export async function POST(request: NextRequest) {
           // Generate QR code path if not exists
           let qrCodePath = kta.qrCodePath
           if (!qrCodePath) {
-            qrCodePath = '/qr-placeholder.png'
+            // Generate QR code buffer
+            const qrBuffer = await QRCodeGenerator.generateKTAQRBuffer({
+              nik: kta.nik || kta.id,
+            })
+
+            // Create qr-codes directory if it doesn't exist
+            const qrDir = path.join(process.cwd(), 'public', 'qr-codes')
+            await fs.mkdir(qrDir, { recursive: true })
+
+            // Save QR code file
+            const qrFileName = `qr-${kta.nik || kta.id}.png`
+            const qrFilePath = path.join(qrDir, qrFileName)
+            await fs.writeFile(qrFilePath, qrBuffer)
+
+            // Set qrCodePath to the public URL
+            qrCodePath = `/qr-codes/${qrFileName}`
+
+            // Update KTA with the qrCodePath
+            await prisma.kTARequest.update({
+              where: { id: kta.id },
+              data: { qrCodePath }
+            })
+
+            console.log(`✅ Generated QR code for ${kta.nama}: ${qrCodePath}`)
           }
 
           // Prepare data for PDF generation
