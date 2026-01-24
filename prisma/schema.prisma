@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -26,6 +26,7 @@ model User {
   sessions              Session[]
   daerah                Daerah?       @relation(fields: [daerahId], references: [id])
 
+  @@index([daerahId], map: "users_daerahId_fkey")
   @@map("users")
 }
 
@@ -36,6 +37,7 @@ model Session {
   expires      BigInt
   user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId], map: "sessions_userId_fkey")
   @@map("sessions")
 }
 
@@ -106,7 +108,7 @@ model KTARequest {
   pusatApprovedBy    String?
   pusatApprovedAt    DateTime?
   kartuGeneratedPath String?
-  qrCodePath         String?
+  qrCodePath         String?         @db.Text
   nomorKTA           String?         @unique
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
@@ -126,11 +128,15 @@ model KTARequest {
   daerah             Daerah          @relation(fields: [daerahId], references: [id])
   requestedByUser    User            @relation(fields: [requestedBy], references: [id])
   klasifikasi        Subklasifikasi? @relation(fields: [subklasifikasiId], references: [id])
-  payments           Payment[]
-  qrScans            QRScan[]
   upgradeFromKta     KTARequest?     @relation("KTAUpgrade", fields: [upgradeFromKtaId], references: [id])
   upgradeToKtas      KTARequest[]    @relation("KTAUpgrade")
+  payments           Payment[]
+  qrScans            QRScan[]
 
+  @@index([daerahId], map: "kta_requests_daerahId_fkey")
+  @@index([requestedBy], map: "kta_requests_requestedBy_fkey")
+  @@index([subklasifikasiId], map: "kta_requests_subklasifikasiId_fkey")
+  @@index([upgradeFromKtaId], map: "kta_requests_upgradeFromKtaId_fkey")
   @@map("kta_requests")
 }
 
@@ -142,6 +148,7 @@ model KTADocument {
   createdAt    DateTime     @default(now())
   ktaRequest   KTARequest   @relation(fields: [ktaRequestId], references: [id], onDelete: Cascade)
 
+  @@index([ktaRequestId], map: "kta_documents_ktaRequestId_fkey")
   @@map("kta_documents")
 }
 
@@ -160,6 +167,8 @@ model Payment {
   bulkPayment      BulkPayment?  @relation(fields: [bulkPaymentId], references: [id])
   ktaRequest       KTARequest    @relation(fields: [ktaRequestId], references: [id], onDelete: Cascade)
 
+  @@index([bulkPaymentId], map: "payments_bulkPaymentId_fkey")
+  @@index([ktaRequestId], map: "payments_ktaRequestId_fkey")
   @@map("payments")
 }
 
@@ -178,15 +187,18 @@ model BulkPayment {
   updatedAt             DateTime      @updatedAt
   isEnrolment           Boolean       @default(false)
   keterangan            String?
-  daerah                Daerah        @relation(fields: [daerahId], references: [id])
-  submittedByUser       User          @relation("BulkPaymentSubmittedBy", fields: [submittedBy], references: [id])
-  verifiedByUser        User?         @relation("BulkPaymentVerifiedBy", fields: [verifiedBy], references: [id])
-  payments              Payment[]
   midtransToken         String?
   midtransRedirectUrl   String?
   midtransTransactionId String?
   midtransPaymentType   String?
+  daerah                Daerah        @relation(fields: [daerahId], references: [id])
+  submittedByUser       User          @relation("BulkPaymentSubmittedBy", fields: [submittedBy], references: [id])
+  verifiedByUser        User?         @relation("BulkPaymentVerifiedBy", fields: [verifiedBy], references: [id])
+  payments              Payment[]
 
+  @@index([daerahId], map: "bulk_payments_daerahId_fkey")
+  @@index([submittedBy], map: "bulk_payments_submittedBy_fkey")
+  @@index([verifiedBy], map: "bulk_payments_verifiedBy_fkey")
   @@map("bulk_payments")
 }
 
@@ -200,6 +212,8 @@ model Approval {
   approvedByUser User           @relation(fields: [approvedBy], references: [id])
   ktaRequest     KTARequest     @relation(fields: [ktaRequestId], references: [id], onDelete: Cascade)
 
+  @@index([approvedBy], map: "approvals_approvedBy_fkey")
+  @@index([ktaRequestId], map: "approvals_ktaRequestId_fkey")
   @@map("approvals")
 }
 
@@ -211,6 +225,7 @@ model QRScan {
   scannedAt    DateTime   @default(now())
   ktaRequest   KTARequest @relation(fields: [ktaRequestId], references: [id], onDelete: Cascade)
 
+  @@index([ktaRequestId], map: "qr_scans_ktaRequestId_fkey")
   @@map("qr_scans")
 }
 

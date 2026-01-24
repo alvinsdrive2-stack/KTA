@@ -1,0 +1,67 @@
+[
+  {
+    "id": "cmkr7fg2f00071h6c2fe1lgtl",
+    "ktaRequestId": "cmkr7bg5x00031h6cdjoikp1l",
+    "invoiceNumber": "INV/KTA-BPP/2026/01.002",
+    "rekeningTujuan": "BTN KC Jakarta Kuningan - 00001.01.30.000986.9 - a.n. Gabungan Ahli Teknik Nasional Indonesia",
+    "jumlah": 6000,
+    "buktiBayarLink": null,
+    "statusPembayaran": "VERIFIED",
+    "paidAt": "2026-01-23T13:24:54.950Z",
+    "createdAt": "2026-01-23T11:18:41.559Z",
+    "updatedAt": "2026-01-23T13:24:54.952Z",
+    "bulkPaymentId": "cmkr7fg0t00051h6cwiajjzdn"
+  },
+  {
+    "id": "cmkqtbo4h001f1h6seiy7rdo5",
+    "ktaRequestId": "cmkqspsin00191h6shjng2ls1",
+    "invoiceNumber": "INV/KTA-BPP/2026/01.001",
+    "rekeningTujuan": "BTN KC Jakarta Kuningan - 00001.01.30.000986.9 - a.n. Gabungan Ahli Teknik Nasional Indonesia",
+    "jumlah": 9000,
+    "buktiBayarLink": null,
+    "statusPembayaran": "PAID",
+    "paidAt": "2026-01-23T13:23:50.338Z",
+    "createdAt": "2026-01-23T04:43:50.753Z",
+    "updatedAt": "2026-01-23T13:23:50.340Z",
+    "bulkPaymentId": null
+  },
+  {
+    "id": "cmkqtbo4h001h1h6sjcduljd5",
+    "ktaRequestId": "cmkqspt2o001b1h6s8t0m2kw9",
+    "invoiceNumber": "INV/KTA-BPP/2026/01.001",
+    "rekeningTujuan": "BTN KC Jakarta Kuningan - 00001.01.30.000986.9 - a.n. Gabungan Ahli Teknik Nasional Indonesia",
+    "jumlah": 3000,
+    "buktiBayarLink": null,
+    "statusPembayaran": "PAID",
+    "paidAt": "2026-01-23T13:23:50.338Z",
+    "createdAt": "2026-01-23T04:43:50.753Z",
+    "updatedAt": "2026-01-23T13:23:50.340Z",
+    "bulkPaymentId": null
+  },
+  {
+    "id": "cmks75ir300091h201rxxrjyp",
+    "ktaRequestId": "cmks752hj00031h208v6lmpjv",
+    "invoiceNumber": "INV-ENROL-cmjh08p6n00061h8ckl91rfqr-1769252324596",
+    "rekeningTujuan": "BTN KC Jakarta Kuningan - 00001.01.30.000986.9 - a.n. Gabungan Ahli Teknik Nasional Indonesia",
+    "jumlah": 3000,
+    "buktiBayarLink": null,
+    "statusPembayaran": "VERIFIED",
+    "paidAt": "2026-01-24T03:59:42.095Z",
+    "createdAt": "2026-01-24T03:58:44.655Z",
+    "updatedAt": "2026-01-24T03:59:42.098Z",
+    "bulkPaymentId": "cmks75ipj00051h20695ydfv4"
+  },
+  {
+    "id": "cmks75ir300081h20ja68l9oe",
+    "ktaRequestId": "cmks752ed00011h206fjevjqy",
+    "invoiceNumber": "INV-ENROL-cmjh08p6n00061h8ckl91rfqr-1769252324596",
+    "rekeningTujuan": "BTN KC Jakarta Kuningan - 00001.01.30.000986.9 - a.n. Gabungan Ahli Teknik Nasional Indonesia",
+    "jumlah": 3000,
+    "buktiBayarLink": null,
+    "statusPembayaran": "VERIFIED",
+    "paidAt": "2026-01-24T03:59:42.095Z",
+    "createdAt": "2026-01-24T03:58:44.655Z",
+    "updatedAt": "2026-01-24T03:59:42.098Z",
+    "bulkPaymentId": "cmks75ipj00051h20695ydfv4"
+  }
+]

@@ -1,0 +1,659 @@
+[
+  {
+    "id": "cmjwzrklk00001h6c3okpwsvr",
+    "idKlasifikasi": "AR",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "AR01",
+    "subklasifikasi": "Arsitektural",
+    "createdAt": "2026-01-02T07:51:05.083Z",
+    "updatedAt": "2026-01-02T07:51:05.083Z"
+  },
+  {
+    "id": "cmjwzrkuo00011h6cady4dhss",
+    "idKlasifikasi": "AR",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "AR02",
+    "subklasifikasi": "Perencanaan Arsitektural",
+    "createdAt": "2026-01-02T07:51:05.424Z",
+    "updatedAt": "2026-01-02T07:51:05.424Z"
+  },
+  {
+    "id": "cmjwzrkzi00021h6cxf1v28jz",
+    "idKlasifikasi": "AR",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "AR03",
+    "subklasifikasi": "Pengawasan Arsitektural",
+    "createdAt": "2026-01-02T07:51:05.598Z",
+    "updatedAt": "2026-01-02T07:51:05.598Z"
+  },
+  {
+    "id": "cmjwzrltt00081h6caf75uvm9",
+    "idKlasifikasi": "EL",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "EL01",
+    "subklasifikasi": "Instalasi Penerangan",
+    "createdAt": "2026-01-02T07:51:06.690Z",
+    "updatedAt": "2026-01-02T07:51:06.690Z"
+  },
+  {
+    "id": "cmjwzrlym00091h6curwv3w9c",
+    "idKlasifikasi": "EL",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "EL02",
+    "subklasifikasi": "Instalasi Tenaga Listrik",
+    "createdAt": "2026-01-02T07:51:06.863Z",
+    "updatedAt": "2026-01-02T07:51:06.863Z"
+  },
+  {
+    "id": "cmjwzrm3k000a1h6cl3zz5ps2",
+    "idKlasifikasi": "EL",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "EL03",
+    "subklasifikasi": "Instalasi Tegangan Menengah",
+    "createdAt": "2026-01-02T07:51:07.040Z",
+    "updatedAt": "2026-01-02T07:51:07.040Z"
+  },
+  {
+    "id": "cmjwzrm8d000b1h6cfl0l3jpz",
+    "idKlasifikasi": "EL",
+    "idSubklasifikasi": "04",
+    "kodeSubklasifikasi": "EL04",
+    "subklasifikasi": "Instalasi Tegangan Tinggi",
+    "createdAt": "2026-01-02T07:51:07.213Z",
+    "updatedAt": "2026-01-02T07:51:07.213Z"
+  },
+  {
+    "id": "cmjwzrmx6000g1h6ch7bw6kvo",
+    "idKlasifikasi": "GE",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "GE01",
+    "subklasifikasi": "Tanah",
+    "createdAt": "2026-01-02T07:51:08.106Z",
+    "updatedAt": "2026-01-02T07:51:08.106Z"
+  },
+  {
+    "id": "cmjwzrn2i000h1h6cibnnij2l",
+    "idKlasifikasi": "GE",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "GE02",
+    "subklasifikasi": "Batu Galian",
+    "createdAt": "2026-01-02T07:51:08.298Z",
+    "updatedAt": "2026-01-02T07:51:08.298Z"
+  },
+  {
+    "id": "cmjwzrn8b000i1h6cp49y50sk",
+    "idKlasifikasi": "GE",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "GE03",
+    "subklasifikasi": "Geoteknik",
+    "createdAt": "2026-01-02T07:51:08.507Z",
+    "updatedAt": "2026-01-02T07:51:08.507Z"
+  },
+  {
+    "id": "cmjwzrnde000j1h6cpvaudetf",
+    "idKlasifikasi": "KA",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "KA01",
+    "subklasifikasi": "Jalan Raya",
+    "createdAt": "2026-01-02T07:51:08.690Z",
+    "updatedAt": "2026-01-02T07:51:08.690Z"
+  },
+  {
+    "id": "cmjwzrnia000k1h6cr6ae2vwt",
+    "idKlasifikasi": "KA",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "KA02",
+    "subklasifikasi": "Jalan Tol",
+    "createdAt": "2026-01-02T07:51:08.867Z",
+    "updatedAt": "2026-01-02T07:51:08.867Z"
+  },
+  {
+    "id": "cmjwzrnna000l1h6crm94uze8",
+    "idKlasifikasi": "KA",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "KA03",
+    "subklasifikasi": "Jembatan",
+    "createdAt": "2026-01-02T07:51:09.046Z",
+    "updatedAt": "2026-01-02T07:51:09.046Z"
+  },
+  {
+    "id": "cmjwzrnsd000m1h6c2hob2227",
+    "idKlasifikasi": "KA",
+    "idSubklasifikasi": "04",
+    "kodeSubklasifikasi": "KA04",
+    "subklasifikasi": "Jalan Layang",
+    "createdAt": "2026-01-02T07:51:09.229Z",
+    "updatedAt": "2026-01-02T07:51:09.229Z"
+  },
+  {
+    "id": "cmjwzrnxb000n1h6ccnghrmf1",
+    "idKlasifikasi": "KA",
+    "idSubklasifikasi": "05",
+    "kodeSubklasifikasi": "KA05",
+    "subklasifikasi": "Terowongan",
+    "createdAt": "2026-01-02T07:51:09.408Z",
+    "updatedAt": "2026-01-02T07:51:09.408Z"
+  },
+  {
+    "id": "cmjwzro26000o1h6cr8k94o0w",
+    "idKlasifikasi": "SB",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "SB01",
+    "subklasifikasi": "Bangunan Air",
+    "createdAt": "2026-01-02T07:51:09.582Z",
+    "updatedAt": "2026-01-02T07:51:09.582Z"
+  },
+  {
+    "id": "cmjwzro6y000p1h6cjpw7dfg0",
+    "idKlasifikasi": "SB",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "SB02",
+    "subklasifikasi": "Irigasi",
+    "createdAt": "2026-01-02T07:51:09.754Z",
+    "updatedAt": "2026-01-02T07:51:09.754Z"
+  },
+  {
+    "id": "cmjwzrobu000q1h6ce1sxlkel",
+    "idKlasifikasi": "SB",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "SB03",
+    "subklasifikasi": "Pantai",
+    "createdAt": "2026-01-02T07:51:09.930Z",
+    "updatedAt": "2026-01-02T07:51:09.930Z"
+  },
+  {
+    "id": "cmjwzrohb000r1h6cglv5iorw",
+    "idKlasifikasi": "SB",
+    "idSubklasifikasi": "04",
+    "kodeSubklasifikasi": "SB04",
+    "subklasifikasi": "Pelabuhan",
+    "createdAt": "2026-01-02T07:51:10.127Z",
+    "updatedAt": "2026-01-02T07:51:10.127Z"
+  },
+  {
+    "id": "cmjwzromo000s1h6c4u44nur3",
+    "idKlasifikasi": "CU",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "CU01",
+    "subklasifikasi": "Konstruksi Bangunan",
+    "createdAt": "2026-01-02T07:51:10.320Z",
+    "updatedAt": "2026-01-02T07:51:10.320Z"
+  },
+  {
+    "id": "cmjwzrors000t1h6cg63lzvku",
+    "idKlasifikasi": "CU",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "CU02",
+    "subklasifikasi": "Konstruksi Interior",
+    "createdAt": "2026-01-02T07:51:10.504Z",
+    "updatedAt": "2026-01-02T07:51:10.504Z"
+  },
+  {
+    "id": "cmjwzrows000u1h6ctwmntczo",
+    "idKlasifikasi": "CU",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "CU03",
+    "subklasifikasi": "Konstruksi Finishing",
+    "createdAt": "2026-01-02T07:51:10.685Z",
+    "updatedAt": "2026-01-02T07:51:10.685Z"
+  },
+  {
+    "id": "cmjwzrp1o000v1h6cojjizox0",
+    "idKlasifikasi": "CU",
+    "idSubklasifikasi": "04",
+    "kodeSubklasifikasi": "CU04",
+    "subklasifikasi": "Konstruksi Atap",
+    "createdAt": "2026-01-02T07:51:10.860Z",
+    "updatedAt": "2026-01-02T07:51:10.860Z"
+  },
+  {
+    "id": "cmjwzrlac00041h6cteh1p5dw",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "SI02",
+    "subklasifikasi": "Material",
+    "createdAt": "2026-01-02T07:51:05.988Z",
+    "updatedAt": "2026-01-08T06:22:19.086Z"
+  },
+  {
+    "id": "cmjwzrlf700051h6c2dv5vah2",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "SI03",
+    "subklasifikasi": "Jalan",
+    "createdAt": "2026-01-02T07:51:06.163Z",
+    "updatedAt": "2026-01-08T06:22:19.175Z"
+  },
+  {
+    "id": "cmjwzrlk100061h6cxvox9b18",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "04",
+    "kodeSubklasifikasi": "SI04",
+    "subklasifikasi": "Jembatan",
+    "createdAt": "2026-01-02T07:51:06.338Z",
+    "updatedAt": "2026-01-08T06:22:19.207Z"
+  },
+  {
+    "id": "cmjwzrlox00071h6chdn4uvh4",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "05",
+    "kodeSubklasifikasi": "SI05",
+    "subklasifikasi": "Landasan Udara",
+    "createdAt": "2026-01-02T07:51:06.513Z",
+    "updatedAt": "2026-01-08T06:22:19.240Z"
+  },
+  {
+    "id": "cmk5h8j6000001h40z1bs665h",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "06",
+    "kodeSubklasifikasi": "SI06",
+    "subklasifikasi": "Terowongan",
+    "createdAt": "2026-01-08T06:22:19.271Z",
+    "updatedAt": "2026-01-08T06:22:19.271Z"
+  },
+  {
+    "id": "cmk5h8j7s00011h400q4x34j4",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "07",
+    "kodeSubklasifikasi": "SI07",
+    "subklasifikasi": "Bendung dan Bendungan",
+    "createdAt": "2026-01-08T06:22:19.337Z",
+    "updatedAt": "2026-01-08T06:22:19.337Z"
+  },
+  {
+    "id": "cmk5h8j8o00021h4028m5flex",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "08",
+    "kodeSubklasifikasi": "SI08",
+    "subklasifikasi": "Irigasi dan Rawa",
+    "createdAt": "2026-01-08T06:22:19.368Z",
+    "updatedAt": "2026-01-08T06:22:19.368Z"
+  },
+  {
+    "id": "cmk5c1w8n00001hx8ru9vof3v",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "09",
+    "kodeSubklasifikasi": "SI09",
+    "subklasifikasi": "Sungai dan Pantai",
+    "createdAt": "2026-01-08T03:57:11.542Z",
+    "updatedAt": "2026-01-08T06:22:19.400Z"
+  },
+  {
+    "id": "cmk5h8jag00031h40aqnwy0y1",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "10",
+    "kodeSubklasifikasi": "SI10",
+    "subklasifikasi": "Air Tanah dan Air Baku",
+    "createdAt": "2026-01-08T06:22:19.433Z",
+    "updatedAt": "2026-01-08T06:22:19.433Z"
+  },
+  {
+    "id": "cmk5h8jbc00041h40isrgur33",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "11",
+    "kodeSubklasifikasi": "SI11",
+    "subklasifikasi": "Bangunan Air Minum",
+    "createdAt": "2026-01-08T06:22:19.464Z",
+    "updatedAt": "2026-01-08T06:22:19.464Z"
+  },
+  {
+    "id": "cmk5h8jc700051h40hs7v1v6w",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "12",
+    "kodeSubklasifikasi": "SI12",
+    "subklasifikasi": "Bangunan Air Limbah",
+    "createdAt": "2026-01-08T06:22:19.495Z",
+    "updatedAt": "2026-01-08T06:22:19.495Z"
+  },
+  {
+    "id": "cmk5h8jd200061h40dgx516ub",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "13",
+    "kodeSubklasifikasi": "SI13",
+    "subklasifikasi": "Bangunan Persampahan",
+    "createdAt": "2026-01-08T06:22:19.526Z",
+    "updatedAt": "2026-01-08T06:22:19.526Z"
+  },
+  {
+    "id": "cmk5gfs0p0000js04snekil8o",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "14",
+    "kodeSubklasifikasi": "SI14",
+    "subklasifikasi": "Drainase Perkotaan",
+    "createdAt": "2026-01-08T05:59:57.721Z",
+    "updatedAt": "2026-01-08T06:22:19.557Z"
+  },
+  {
+    "id": "cmk5h8jes00071h40kezw20qb",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "15",
+    "kodeSubklasifikasi": "SI15",
+    "subklasifikasi": "Geoteknik dan Pondasi",
+    "createdAt": "2026-01-08T06:22:19.588Z",
+    "updatedAt": "2026-01-08T06:22:19.588Z"
+  },
+  {
+    "id": "cmk5gobf10000jl04lfomkg2j",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "16",
+    "kodeSubklasifikasi": "SI16",
+    "subklasifikasi": "Geodesi",
+    "createdAt": "2026-01-08T06:06:36.110Z",
+    "updatedAt": "2026-01-08T06:22:19.619Z"
+  },
+  {
+    "id": "cmk5h8jgj00081h40lwbl21tn",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "17",
+    "kodeSubklasifikasi": "SI17",
+    "subklasifikasi": "Jalan Rel",
+    "createdAt": "2026-01-08T06:22:19.651Z",
+    "updatedAt": "2026-01-08T06:22:19.651Z"
+  },
+  {
+    "id": "cmk5h8jhf00091h40wercxsev",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "18",
+    "kodeSubklasifikasi": "SI18",
+    "subklasifikasi": "Bangunan Menara",
+    "createdAt": "2026-01-08T06:22:19.683Z",
+    "updatedAt": "2026-01-08T06:22:19.683Z"
+  },
+  {
+    "id": "cmk5h8jib000a1h40lbf7noc7",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "19",
+    "kodeSubklasifikasi": "SI19",
+    "subklasifikasi": "Bangunan Pelabuhan",
+    "createdAt": "2026-01-08T06:22:19.715Z",
+    "updatedAt": "2026-01-08T06:22:19.715Z"
+  },
+  {
+    "id": "cmk5h8jj7000b1h40x0uywh7t",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "20",
+    "kodeSubklasifikasi": "SI20",
+    "subklasifikasi": "Testing dan Analisis Teknik",
+    "createdAt": "2026-01-08T06:22:19.747Z",
+    "updatedAt": "2026-01-08T06:22:19.747Z"
+  },
+  {
+    "id": "cmk5h8jk2000c1h40n0dwma18",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "21",
+    "kodeSubklasifikasi": "SI21",
+    "subklasifikasi": "Bangunan Lepas Pantai",
+    "createdAt": "2026-01-08T06:22:19.778Z",
+    "updatedAt": "2026-01-08T06:22:19.778Z"
+  },
+  {
+    "id": "cmk5h8jkx000d1h400s41mo4n",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "22",
+    "kodeSubklasifikasi": "SI22",
+    "subklasifikasi": "Pembongkaran Bangunan",
+    "createdAt": "2026-01-08T06:22:19.810Z",
+    "updatedAt": "2026-01-08T06:22:19.810Z"
+  },
+  {
+    "id": "cmk5h8jlt000e1h40cbxmfj0u",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "23",
+    "kodeSubklasifikasi": "SI23",
+    "subklasifikasi": "Grouting",
+    "createdAt": "2026-01-08T06:22:19.842Z",
+    "updatedAt": "2026-01-08T06:22:19.842Z"
+  },
+  {
+    "id": "cmjwzrmd8000c1h6cxnu6sq2g",
+    "idKlasifikasi": "ME",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "ME01",
+    "subklasifikasi": "Teknik Tata Udara dan Refrigasi",
+    "createdAt": "2026-01-02T07:51:07.389Z",
+    "updatedAt": "2026-01-08T06:22:19.873Z"
+  },
+  {
+    "id": "cmjwzrmi3000d1h6cpsvcnlwq",
+    "idKlasifikasi": "ME",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "ME02",
+    "subklasifikasi": "Plumbing dan Pompa Mekanik",
+    "createdAt": "2026-01-02T07:51:07.563Z",
+    "updatedAt": "2026-01-08T06:22:19.904Z"
+  },
+  {
+    "id": "cmjwzrmn5000e1h6ccqkh2xsk",
+    "idKlasifikasi": "ME",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "ME03",
+    "subklasifikasi": "Proteksi Kebakaran",
+    "createdAt": "2026-01-02T07:51:07.745Z",
+    "updatedAt": "2026-01-08T06:22:19.935Z"
+  },
+  {
+    "id": "cmjwzrms2000f1h6cbuu7qdlw",
+    "idKlasifikasi": "ME",
+    "idSubklasifikasi": "04",
+    "kodeSubklasifikasi": "ME04",
+    "subklasifikasi": "Transportasi Dalam Gedung",
+    "createdAt": "2026-01-02T07:51:07.922Z",
+    "updatedAt": "2026-01-08T06:22:19.967Z"
+  },
+  {
+    "id": "cmk5h8jq5000f1h405nyivwwo",
+    "idKlasifikasi": "ME",
+    "idSubklasifikasi": "05",
+    "kodeSubklasifikasi": "ME05",
+    "subklasifikasi": "Teknik Mekanikal",
+    "createdAt": "2026-01-08T06:22:19.997Z",
+    "updatedAt": "2026-01-08T06:22:19.997Z"
+  },
+  {
+    "id": "cmk5h8jr1000g1h404zh4wort",
+    "idKlasifikasi": "ME",
+    "idSubklasifikasi": "06",
+    "kodeSubklasifikasi": "ME06",
+    "subklasifikasi": "Alat Berat",
+    "createdAt": "2026-01-08T06:22:20.029Z",
+    "updatedAt": "2026-01-08T06:22:20.029Z"
+  },
+  {
+    "id": "cmk5h8jrv000h1h404la1kv7n",
+    "idKlasifikasi": "ME",
+    "idSubklasifikasi": "07",
+    "kodeSubklasifikasi": "ME07",
+    "subklasifikasi": "Teknik Lifting",
+    "createdAt": "2026-01-08T06:22:20.059Z",
+    "updatedAt": "2026-01-08T06:22:20.059Z"
+  },
+  {
+    "id": "cmk5h8jsp000i1h40x5rbby8o",
+    "idKlasifikasi": "TL",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "TL01",
+    "subklasifikasi": "Teknik Air Minum",
+    "createdAt": "2026-01-08T06:22:20.089Z",
+    "updatedAt": "2026-01-08T06:22:20.089Z"
+  },
+  {
+    "id": "cmk5h8jtj000j1h401wy8fs5l",
+    "idKlasifikasi": "TL",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "TL02",
+    "subklasifikasi": "Teknik Lingkungan",
+    "createdAt": "2026-01-08T06:22:20.119Z",
+    "updatedAt": "2026-01-08T06:22:20.119Z"
+  },
+  {
+    "id": "cmk5h8jue000k1h400a82jqzk",
+    "idKlasifikasi": "TL",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "TL03",
+    "subklasifikasi": "Teknik Air Limbah",
+    "createdAt": "2026-01-08T06:22:20.150Z",
+    "updatedAt": "2026-01-08T06:22:20.150Z"
+  },
+  {
+    "id": "cmk5h8jv8000l1h409tszbfof",
+    "idKlasifikasi": "TL",
+    "idSubklasifikasi": "04",
+    "kodeSubklasifikasi": "TL04",
+    "subklasifikasi": "Teknik Perpipaan",
+    "createdAt": "2026-01-08T06:22:20.180Z",
+    "updatedAt": "2026-01-08T06:22:20.180Z"
+  },
+  {
+    "id": "cmk5h8jw2000m1h402ecjxcwc",
+    "idKlasifikasi": "TL",
+    "idSubklasifikasi": "05",
+    "kodeSubklasifikasi": "TL05",
+    "subklasifikasi": "Teknik Persampahan",
+    "createdAt": "2026-01-08T06:22:20.210Z",
+    "updatedAt": "2026-01-08T06:22:20.210Z"
+  },
+  {
+    "id": "cmk5h8jwx000n1h40w6cvvmug",
+    "idKlasifikasi": "MP",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "MP01",
+    "subklasifikasi": "Keselamatan Konstruksi",
+    "createdAt": "2026-01-08T06:22:20.242Z",
+    "updatedAt": "2026-01-08T06:22:20.242Z"
+  },
+  {
+    "id": "cmk5h8jxu000o1h40wybiov3w",
+    "idKlasifikasi": "MP",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "MP02",
+    "subklasifikasi": "Manajemen Konstruksi/Manajemen Proyek",
+    "createdAt": "2026-01-08T06:22:20.275Z",
+    "updatedAt": "2026-01-08T06:22:20.275Z"
+  },
+  {
+    "id": "cmk5h8jyo000p1h40swf890we",
+    "idKlasifikasi": "MP",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "MP03",
+    "subklasifikasi": "Hukum Kontrak Konstruksi",
+    "createdAt": "2026-01-08T06:22:20.305Z",
+    "updatedAt": "2026-01-08T06:22:20.305Z"
+  },
+  {
+    "id": "cmk5h8jzj000q1h40h4x1sdd7",
+    "idKlasifikasi": "MP",
+    "idSubklasifikasi": "04",
+    "kodeSubklasifikasi": "MP04",
+    "subklasifikasi": "Pengendalian Mutu Pekerjaan Konstruksi",
+    "createdAt": "2026-01-08T06:22:20.335Z",
+    "updatedAt": "2026-01-08T06:22:20.335Z"
+  },
+  {
+    "id": "cmk5h8k0e000r1h40rjpr7v8u",
+    "idKlasifikasi": "MP",
+    "idSubklasifikasi": "05",
+    "kodeSubklasifikasi": "MP05",
+    "subklasifikasi": "Estimasi Biaya Konstruksi",
+    "createdAt": "2026-01-08T06:22:20.366Z",
+    "updatedAt": "2026-01-08T06:22:20.366Z"
+  },
+  {
+    "id": "cmk5h8k18000s1h40gr04m6rg",
+    "idKlasifikasi": "MP",
+    "idSubklasifikasi": "06",
+    "kodeSubklasifikasi": "MP06",
+    "subklasifikasi": "Manajemen Aset Hasil Pekerjaan Konstruksi",
+    "createdAt": "2026-01-08T06:22:20.396Z",
+    "updatedAt": "2026-01-08T06:22:20.396Z"
+  },
+  {
+    "id": "cmk5h8k22000t1h40y2xc1d8b",
+    "idKlasifikasi": "AL",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "AL01",
+    "subklasifikasi": "Arsitektur Lanskap",
+    "createdAt": "2026-01-08T06:22:20.427Z",
+    "updatedAt": "2026-01-08T06:22:20.427Z"
+  },
+  {
+    "id": "cmk5h8k2w000u1h40hg1h3jss",
+    "idKlasifikasi": "AL",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "AL02",
+    "subklasifikasi": "Teknik Iluminasi",
+    "createdAt": "2026-01-08T06:22:20.457Z",
+    "updatedAt": "2026-01-08T06:22:20.457Z"
+  },
+  {
+    "id": "cmk5h8k3r000v1h40646legy4",
+    "idKlasifikasi": "AL",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "AL03",
+    "subklasifikasi": "Desain Interior",
+    "createdAt": "2026-01-08T06:22:20.488Z",
+    "updatedAt": "2026-01-08T06:22:20.488Z"
+  },
+  {
+    "id": "cmk5h8k4m000w1h4067sgdmzm",
+    "idKlasifikasi": "PW",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "PW01",
+    "subklasifikasi": "Perencanaan Wilayah",
+    "createdAt": "2026-01-08T06:22:20.519Z",
+    "updatedAt": "2026-01-08T06:22:20.519Z"
+  },
+  {
+    "id": "cmk5h8k5h000x1h407cgcr5fa",
+    "idKlasifikasi": "PW",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "PW02",
+    "subklasifikasi": "Perencanaan Kota (Urban Planning)",
+    "createdAt": "2026-01-08T06:22:20.550Z",
+    "updatedAt": "2026-01-08T06:22:20.550Z"
+  },
+  {
+    "id": "cmjwzrl5g00031h6ctwej6bgr",
+    "idKlasifikasi": "SI",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "SI01",
+    "subklasifikasi": "Gedung",
+    "createdAt": "2026-01-02T07:51:05.813Z",
+    "updatedAt": "2026-01-20T22:01:41.015Z"
+  },
+  {
+    "id": "cmk5h8k6d000y1h40k9bmbmub",
+    "idKlasifikasi": "PW",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "PW03",
+    "subklasifikasi": "Perancangan Kota (Urban Design)",
+    "createdAt": "2026-01-08T06:22:20.582Z",
+    "updatedAt": "2026-01-08T06:22:20.582Z"
+  },
+  {
+    "id": "cmk5h8k7a000z1h40codpfzrd",
+    "idKlasifikasi": "SR",
+    "idSubklasifikasi": "01",
+    "kodeSubklasifikasi": "SR01",
+    "subklasifikasi": "Investasi Infrastruktur",
+    "createdAt": "2026-01-08T06:22:20.615Z",
+    "updatedAt": "2026-01-08T06:22:20.615Z"
+  },
+  {
+    "id": "cmk5h8k8400101h40hala2g4s",
+    "idKlasifikasi": "SR",
+    "idSubklasifikasi": "02",
+    "kodeSubklasifikasi": "SR02",
+    "subklasifikasi": "Komputasi Konstruksi",
+    "createdAt": "2026-01-08T06:22:20.644Z",
+    "updatedAt": "2026-01-08T06:22:20.644Z"
+  },
+  {
+    "id": "cmk5h8k8y00111h40rsjphimw",
+    "idKlasifikasi": "SR",
+    "idSubklasifikasi": "03",
+    "kodeSubklasifikasi": "SR03",
+    "subklasifikasi": "Peledakan",
+    "createdAt": "2026-01-08T06:22:20.675Z",
+    "updatedAt": "2026-01-08T06:22:20.675Z"
+  }
+]

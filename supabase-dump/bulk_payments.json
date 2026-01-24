@@ -1,0 +1,42 @@
+[
+  {
+    "id": "cmkr7fg0t00051h6cwiajjzdn",
+    "invoiceNumber": "INV/KTA-BPP/2026/01.002",
+    "daerahId": "cmjh08p6n00061h8ckl91rfqr",
+    "totalJumlah": 1,
+    "totalNominal": 6000,
+    "buktiPembayaranUrl": "/uploads/payments/payment-proof-1769199841019.jpg",
+    "status": "VERIFIED",
+    "verifiedBy": "cmkr6zg4w00011h6c4qexdqn5",
+    "verifiedAt": "2026-01-23T13:24:54.626Z",
+    "submittedBy": "cmj1psozk00021h3ss13xet1w",
+    "createdAt": "2026-01-23T11:18:41.501Z",
+    "updatedAt": "2026-01-23T13:24:54.628Z",
+    "midtransPaymentType": "echannel",
+    "midtransRedirectUrl": "https://app.sandbox.midtrans.com/snap/v4/redirection/a1e0e57e-6e5b-4127-95d5-e25318b7aa06",
+    "midtransToken": "a1e0e57e-6e5b-4127-95d5-e25318b7aa06",
+    "midtransTransactionId": "09a940a6-0034-4f06-b43c-f1402db5e2e0",
+    "isEnrolment": false,
+    "keterangan": null
+  },
+  {
+    "id": "cmks75ipj00051h20695ydfv4",
+    "invoiceNumber": "INV-ENROL-cmjh08p6n00061h8ckl91rfqr-1769252324596",
+    "daerahId": "cmjh08p6n00061h8ckl91rfqr",
+    "totalJumlah": 2,
+    "totalNominal": 6000,
+    "buktiPembayaranUrl": "",
+    "status": "VERIFIED",
+    "verifiedBy": "cmkr6zg4w00011h6c4qexdqn5",
+    "verifiedAt": "2026-01-24T03:59:41.913Z",
+    "submittedBy": "cmj1psozk00021h3ss13xet1w",
+    "createdAt": "2026-01-24T03:58:44.599Z",
+    "updatedAt": "2026-01-24T03:59:41.915Z",
+    "midtransPaymentType": null,
+    "midtransRedirectUrl": null,
+    "midtransToken": null,
+    "midtransTransactionId": null,
+    "isEnrolment": true,
+    "keterangan": "ENROL UNTUK AKU"
+  }
+]

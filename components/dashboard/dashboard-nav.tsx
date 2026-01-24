@@ -13,7 +13,8 @@ import {
   Download,
   History,
   CheckCircleIcon as Confirmicon,
-  UserCog
+  UserCog,
+  Database
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useSession } from '@/hooks/useSession'
@@ -150,6 +151,13 @@ const navSections: NavSection[] = [
         title: 'Kelola User',
         href: '/dashboard/admin/users',
         icon: UserCog,
+        roles: ['ADMIN'],
+        badge: null,
+      },
+      {
+        title: 'Data Manage',
+        href: '/dashboard/admin/data-manage',
+        icon: Database,
         roles: ['ADMIN'],
         badge: null,
       }

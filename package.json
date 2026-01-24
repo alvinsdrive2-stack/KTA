@@ -15,7 +15,11 @@
     "db:check": "tsx scripts/check-db-connection.ts",
     "db:view-data": "tsx scripts/view-daerah-and-region-prices.ts",
     "db:sync-daerah": "tsx scripts/sync-daerah-from-region-prices.ts",
-    "db:direct-check": "tsx scripts/direct-supabase-check.ts"
+    "db:direct-check": "tsx scripts/direct-supabase-check.ts",
+    "db:seed-users": "tsx prisma/seed-users.ts",
+    "db:dump-supabase": "tsx scripts/dump-supabase.ts",
+    "db:truncate-all": "tsx scripts/truncate-all-tables.ts",
+    "db:import-mysql": "tsx scripts/import-to-mysql.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -51,6 +55,7 @@
     "next-themes": "^0.4.6",
     "papaparse": "^5.5.3",
     "pdf-lib": "^1.17.1",
+    "pg": "^8.17.2",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -66,6 +71,7 @@
     "@playwright/test": "^1.57.0",
     "@types/node": "^22.9.0",
     "@types/papaparse": "^5.5.2",
+    "@types/pg": "^8.16.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.15.0",
     "eslint-config-next": "^16.0.0",

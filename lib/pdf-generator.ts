@@ -1,8 +1,13 @@
+// Increase VIPS pixel limit before importing sharp
+// Default limit is ~268MP, set to 1GB (1,073,741,824 pixels)
+process.env.VIPS_MAX_PIXEL_LIMIT = '1073741824'
+
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 import fs from 'fs/promises'
 import path from 'path'
 import sharp from 'sharp'
+import { statSync } from 'fs'
 
 interface KTAData {
   id: string
@@ -141,12 +146,38 @@ const CARD_HEIGHT = 380 * SCALE
 let manropeFontBytes: Buffer | ArrayBuffer | null = null
 let manropeMediumFontBytes: Buffer | ArrayBuffer | null = null
 let templateImage: Buffer | null = null
+let templateImageBack: Buffer | null = null
 
-// Fetch font from public URL (works in serverless)
+// Track file modification times for auto-refresh
+let templateMtime: number | null = null
+let templateBackMtime: number | null = null
+
+// Clear all caches - useful after template updates
+export function clearKTACache() {
+  manropeFontBytes = null
+  manropeMediumFontBytes = null
+  templateImage = null
+  templateImageBack = null
+  templateMtime = null
+  templateBackMtime = null
+  console.log('KTA cache cleared successfully')
+}
+
+// Fetch font from filesystem first (faster), then URL as fallback
 async function getManropeFont(): Promise<Buffer | ArrayBuffer> {
   if (manropeFontBytes) return manropeFontBytes
 
-  // Use direct URL for production, localhost for development
+  // Try local filesystem FIRST (much faster in development)
+  try {
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Manrope-SemiBold.ttf')
+    manropeFontBytes = await fs.readFile(fontPath)
+    console.log('✅ Font loaded from filesystem (fast)')
+    return manropeFontBytes
+  } catch (error) {
+    console.log('⚠️ Font not in filesystem, trying URL...')
+  }
+
+  // Fallback to URL (for production or if filesystem fails)
   const isDevelopment = process.env.NODE_ENV === 'development'
   const fontUrl = isDevelopment
     ? 'http://localhost:3000/fonts/Manrope-SemiBold.ttf'
@@ -164,25 +195,26 @@ async function getManropeFont(): Promise<Buffer | ArrayBuffer> {
       console.log('Font fetch failed with status:', response.status)
     }
   } catch (error) {
-    console.log('Fetch failed, trying local filesystem...', error)
+    console.log('Fetch failed, error:', error)
   }
 
-  // Fallback to local filesystem (development)
-  try {
-    const fontPath = path.join(process.cwd(), 'fonts', 'Manrope-SemiBold.ttf')
-    manropeFontBytes = await fs.readFile(fontPath)
-    console.log('Font loaded from filesystem')
-    return manropeFontBytes
-  } catch (error) {
-    console.error('Error loading Manrope SemiBold font:', error)
-    throw new Error('Failed to load Manrope SemiBold font from URL and filesystem')
-  }
+  throw new Error('Failed to load Manrope SemiBold font')
 }
 
 async function getManropeMediumFont(): Promise<Buffer | ArrayBuffer> {
   if (manropeMediumFontBytes) return manropeMediumFontBytes
 
-  // Use direct URL for production, localhost for development
+  // Try local filesystem FIRST (much faster in development)
+  try {
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Manrope-Medium.ttf')
+    manropeMediumFontBytes = await fs.readFile(fontPath)
+    console.log('✅ Medium font loaded from filesystem (fast)')
+    return manropeMediumFontBytes
+  } catch (error) {
+    console.log('⚠️ Medium font not in filesystem, trying URL...')
+  }
+
+  // Fallback to URL (for production or if filesystem fails)
   const isDevelopment = process.env.NODE_ENV === 'development'
   const fontUrl = isDevelopment
     ? 'http://localhost:3000/fonts/Manrope-Medium.ttf'
@@ -200,39 +232,73 @@ async function getManropeMediumFont(): Promise<Buffer | ArrayBuffer> {
       console.log('Medium font fetch failed with status:', response.status)
     }
   } catch (error) {
-    console.log('Medium font fetch failed, trying local filesystem...', error)
+    console.log('Fetch failed, error:', error)
   }
 
-  // Fallback to local filesystem (development)
-  try {
-    const fontPath = path.join(process.cwd(), 'fonts', 'Manrope-Medium.ttf')
-    manropeMediumFontBytes = await fs.readFile(fontPath)
-    return manropeMediumFontBytes
-  } catch (error) {
-    // Medium font is corrupted, use SemiBold as fallback
-    console.warn('Manrope Medium font not available, using SemiBold')
-    return getManropeFont()
-  }
+  // Final fallback - use SemiBold
+  console.warn('Manrope Medium font not available, using SemiBold')
+  return getManropeFont()
 }
 
 async function getTemplateImage(): Promise<Buffer> {
-  if (templateImage) return templateImage
-
   try {
-    const templatePath = path.join(process.cwd(), 'public', 'template kta', 'KTA AI - FRONT.svg')
+    console.log('⏳ getTemplateImage() called')
+    // Priority 1: Try to load pre-converted PNG from public folder
+    const pngPath = path.join(process.cwd(), 'public', 'template kta', 'KTA AI - FRONT.png')
+    const svgPath = path.join(process.cwd(), 'public', 'template kta', 'KTA AI - FRONT.svg')
     const pngCachePath = path.join('/tmp', 'kta-template-front-hires.png')
 
-    // Check if PNG cache exists
+    let currentMtime: number | null = null
+    let sourcePath = pngPath  // Default to PNG
+
+    // Check if PNG exists in public folder
     try {
-      const cached = await fs.readFile(pngCachePath)
-      templateImage = cached
+      currentMtime = statSync(pngPath).mtimeMs
+      sourcePath = pngPath
+    } catch {
+      // PNG doesn't exist, try SVG
+      try {
+        currentMtime = statSync(svgPath).mtimeMs
+        sourcePath = svgPath
+      } catch {
+        // Neither exists, use cache if available
+        if (templateImage) return templateImage
+        throw new Error('No template file found')
+      }
+    }
+
+    // If we have cached data and file hasn't changed, return cache
+    if (templateImage && templateMtime === currentMtime) {
+      console.log('✅ Using cached front template')
       return templateImage
-    } catch {}
+    }
 
-    // Convert SVG to PNG using sharp - high resolution (2x)
-    const svgBuffer = await fs.readFile(templatePath)
+    // If it's a PNG, load and resize it directly (using path, not buffer, to avoid memory issues)
+    if (sourcePath.endsWith('.png')) {
+      console.log('⏳ Loading PNG template from:', sourcePath)
+      const pngBuffer = await sharp(sourcePath)
+        .resize(CARD_WIDTH, CARD_HEIGHT, {
+          fit: 'cover',
+          position: 'center'
+        })
+        .png()
+        .toBuffer()
+      console.log('✅ PNG template loaded and resized')
 
-    const pngBuffer = await sharp(svgBuffer)
+      templateImage = pngBuffer
+      templateMtime = currentMtime
+
+      // Cache for future use
+      await fs.mkdir('/tmp', { recursive: true })
+      await fs.writeFile(pngCachePath, pngBuffer)
+
+      return templateImage
+    }
+
+    // If it's an SVG, try to convert (may fail for large files)
+    const pngBuffer = await sharp(sourcePath, {
+      density: 300  // Higher density for better quality
+    })
       .resize(CARD_WIDTH, CARD_HEIGHT, {
         fit: 'cover',
         position: 'center'
@@ -241,6 +307,7 @@ async function getTemplateImage(): Promise<Buffer> {
       .toBuffer()
 
     templateImage = pngBuffer
+    templateMtime = currentMtime
 
     // Cache for future use
     await fs.mkdir('/tmp', { recursive: true })
@@ -263,27 +330,65 @@ async function getTemplateImage(): Promise<Buffer> {
   }
 }
 
-// Cache untuk back template
-let templateImageBack: Buffer | null = null
-
 async function getTemplateImageBack(): Promise<Buffer> {
-  if (templateImageBack) return templateImageBack
-
   try {
-    const templatePath = path.join(process.cwd(), 'public', 'template kta', 'KTA AI - BACK.svg')
+    console.log('⏳ getTemplateImageBack() called')
+    // Priority 1: Try to load pre-converted PNG from public folder
+    const pngPath = path.join(process.cwd(), 'public', 'template kta', 'KTA AI - BACK.png')
+    const svgPath = path.join(process.cwd(), 'public', 'template kta', 'KTA AI - BACK.svg')
     const pngCachePath = path.join('/tmp', 'kta-template-back-hires.png')
 
-    // Check if PNG cache exists
+    let currentMtime: number | null = null
+    let sourcePath = pngPath  // Default to PNG
+
+    // Check if PNG exists in public folder
     try {
-      const cached = await fs.readFile(pngCachePath)
-      templateImageBack = cached
+      currentMtime = statSync(pngPath).mtimeMs
+      sourcePath = pngPath
+    } catch {
+      // PNG doesn't exist, try SVG
+      try {
+        currentMtime = statSync(svgPath).mtimeMs
+        sourcePath = svgPath
+      } catch {
+        // Neither exists, use cache if available
+        if (templateImageBack) return templateImageBack
+        throw new Error('No template file found')
+      }
+    }
+
+    // If we have cached data and file hasn't changed, return cache
+    if (templateImageBack && templateBackMtime === currentMtime) {
+      console.log('✅ Using cached back template')
       return templateImageBack
-    } catch {}
+    }
 
-    // Convert SVG to PNG using sharp - high resolution (2x)
-    const svgBuffer = await fs.readFile(templatePath)
+    // If it's a PNG, load and resize it directly (using path, not buffer, to avoid memory issues)
+    if (sourcePath.endsWith('.png')) {
+      console.log('⏳ Loading PNG back template from:', sourcePath)
+      const pngBuffer = await sharp(sourcePath)
+        .resize(CARD_WIDTH, CARD_HEIGHT, {
+          fit: 'cover',
+          position: 'center'
+        })
+        .png()
+        .toBuffer()
+      console.log('✅ PNG back template loaded and resized')
 
-    const pngBuffer = await sharp(svgBuffer)
+      templateImageBack = pngBuffer
+      templateBackMtime = currentMtime
+
+      // Cache for future use
+      await fs.mkdir('/tmp', { recursive: true })
+      await fs.writeFile(pngCachePath, pngBuffer)
+
+      return templateImageBack
+    }
+
+    // If it's an SVG, try to convert (may fail for large files)
+    const pngBuffer = await sharp(sourcePath, {
+      density: 300  // Higher density for better quality
+    })
       .resize(CARD_WIDTH, CARD_HEIGHT, {
         fit: 'cover',
         position: 'center'
@@ -292,6 +397,7 @@ async function getTemplateImageBack(): Promise<Buffer> {
       .toBuffer()
 
     templateImageBack = pngBuffer
+    templateBackMtime = currentMtime
 
     // Cache for future use
     await fs.mkdir('/tmp', { recursive: true })
@@ -318,9 +424,11 @@ export class KTAPDFGenerator {
   private static readonly outputDir = path.join('/tmp', 'kta-cards')
 
   static async generateKTACard(ktaData: KTAData): Promise<Buffer> {
+    console.log('🚀 Starting KTA card generation for:', ktaData.nama)
     await fs.mkdir(this.outputDir, { recursive: true })
 
     const pdfDoc = await PDFDocument.create()
+    console.log('✅ PDF document created')
 
     // Register fontkit for custom fonts
     pdfDoc.registerFontkit((fontkit as any).default || fontkit)
@@ -330,13 +438,18 @@ export class KTAPDFGenerator {
     // Load Manrope fonts from URL (works on Vercel)
     const manropeBytes = await getManropeFont()
     const manropeFont = await pdfDoc.embedFont(manropeBytes)
+    console.log('✅ Font embedded successfully')
 
     const manropeMediumBytes = await getManropeMediumFont()
     const manropeMediumFont = await pdfDoc.embedFont(manropeMediumBytes)
+    console.log('✅ Medium font embedded successfully')
 
     // Load and embed template
+    console.log('⏳ Loading template image...')
     const templateBuffer = await getTemplateImage()
+    console.log('✅ Template loaded, embedding...')
     const templateImage = await pdfDoc.embedPng(templateBuffer)
+    console.log('✅ Template embedded successfully')
 
     // Draw template background (full card size)
     page.drawImage(templateImage, {
@@ -377,7 +490,7 @@ export class KTAPDFGenerator {
     // All lines: top 183px + (index * 24)px, left 330px
     alamatLines.forEach((line, index) => {
       const xPos = toX(330)
-      const yPos = toY(183 + index * 28 + 16)
+      const yPos = toY(183 + index * 23 + 16)
       page.drawText(line, {
         x: xPos,
         y: yPos,
@@ -439,6 +552,8 @@ export class KTAPDFGenerator {
       color: colorWhite,
     })
 
+    console.log('✅ All text drawn successfully')
+
     // Draw Photo (top: 122px, right: 412px, width: 110px, height: 140px)
     // right: 412px in 600px container → x = 600 - 412 - 110 = 78px from left
     const photoX = toX(600 - 417 - 110)
@@ -449,20 +564,25 @@ export class KTAPDFGenerator {
 
     // Embed photo if available
     if (ktaData.fotoData || ktaData.fotoUrl) {
+      console.log('⏳ Processing photo...')
       try {
         let imageBytes: Buffer
 
         // Prioritize fotoData (base64 from database) for geo-blocked URLs
         if (ktaData.fotoData) {
+          console.log('⏳ Using base64 foto data...')
           // Parse base64 data: "data:image/xxx;base64,..."
           const base64Data = ktaData.fotoData.includes(',')
             ? ktaData.fotoData.split(',')[1]
             : ktaData.fotoData
           imageBytes = Buffer.from(base64Data, 'base64')
+          console.log('✅ Base64 decoded')
         } else if (ktaData.fotoUrl && !ktaData.fotoUrl.startsWith('http')) {
+          console.log('⏳ Reading local photo file...')
           // Only fetch local files - skip external URLs (geo-blocked, etc)
           const imagePath = path.join(process.cwd(), 'public', ktaData.fotoUrl)
           imageBytes = await fs.readFile(imagePath)
+          console.log('✅ Photo file read')
         } else {
           // Skip external URLs - they will be geo-blocked on server
           throw new Error('Skipping external URL (use base64 data instead)')
@@ -474,14 +594,17 @@ export class KTAPDFGenerator {
         const cornerRadius = 12
 
         // Resize image with alpha
+        console.log('⏳ Resizing photo with sharp...')
         const resizedImage = await sharp(imageBytes)
           .resize(targetWidth, targetHeight, { fit: 'cover' })
           .ensureAlpha()
           .raw()
           .toBuffer({ resolveWithObject: true })
+        console.log('✅ Photo resized')
 
         const { data, info } = resizedImage
         const pixels = new Uint8ClampedArray(data)
+        console.log('⏳ Processing rounded corners...')
 
         // Manual rounded corners - set alpha to 0 outside corners
         for (let y = 0; y < info.height; y++) {
@@ -531,13 +654,16 @@ export class KTAPDFGenerator {
           }
         }
 
+        console.log('⏳ Creating rounded image...')
         const roundedImage = await sharp(pixels, {
           raw: info
         })
           .png()
           .toBuffer()
+        console.log('✅ Rounded image created')
 
         const image = await pdfDoc.embedPng(roundedImage)
+        console.log('✅ Photo embedded to PDF')
 
         page.drawImage(image, {
           x: photoX + 1 * SCALE,
@@ -547,9 +673,11 @@ export class KTAPDFGenerator {
         })
       } catch (error) {
         // Silently skip photo if loading fails (geo-blocked URL, etc.)
-        console.log('Skipping photo due to error:', error instanceof Error ? error.message : 'Unknown error')
+        console.log('❌ Photo processing error:', error instanceof Error ? error.message : 'Unknown error')
       }
     }
+
+    console.log('✅ Photo processing complete')
 
     // Draw QR Code placeholder (bottom: 10px, right: 28px)
     const qrX = toX(600 - 28 - 60)
@@ -568,49 +696,82 @@ export class KTAPDFGenerator {
 
     // Embed QR code if available
     if (ktaData.qrCodePath) {
+      console.log('⏳ Processing QR code...')
       try {
         let qrImageBytes: Buffer | undefined
 
         // Handle base64 data URL (from QRCodeGenerator)
         if (ktaData.qrCodePath.startsWith('data:image/')) {
+          console.log('⏳ QR is base64 data URL, decoding...')
           const base64Data = ktaData.qrCodePath.split(',')[1]
           qrImageBytes = Buffer.from(base64Data, 'base64')
+          console.log('✅ QR base64 decoded, size:', qrImageBytes.length)
         }
         // Handle HTTP/HTTPS URL
         else if (ktaData.qrCodePath.startsWith('http://') || ktaData.qrCodePath.startsWith('https://')) {
+          console.log('⏳ QR is HTTP URL, fetching:', ktaData.qrCodePath)
           const response = await fetch(ktaData.qrCodePath)
           if (!response.ok) throw new Error(`Failed to fetch QR: ${response.statusText}`)
           const arrayBuffer = await response.arrayBuffer()
           qrImageBytes = Buffer.from(arrayBuffer)
+          console.log('✅ QR fetched, size:', qrImageBytes.length)
         }
         // Handle local file path
         else {
+          console.log('⏳ QR is local file path:', ktaData.qrCodePath)
           const qrImagePath = path.join(process.cwd(), 'public', ktaData.qrCodePath)
           try {
             qrImageBytes = await fs.readFile(qrImagePath)
+            console.log('✅ QR file read, size:', qrImageBytes.length)
           } catch {
-            console.log(`QR file not found, skipping: ${qrImagePath}`)
+            console.log(`❌ QR file not found, skipping: ${qrImagePath}`)
           }
         }
 
         if (qrImageBytes) {
-          const qrImage = await pdfDoc.embedPng(qrImageBytes)
-          page.drawImage(qrImage, {
-            x: qrX + 1 * SCALE,
-            y: qrY + 1 * SCALE,
-            width: qrSize - 2 * SCALE,
-            height: qrSize - 2 * SCALE,
-          })
+          // Validate PNG data - must be at least 1KB and have PNG signature
+          const isValidPng = qrImageBytes.length > 1000 &&
+            qrImageBytes[0] === 0x89 &&
+            qrImageBytes[1] === 0x50 &&
+            qrImageBytes[2] === 0x4E &&
+            qrImageBytes[3] === 0x47
+
+          if (!isValidPng) {
+            console.log('⚠️ Invalid QR code PNG data (size:', qrImageBytes.length, '), skipping QR code')
+            console.log('First 20 bytes:', Array.from(qrImageBytes.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '))
+          } else {
+            console.log('⏳ Embedding QR to PDF (this may take a moment)...')
+            try {
+              const qrImage = await pdfDoc.embedPng(qrImageBytes)
+              console.log('✅ QR embedded successfully')
+              page.drawImage(qrImage, {
+                x: qrX + 1 * SCALE,
+                y: qrY + 1 * SCALE,
+                width: qrSize - 2 * SCALE,
+                height: qrSize - 2 * SCALE,
+              })
+              console.log('✅ QR drawn to page')
+            } catch (embedError) {
+              console.log('❌ Failed to embed QR, continuing without it:', embedError instanceof Error ? embedError.message : 'Unknown error')
+            }
+          }
         }
       } catch (error) {
-        console.log('Skipping QR code due to error:', error instanceof Error ? error.message : 'Unknown error')
+        console.log('❌ QR code error:', error instanceof Error ? error.message : 'Unknown error')
+        console.error('QR error details:', error)
       }
+    } else {
+      console.log('ℹ️ No QR code path provided')
     }
 
+    console.log('✅ QR code processing complete')
+
     // ===== BACK PAGE =====
+    console.log('⏳ Generating back page...')
     const pageBack = pdfDoc.addPage([CARD_WIDTH, CARD_HEIGHT])
 
     // Load and embed back template
+    console.log('⏳ Loading back template...')
     const templateBackBuffer = await getTemplateImageBack()
     const templateBackImage = await pdfDoc.embedPng(templateBackBuffer)
 
@@ -622,7 +783,9 @@ export class KTAPDFGenerator {
       height: CARD_HEIGHT,
     })
 
+    console.log('⏳ Saving PDF...')
     const pdfBytes = await pdfDoc.save()
+    console.log('✅ PDF saved successfully')
     return Buffer.from(pdfBytes)
   }
 

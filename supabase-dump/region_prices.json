@@ -1,0 +1,353 @@
+[
+  {
+    "id": "cmjh2vfm200011hr85zzhxjun",
+    "daerahId": "cmjh08p6n00061h8ckl91rfqr",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.276Z",
+    "updatedAt": "2025-12-22T04:33:45.276Z"
+  },
+  {
+    "id": "cmjh2vfpb00031hr84frakgkd",
+    "daerahId": "cmjh0azl400011hes01vge99d",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.407Z",
+    "updatedAt": "2025-12-22T04:33:45.407Z"
+  },
+  {
+    "id": "cmjh2vfqr00051hr8cv36arek",
+    "daerahId": "cmjh0azlu00021hes3ehrjyss",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.459Z",
+    "updatedAt": "2025-12-22T04:33:45.459Z"
+  },
+  {
+    "id": "cmjh2vfs400071hr8u6ojykak",
+    "daerahId": "cmjh0azmj00031hes05oifi3m",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.508Z",
+    "updatedAt": "2025-12-22T04:33:45.508Z"
+  },
+  {
+    "id": "cmjh2vfti00091hr88c7b271g",
+    "daerahId": "cmjh0azna00041hesd54ha82o",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.559Z",
+    "updatedAt": "2025-12-22T04:33:45.559Z"
+  },
+  {
+    "id": "cmjh2vfuv000b1hr8bmkt570q",
+    "daerahId": "cmjh0azo000051hes3er4312s",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.607Z",
+    "updatedAt": "2025-12-22T04:33:45.607Z"
+  },
+  {
+    "id": "cmjh2vfw9000d1hr88to297hy",
+    "daerahId": "cmjh0azop00061hes13trjs2i",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.657Z",
+    "updatedAt": "2025-12-22T04:33:45.657Z"
+  },
+  {
+    "id": "cmjh2vfxl000f1hr88arry150",
+    "daerahId": "cmjh0azpe00071hesk5g8n77p",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.706Z",
+    "updatedAt": "2025-12-22T04:33:45.706Z"
+  },
+  {
+    "id": "cmjh2vfyz000h1hr8plydohix",
+    "daerahId": "cmjh0azq400081hesie6vb3ka",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.755Z",
+    "updatedAt": "2025-12-22T04:33:45.755Z"
+  },
+  {
+    "id": "cmjh2vg0c000j1hr8gyfqoo8t",
+    "daerahId": "cmjh0azqu00091hesxec8zyia",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.804Z",
+    "updatedAt": "2025-12-22T04:33:45.804Z"
+  },
+  {
+    "id": "cmjh2vg1q000l1hr86qmaacz3",
+    "daerahId": "cmjh0azrk000a1hesuho0v6it",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.854Z",
+    "updatedAt": "2025-12-22T04:33:45.854Z"
+  },
+  {
+    "id": "cmjh2vg34000n1hr8umra87tw",
+    "daerahId": "cmjh0azsa000b1heszrw99wbu",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.904Z",
+    "updatedAt": "2025-12-22T04:33:45.904Z"
+  },
+  {
+    "id": "cmjh2vg4g000p1hr8adkq0mw3",
+    "daerahId": "cmjh0azsz000c1hesq45zkcfb",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:45.952Z",
+    "updatedAt": "2025-12-22T04:33:45.952Z"
+  },
+  {
+    "id": "cmjh2vg5s000r1hr88n6ujt78",
+    "daerahId": "cmjh0azto000d1hesmskd9g81",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.001Z",
+    "updatedAt": "2025-12-22T04:33:46.001Z"
+  },
+  {
+    "id": "cmjh2vg74000t1hr8hyfr9nvq",
+    "daerahId": "cmjh0azud000e1heskiydjx4g",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.049Z",
+    "updatedAt": "2025-12-22T04:33:46.049Z"
+  },
+  {
+    "id": "cmjh2vg8g000v1hr8doser643",
+    "daerahId": "cmjh0azv3000f1hes3casj178",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.097Z",
+    "updatedAt": "2025-12-22T04:33:46.097Z"
+  },
+  {
+    "id": "cmjh2vg9s000x1hr8ob1hhy6j",
+    "daerahId": "cmjh0azvt000g1hesay4sq18u",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.145Z",
+    "updatedAt": "2025-12-22T04:33:46.145Z"
+  },
+  {
+    "id": "cmjh2vgb4000z1hr856n7mqov",
+    "daerahId": "cmjh0azwi000h1hes9f6k8g4x",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.193Z",
+    "updatedAt": "2025-12-22T04:33:46.193Z"
+  },
+  {
+    "id": "cmjh2vgci00111hr83geak97i",
+    "daerahId": "cmjh0azx7000i1hesupnh38o0",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.243Z",
+    "updatedAt": "2025-12-22T04:33:46.243Z"
+  },
+  {
+    "id": "cmjh2vgdu00131hr85p94kyrc",
+    "daerahId": "cmjh0azxw000j1hesju91ci84",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.291Z",
+    "updatedAt": "2025-12-22T04:33:46.291Z"
+  },
+  {
+    "id": "cmjh2vgf700151hr8r8rh987b",
+    "daerahId": "cmjh0azyl000k1hescg3uxxxx",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.339Z",
+    "updatedAt": "2025-12-22T04:33:46.339Z"
+  },
+  {
+    "id": "cmjh2vggj00171hr88xpy5rp8",
+    "daerahId": "cmjh0azz9000l1hes5j6euejc",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.387Z",
+    "updatedAt": "2025-12-22T04:33:46.387Z"
+  },
+  {
+    "id": "cmjh2vghv00191hr85pj5vbt8",
+    "daerahId": "cmjh0azzy000m1hescj3k6zab",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.436Z",
+    "updatedAt": "2025-12-22T04:33:46.436Z"
+  },
+  {
+    "id": "cmjh2vgj7001b1hr8dvip1ypj",
+    "daerahId": "cmjh0b00n000n1hesp91c9734",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.484Z",
+    "updatedAt": "2025-12-22T04:33:46.484Z"
+  },
+  {
+    "id": "cmjh2vgkk001d1hr84yl7fi4u",
+    "daerahId": "cmjh0b01c000o1heskkitu5vp",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.533Z",
+    "updatedAt": "2025-12-22T04:33:46.533Z"
+  },
+  {
+    "id": "cmjh2vgly001f1hr8x1lequqa",
+    "daerahId": "cmjh0b021000p1hesqs1onhi9",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.582Z",
+    "updatedAt": "2025-12-22T04:33:46.582Z"
+  },
+  {
+    "id": "cmjh2vgna001h1hr8ddz4ekqc",
+    "daerahId": "cmjh0b02q000q1hesk2swavza",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.631Z",
+    "updatedAt": "2025-12-22T04:33:46.631Z"
+  },
+  {
+    "id": "cmjh2vgom001j1hr8ion5m07c",
+    "daerahId": "cmjh0b03f000r1hesehn8y3ld",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.679Z",
+    "updatedAt": "2025-12-22T04:33:46.679Z"
+  },
+  {
+    "id": "cmjh2vgpz001l1hr8ojnz0tmi",
+    "daerahId": "cmjh0b044000s1hesbjbwncns",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.727Z",
+    "updatedAt": "2025-12-22T04:33:46.727Z"
+  },
+  {
+    "id": "cmjh2vgrb001n1hr8mj6gkn30",
+    "daerahId": "cmjh0b04t000t1hes0qarhq4h",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.775Z",
+    "updatedAt": "2025-12-22T04:33:46.775Z"
+  },
+  {
+    "id": "cmjh2vgss001p1hr8oz2lhlxf",
+    "daerahId": "cmjh0b05h000u1heslogc1pow",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.828Z",
+    "updatedAt": "2025-12-22T04:33:46.828Z"
+  },
+  {
+    "id": "cmjh2vgu4001r1hr87iqu3w0u",
+    "daerahId": "cmjh0b066000v1hes24ajjzi3",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.877Z",
+    "updatedAt": "2025-12-22T04:33:46.877Z"
+  },
+  {
+    "id": "cmjh2vgvh001t1hr8xkjpkjza",
+    "daerahId": "cmjh0b06w000w1hesd0gi430q",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.925Z",
+    "updatedAt": "2025-12-22T04:33:46.925Z"
+  },
+  {
+    "id": "cmjh2vgwt001v1hr88ix7u7ep",
+    "daerahId": "cmjh0b07j000x1heskcnem7z1",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:46.973Z",
+    "updatedAt": "2025-12-22T04:33:46.973Z"
+  },
+  {
+    "id": "cmjh2vgya001x1hr8jbzjvuzn",
+    "daerahId": "cmjh0b089000y1hesc5g2jam7",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:47.026Z",
+    "updatedAt": "2025-12-22T04:33:47.026Z"
+  },
+  {
+    "id": "cmjh2vgzq001z1hr82cmvv2y5",
+    "daerahId": "cmjh0b08z000z1hesb5gxh9hc",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:47.079Z",
+    "updatedAt": "2025-12-22T04:33:47.079Z"
+  },
+  {
+    "id": "cmjh2vh1200211hr86v6qe1bk",
+    "daerahId": "cmjh0b09o00101hes9wyple8z",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:47.127Z",
+    "updatedAt": "2025-12-22T04:33:47.127Z"
+  },
+  {
+    "id": "cmjh2vh2f00231hr8x76d4gc5",
+    "daerahId": "cmjh0b0ae00111hes9xsxkb3y",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:47.175Z",
+    "updatedAt": "2025-12-22T04:33:47.175Z"
+  },
+  {
+    "id": "cmjh2vh3r00251hr803i7e0l3",
+    "daerahId": "cmjh0b0b600121hes3nuqwiwp",
+    "hargaKta": 150000,
+    "tahun": 2025,
+    "isActive": true,
+    "createdAt": "2025-12-22T04:33:47.224Z",
+    "updatedAt": "2025-12-22T04:33:47.224Z"
+  }
+]

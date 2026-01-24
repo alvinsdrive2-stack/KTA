@@ -1,0 +1,58 @@
+[
+  {
+    "id": "cmkr8gvou00091h6cw84aoz3z",
+    "ktaRequestId": "cmkr7bg5x00031h6cdjoikp1l",
+    "approvedBy": "cmkr6zg4w00011h6c4qexdqn5",
+    "status": "APPROVED",
+    "catatan": "Pembayaran verified - Invoice: INV/KTA-BPP/2026/01.002",
+    "createdAt": "2026-01-23T11:47:48.078Z"
+  },
+  {
+    "id": "cmkr8h607000d1h6cacc86mc0",
+    "ktaRequestId": "cmkqspsin00191h6shjng2ls1",
+    "approvedBy": "cmkr6zg4w00011h6c4qexdqn5",
+    "status": "APPROVED",
+    "catatan": "Pembayaran verified - Invoice: INV/KTA-BPP/2026/01.001",
+    "createdAt": "2026-01-23T11:48:01.447Z"
+  },
+  {
+    "id": "cmkr8h607000c1h6c0mg9k4f4",
+    "ktaRequestId": "cmkqspt2o001b1h6s8t0m2kw9",
+    "approvedBy": "cmkr6zg4w00011h6c4qexdqn5",
+    "status": "APPROVED",
+    "catatan": "Pembayaran verified - Invoice: INV/KTA-BPP/2026/01.001",
+    "createdAt": "2026-01-23T11:48:01.447Z"
+  },
+  {
+    "id": "cmkr8wgnz000f1h6c28anvwij",
+    "ktaRequestId": "cmkr7bg5x00031h6cdjoikp1l",
+    "approvedBy": "cmkr6zg4w00011h6c4qexdqn5",
+    "status": "APPROVED",
+    "catatan": "Pembayaran verified - Invoice: INV/KTA-BPP/2026/01.002",
+    "createdAt": "2026-01-23T11:59:55.103Z"
+  },
+  {
+    "id": "cmkrbxsj0000h1h6cf06yq00v",
+    "ktaRequestId": "cmkr7bg5x00031h6cdjoikp1l",
+    "approvedBy": "cmkr6zg4w00011h6c4qexdqn5",
+    "status": "APPROVED",
+    "catatan": "Pembayaran verified - Invoice: INV/KTA-BPP/2026/01.002",
+    "createdAt": "2026-01-23T13:24:55.979Z"
+  },
+  {
+    "id": "cmks76rkr000b1h20u9abrt8u",
+    "ktaRequestId": "cmks752ed00011h206fjevjqy",
+    "approvedBy": "cmkr6zg4w00011h6c4qexdqn5",
+    "status": "APPROVED",
+    "catatan": "Pembayaran verified - Invoice: INV-ENROL-cmjh08p6n00061h8ckl91rfqr-1769252324596",
+    "createdAt": "2026-01-24T03:59:42.748Z"
+  },
+  {
+    "id": "cmks76rlh000d1h20348hzrcj",
+    "ktaRequestId": "cmks752hj00031h208v6lmpjv",
+    "approvedBy": "cmkr6zg4w00011h6c4qexdqn5",
+    "status": "APPROVED",
+    "catatan": "Pembayaran verified - Invoice: INV-ENROL-cmjh08p6n00061h8ckl91rfqr-1769252324596",
+    "createdAt": "2026-01-24T03:59:42.748Z"
+  }
+]

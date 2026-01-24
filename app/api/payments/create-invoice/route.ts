@@ -104,6 +104,16 @@ export async function POST(request: NextRequest) {
 
     await Promise.all(paymentPromises)
 
+    // Update KTA requests status to WAITING_PAYMENT after invoice creation
+    await prisma.kTARequest.updateMany({
+      where: {
+        id: { in: requestIds }
+      },
+      data: {
+        status: 'WAITING_PAYMENT'
+      }
+    })
+
     return NextResponse.json({
       success: true,
       data: bulkPayment

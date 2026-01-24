@@ -134,9 +134,8 @@ export async function POST(request: NextRequest) {
 
     if (upgradeCheck.isUpgrade) {
       finalHargaBase = upgradeCheck.hargaBaru
-      // Apply discount to hargaBaru, then subtract hargaLama (what they already paid)
-      const hargaBaruAfterDiskon = upgradeCheck.hargaBaru - (upgradeCheck.hargaBaru * diskonPersen / 100)
-      finalHargaFinal = hargaBaruAfterDiskon - upgradeCheck.hargaLama
+      // Upgrade fee = hargaBaru - hargaLama, then apply discount to the upgrade fee
+      finalHargaFinal = upgradeCheck.hargaUpgrade - (upgradeCheck.hargaUpgrade * diskonPersen / 100)
       finalHargaUpgrade = upgradeCheck.hargaUpgrade
       finalHargaLama = upgradeCheck.hargaLama
     }

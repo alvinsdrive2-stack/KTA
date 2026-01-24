@@ -1,0 +1,942 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
+import { useSession } from '@/hooks/useSession'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { PulseLogo } from '@/components/ui/loading-spinner'
+import { useToast } from '@/components/ui/use-toast'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import {
+  AlertCircle,
+  ArrowLeft,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  Loader2,
+  Eye,
+  Database,
+  FileText,
+  Receipt,
+} from 'lucide-react'
+
+// Types
+interface Daerah {
+  id: string
+  namaDaerah: string
+  kodeDaerah: string
+}
+
+interface KTARequest {
+  id: string
+  idIzin: string
+  nama: string
+  nik: string
+  jabatanKerja: string
+  jenjang: string
+  status: string
+  daerahId: string
+  daerah: { namaDaerah: string; kodeDaerah: string } | null
+  hargaFinal: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+interface BulkPayment {
+  id: string
+  invoiceNumber: string
+  daerahId: string
+  totalJumlah: number
+  totalNominal: number
+  status: string
+  isEnrolment: boolean
+  keterangan: string | null
+  daerah: { namaDaerah: string; kodeDaerah: string } | null
+  submittedByUser: { name: string } | null
+  verifiedByUser: { name: string } | null
+  verifiedAt: string | null
+  createdAt: string
+  updatedAt: string
+  _count?: { payments: number }
+}
+
+interface Payment {
+  id: string
+  invoiceNumber: string
+  ktaRequestId: string
+  rekeningTujuan: string
+  jumlah: number
+  buktiBayarLink: string | null
+  statusPembayaran: string
+  paidAt: string | null
+  bulkPaymentId: string | null
+  createdAt: string
+  updatedAt: string
+  ktaRequest: {
+    id: string
+    idIzin: string
+    nama: string
+    jenjang: string
+    daerah: { namaDaerah: string; kodeDaerah: string } | null
+  } | null
+  bulkPayment: {
+    id: string
+    invoiceNumber: string
+    status: string
+  } | null
+}
+
+type TabType = 'kta_requests' | 'bulk_payments' | 'payments'
+
+// Status colors
+const KTA_STATUS_COLORS: Record<string, string> = {
+  DRAFT: 'bg-gray-100 text-gray-800',
+  FETCHED_FROM_SIKI: 'bg-blue-100 text-blue-800',
+  EDITED: 'bg-indigo-100 text-indigo-800',
+  WAITING_PAYMENT: 'bg-yellow-100 text-yellow-800',
+  READY_FOR_PUSAT: 'bg-orange-100 text-orange-800',
+  APPROVED_BY_PUSAT: 'bg-green-100 text-green-800',
+  READY_TO_PRINT: 'bg-teal-100 text-teal-800',
+  PRINTED: 'bg-purple-100 text-purple-800',
+  REJECTED: 'bg-red-100 text-red-800',
+  UPGRADE_PENDING: 'bg-amber-100 text-amber-800',
+  UPGRADE_PAID: 'bg-lime-100 text-lime-800',
+  IMPORTED_PENDING_DOCS: 'bg-cyan-100 text-cyan-800',
+}
+
+const PAYMENT_STATUS_COLORS: Record<string, string> = {
+  PENDING: 'bg-yellow-100 text-yellow-800',
+  PAID: 'bg-blue-100 text-blue-800',
+  VERIFIED: 'bg-green-100 text-green-800',
+  REJECTED: 'bg-red-100 text-red-800',
+}
+
+const KTA_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Draft',
+  FETCHED_FROM_SIKI: 'Dari SIKI',
+  EDITED: 'Edited',
+  WAITING_PAYMENT: 'Menunggu Pembayaran',
+  READY_FOR_PUSAT: 'Siap ke Pusat',
+  APPROVED_BY_PUSAT: 'Disetujui Pusat',
+  READY_TO_PRINT: 'Siap Cetak',
+  PRINTED: 'Sudah Cetak',
+  REJECTED: 'Ditolak',
+  UPGRADE_PENDING: 'Upgrade Pending',
+  UPGRADE_PAID: 'Upgrade Dibayar',
+  IMPORTED_PENDING_DOCS: 'Import Pending Docs',
+}
+
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pending',
+  PAID: 'Dibayar',
+  VERIFIED: 'Terverifikasi',
+  REJECTED: 'Ditolak',
+}
+
+export default function DataManagePage() {
+  const router = useRouter()
+  const { session } = useSession()
+  const { toast } = useToast()
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<TabType>('kta_requests')
+
+  // Data states
+  const [ktaRequests, setKtaRequests] = useState<KTARequest[]>([])
+  const [bulkPayments, setBulkPayments] = useState<BulkPayment[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
+
+  // UI states
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [submitting, setSubmitting] = useState(false)
+
+  // Modal states
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<any>(null)
+
+  // Form state
+  const [formData, setFormData] = useState<any>({})
+
+  // Daerah list
+  const [daerahList, setDaerahList] = useState<Daerah[]>([])
+
+  const initialFetchDone = useRef(false)
+
+  // Check access control
+  useEffect(() => {
+    if (session === null || session === undefined) {
+      return
+    }
+
+    if (initialFetchDone.current) {
+      return
+    }
+
+    const userRole = session?.user?.role
+    const isAdmin = userRole === 'ADMIN'
+
+    if (!isAdmin) {
+      setError('Anda tidak memiliki akses ke halaman ini')
+      setLoading(false)
+      return
+    }
+
+    initialFetchDone.current = true
+    setError(null)
+    setLoading(true)
+
+    fetchAllData()
+    fetchDaerahList()
+  }, [session])
+
+  // Fetch data based on active tab
+  useEffect(() => {
+    if (initialFetchDone.current && session?.user?.role === 'ADMIN') {
+      fetchAllData()
+    }
+  }, [activeTab, statusFilter])
+
+  // Search debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (initialFetchDone.current) {
+        fetchAllData()
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [search])
+
+  const fetchAllData = () => {
+    switch (activeTab) {
+      case 'kta_requests':
+        fetchKTARequests()
+        break
+      case 'bulk_payments':
+        fetchBulkPayments()
+        break
+      case 'payments':
+        fetchPayments()
+        break
+    }
+  }
+
+  const fetchKTARequests = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (search) params.append('search', search)
+      if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+
+      const response = await fetch(`/api/admin/data-manage/kta-requests?${params}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setKtaRequests(data.data)
+      } else {
+        setError(data.error || 'Gagal memuat data KTA Request')
+      }
+    } catch (error) {
+      setError('Terjadi kesalahan saat memuat data')
+      console.error('Fetch KTA requests error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchBulkPayments = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (search) params.append('search', search)
+      if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+
+      const response = await fetch(`/api/admin/data-manage/bulk-payments?${params}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setBulkPayments(data.data)
+      } else {
+        setError(data.error || 'Gagal memuat data Bulk Payment')
+      }
+    } catch (error) {
+      setError('Terjadi kesalahan saat memuat data')
+      console.error('Fetch bulk payments error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchPayments = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (search) params.append('search', search)
+      if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+
+      const response = await fetch(`/api/admin/data-manage/payments?${params}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setPayments(data.data)
+      } else {
+        setError(data.error || 'Gagal memuat data Payment')
+      }
+    } catch (error) {
+      setError('Terjadi kesalahan saat memuat data')
+      console.error('Fetch payments error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchDaerahList = async () => {
+    try {
+      const response = await fetch('/api/daerah')
+      const data = await response.json()
+
+      if (data.success) {
+        setDaerahList(data.data)
+      }
+    } catch (error) {
+      console.error('Fetch daerah list error:', error)
+    }
+  }
+
+  // Reset form
+  const resetForm = () => {
+    setFormData({})
+  }
+
+  // Open view modal
+  const openViewModal = (item: any) => {
+    setSelectedItem(item)
+    setIsViewModalOpen(true)
+  }
+
+  // Open edit modal
+  const openEditModal = (item: any) => {
+    setSelectedItem(item)
+    setFormData(item)
+    setIsEditModalOpen(true)
+  }
+
+  // Open delete modal
+  const openDeleteModal = (item: any) => {
+    setSelectedItem(item)
+    setIsDeleteModalOpen(true)
+  }
+
+  // Handle delete
+  const handleDelete = async () => {
+    if (!selectedItem) return
+
+    setSubmitting(true)
+
+    try {
+      const endpoint = activeTab === 'kta_requests'
+        ? `/api/admin/data-manage/kta-requests/${selectedItem.id}`
+        : activeTab === 'bulk_payments'
+        ? `/api/admin/data-manage/bulk-payments/${selectedItem.id}`
+        : `/api/admin/data-manage/payments/${selectedItem.id}`
+
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          variant: 'success',
+          title: 'Berhasil',
+          description: 'Data berhasil dihapus',
+        })
+        setIsDeleteModalOpen(false)
+        setSelectedItem(null)
+        fetchAllData()
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Gagal',
+          description: result.error || 'Gagal menghapus data',
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Gagal',
+        description: 'Terjadi kesalahan saat menghapus data',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Format currency
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) return '-'
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(amount)
+  }
+
+  // Format date
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-'
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    })
+  }
+
+  const userRole = session?.user?.role
+  const isAdmin = userRole === 'ADMIN'
+
+  if (!loading && !isAdmin && session) {
+    return (
+      <div className="space-y-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Anda tidak memiliki akses ke halaman ini. Halaman ini hanya dapat diakses oleh user ADMIN.
+          </AlertDescription>
+        </Alert>
+        <Button onClick={() => router.push('/dashboard')}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Kembali ke Dashboard
+        </Button>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <PulseLogo text="Memuat data..." />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+        <Button onClick={() => router.push('/dashboard')}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Kembali ke Dashboard
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="space-y-6 pb-20">
+        {/* Header */}
+        <div className="animate-slide-up-stagger stagger-1">
+          <div className="flex items-center gap-2 mb-2">
+            <Database className="h-6 w-6 text-slate-700" />
+            <h1 className="text-2xl font-semibold text-slate-900">Data Manage</h1>
+          </div>
+          <p className="text-slate-500 text-sm">Kelola data KTA Request, Bulk Payment, dan Payment</p>
+        </div>
+
+        {/* Tab Navigation */}
+        <Card className="card-3d animate-slide-up-stagger stagger-2">
+          <CardContent className="p-4">
+            <div className="flex gap-2">
+              <Button
+                variant={activeTab === 'kta_requests' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('kta_requests')}
+                className={cn(
+                  "flex items-center gap-2",
+                  activeTab === 'kta_requests'
+                    ? 'bg-slate-800 text-slate-100'
+                    : 'text-slate-600 hover:bg-slate-100'
+                )}
+              >
+                <FileText className="h-4 w-4" />
+                KTA Requests
+              </Button>
+              <Button
+                variant={activeTab === 'bulk_payments' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('bulk_payments')}
+                className={cn(
+                  "flex items-center gap-2",
+                  activeTab === 'bulk_payments'
+                    ? 'bg-slate-800 text-slate-100'
+                    : 'text-slate-600 hover:bg-slate-100'
+                )}
+              >
+                <Receipt className="h-4 w-4" />
+                Bulk Payments
+              </Button>
+              <Button
+                variant={activeTab === 'payments' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('payments')}
+                className={cn(
+                  "flex items-center gap-2",
+                  activeTab === 'payments'
+                    ? 'bg-slate-800 text-slate-100'
+                    : 'text-slate-600 hover:bg-slate-100'
+                )}
+              >
+                <Receipt className="h-4 w-4" />
+                Payments
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Filters */}
+        <Card className="card-3d animate-slide-up-stagger stagger-3">
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[200px]">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Cari..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Semua Status</SelectItem>
+                  {activeTab === 'kta_requests' && (
+                    <>
+                      <SelectItem value="DRAFT">Draft</SelectItem>
+                      <SelectItem value="FETCHED_FROM_SIKI">Dari SIKI</SelectItem>
+                      <SelectItem value="EDITED">Edited</SelectItem>
+                      <SelectItem value="WAITING_PAYMENT">Menunggu Pembayaran</SelectItem>
+                      <SelectItem value="READY_FOR_PUSAT">Siap ke Pusat</SelectItem>
+                      <SelectItem value="APPROVED_BY_PUSAT">Disetujui Pusat</SelectItem>
+                      <SelectItem value="READY_TO_PRINT">Siap Cetak</SelectItem>
+                      <SelectItem value="PRINTED">Sudah Cetak</SelectItem>
+                      <SelectItem value="REJECTED">Ditolak</SelectItem>
+                    </>
+                  )}
+                  {(activeTab === 'bulk_payments' || activeTab === 'payments') && (
+                    <>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="PAID">Dibayar</SelectItem>
+                      <SelectItem value="VERIFIED">Terverifikasi</SelectItem>
+                      <SelectItem value="REJECTED">Ditolak</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Data Table */}
+        <Card className="card-3d animate-slide-up-stagger stagger-4">
+          <CardContent className="p-4">
+            {activeTab === 'kta_requests' && (
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">ID Izin</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Nama</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Jabatan</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Daerah</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Status</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Harga</th>
+                      <th className="px-4 py-3 text-center font-medium text-slate-700">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {ktaRequests.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                          Tidak ada data KTA Request
+                        </td>
+                      </tr>
+                    ) : (
+                      ktaRequests.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-medium text-slate-900">{item.idIzin}</td>
+                          <td className="px-4 py-3 text-slate-700">{item.nama}</td>
+                          <td className="px-4 py-3 text-slate-700">{item.jabatanKerja}</td>
+                          <td className="px-4 py-3 text-slate-700">{item.daerah?.namaDaerah || '-'}</td>
+                          <td className="px-4 py-3">
+                            <Badge className={KTA_STATUS_COLORS[item.status] || 'bg-gray-100 text-gray-800'}>
+                              {KTA_STATUS_LABELS[item.status] || item.status}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">{formatCurrency(item.hargaFinal)}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => openViewModal(item)}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => openEditModal(item)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDeleteModal(item)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {activeTab === 'bulk_payments' && (
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Invoice</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Daerah</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Jumlah</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Total</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Enrolment</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Status</th>
+                      <th className="px-4 py-3 text-center font-medium text-slate-700">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {bulkPayments.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                          Tidak ada data Bulk Payment
+                        </td>
+                      </tr>
+                    ) : (
+                      bulkPayments.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-medium text-slate-900">{item.invoiceNumber}</td>
+                          <td className="px-4 py-3 text-slate-700">{item.daerah?.namaDaerah || '-'}</td>
+                          <td className="px-4 py-3 text-slate-700">{item.totalJumlah}</td>
+                          <td className="px-4 py-3 text-slate-700">{formatCurrency(item.totalNominal)}</td>
+                          <td className="px-4 py-3">
+                            <Badge className={item.isEnrolment ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}>
+                              {item.isEnrolment ? 'Ya' : 'Tidak'}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge className={PAYMENT_STATUS_COLORS[item.status] || 'bg-gray-100 text-gray-800'}>
+                              {PAYMENT_STATUS_LABELS[item.status] || item.status}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => openViewModal(item)}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => openEditModal(item)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDeleteModal(item)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {activeTab === 'payments' && (
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Invoice</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">KTA Request</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Rekening</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Jumlah</th>
+                      <th className="px-4 py-3 text-left font-medium text-slate-700">Status</th>
+                      <th className="px-4 py-3 text-center font-medium text-slate-700">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {payments.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                          Tidak ada data Payment
+                        </td>
+                      </tr>
+                    ) : (
+                      payments.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-medium text-slate-900">{item.invoiceNumber}</td>
+                          <td className="px-4 py-3 text-slate-700">{item.ktaRequest?.nama || '-'}</td>
+                          <td className="px-4 py-3 text-slate-700">{item.rekeningTujuan}</td>
+                          <td className="px-4 py-3 text-slate-700">{formatCurrency(item.jumlah)}</td>
+                          <td className="px-4 py-3">
+                            <Badge className={PAYMENT_STATUS_COLORS[item.statusPembayaran] || 'bg-gray-100 text-gray-800'}>
+                              {PAYMENT_STATUS_LABELS[item.statusPembayaran] || item.statusPembayaran}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => openViewModal(item)}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => openEditModal(item)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDeleteModal(item)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* View Modal */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detail Data</DialogTitle>
+          </DialogHeader>
+          {selectedItem && (
+            <div className="space-y-4 py-4">
+              {activeTab === 'kta_requests' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-slate-500">ID Izin</Label>
+                      <p className="font-medium">{selectedItem.idIzin}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Status</Label>
+                      <p><Badge className={KTA_STATUS_COLORS[selectedItem.status]}>{KTA_STATUS_LABELS[selectedItem.status]}</Badge></p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Nama</Label>
+                      <p className="font-medium">{selectedItem.nama}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">NIK</Label>
+                      <p className="font-medium">{selectedItem.nik}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Jabatan Kerja</Label>
+                      <p className="font-medium">{selectedItem.jabatanKerja}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Jenjang</Label>
+                      <p className="font-medium">{selectedItem.jenjang}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Daerah</Label>
+                      <p className="font-medium">{selectedItem.daerah?.namaDaerah || '-'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Harga Final</Label>
+                      <p className="font-medium">{formatCurrency(selectedItem.hargaFinal)}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <Label className="text-slate-500">Email</Label>
+                      <p className="font-medium">{selectedItem.email}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <Label className="text-slate-500">Alamat</Label>
+                      <p className="font-medium">{selectedItem.alamat}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+              {activeTab === 'bulk_payments' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-slate-500">Invoice Number</Label>
+                      <p className="font-medium">{selectedItem.invoiceNumber}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Status</Label>
+                      <p><Badge className={PAYMENT_STATUS_COLORS[selectedItem.status]}>{PAYMENT_STATUS_LABELS[selectedItem.status]}</Badge></p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Daerah</Label>
+                      <p className="font-medium">{selectedItem.daerah?.namaDaerah || '-'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Enrolment</Label>
+                      <p><Badge className={selectedItem.isEnrolment ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}>{selectedItem.isEnrolment ? 'Ya' : 'Tidak'}</Badge></p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Total Jumlah</Label>
+                      <p className="font-medium">{selectedItem.totalJumlah}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Total Nominal</Label>
+                      <p className="font-medium">{formatCurrency(selectedItem.totalNominal)}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Submitted By</Label>
+                      <p className="font-medium">{selectedItem.submittedByUser?.name || '-'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Verified By</Label>
+                      <p className="font-medium">{selectedItem.verifiedByUser?.name || '-'}</p>
+                    </div>
+                    {selectedItem.keterangan && (
+                      <div className="col-span-2">
+                        <Label className="text-slate-500">Keterangan</Label>
+                        <p className="font-medium">{selectedItem.keterangan}</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              {activeTab === 'payments' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-slate-500">Invoice Number</Label>
+                      <p className="font-medium">{selectedItem.invoiceNumber}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Status</Label>
+                      <p><Badge className={PAYMENT_STATUS_COLORS[selectedItem.statusPembayaran]}>{PAYMENT_STATUS_LABELS[selectedItem.statusPembayaran]}</Badge></p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Nama KTA</Label>
+                      <p className="font-medium">{selectedItem.ktaRequest?.nama || '-'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Rekening Tujuan</Label>
+                      <p className="font-medium">{selectedItem.rekeningTujuan}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Jumlah</Label>
+                      <p className="font-medium">{formatCurrency(selectedItem.jumlah)}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-500">Paid At</Label>
+                      <p className="font-medium">{formatDate(selectedItem.paidAt)}</p>
+                    </div>
+                    {selectedItem.buktiBayarLink && (
+                      <div className="col-span-2">
+                        <Label className="text-slate-500">Bukti Bayar</Label>
+                        <p><a href={selectedItem.buktiBayarLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Lihat Bukti</a></p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Modal */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus Data</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedItem && (
+            <div className="py-4">
+              <p className="font-medium">
+                {activeTab === 'kta_requests' && selectedItem.nama}
+                {activeTab === 'bulk_payments' && selectedItem.invoiceNumber}
+                {activeTab === 'payments' && selectedItem.invoiceNumber}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                'Hapus'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}

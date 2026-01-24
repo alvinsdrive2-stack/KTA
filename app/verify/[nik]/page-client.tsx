@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Award, Phone, Mail, IdCard, CheckCircle2, Briefcase } from 'lucide-react'
 import { MapZoomIntro } from '@/components/verification/map-zoom-intro'
 import { getDaerahLogoUrl } from '@/lib/daerah-logo'
+import { JenjangBadge } from '@/components/ui/jenjang-badge'
 
 interface KTAData {
   nomorKTA: string
@@ -87,7 +88,10 @@ export function VerifyKTAPageClient({ ktaData }: VerifyKTAPageClientProps) {
                       <div className="flex items-center justify-between gap-4">
                         <div>
                           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Nomor KTA</p>
-                          <p className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white font-mono tracking-tight">{ktaData.nomorKTA}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white font-mono tracking-tight">{ktaData.nomorKTA}</p>
+                            <JenjangBadge jenjang={ktaData.jenjang} />
+                          </div>
                         </div>
                         <div className="w-14 h-14 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
                           <img src="/logo.png" alt="Gatensi Logo" className="w-9 h-9 object-contain" />
@@ -99,11 +103,19 @@ export function VerifyKTAPageClient({ ktaData }: VerifyKTAPageClientProps) {
                   {ktaData.fotoUrl && (
                     <div className="bg-gradient-to-br bg-white dark:from-slate-900 dark:to-blue-950/30 px-6 md:px-8 py-6 flex justify-center border-b border-slate-200 dark:border-slate-700">
                       <div className="relative">
-                        <div className="w-32 h-40 md:w-40 md:h-48 rounded-xl overflow-hidden border-4 border-white shadow-lg">
+                        <div className="w-32 h-40 md:w-40 md:h-48 rounded-xl overflow-hidden border-4 border-white shadow-xl ring-4 ring-blue-800/80">
                           <img src={ktaData.fotoUrl} alt={ktaData.nama} className="w-full h-full object-cover" />
                         </div>
-                        <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-1.5 rounded-full shadow-md">
-                          <CheckCircle2 className="w-4 h-4" />
+                        {/* Enhanced verified badge with glow and pulse */}
+                        <div className="absolute -bottom-3 -right-3">
+                          <div className="relative">
+                            {/* Outer glow ring */}
+                            <div className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-75" />
+                            {/* Main badge with gradient */}
+                            <div className="relative bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600 text-white p-2.5 rounded-full shadow-xl shadow-emerald-500/50 border-3 border-white">
+                              <CheckCircle2 className="w-5 h-5" strokeWidth={3} />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

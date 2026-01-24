@@ -579,7 +579,7 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
   }, [sidebarOpen])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50/10">
+    <div className="min-h-screen bg-white/80">
       {/* Mobile overlay - closes sidebar when clicked outside */}
       {sidebarOpen && (
         <div
@@ -595,41 +595,16 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
           fixed inset-y-0 left-0 z-50 overflow-hidden transition-all duration-300 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           ${sidebarCollapsed ? 'lg:-translate-x-full lg:w-0 lg:opacity-0' : 'lg:w-64 lg:opacity-100'}
-          w-64 shadow-2xl
+          w-64
         `}
       >
-        <div className="flex h-full flex-col shadow-2xl border-r border-slate-200/50 relative sidebar-shimmer">
-          {/* Indonesia Map Background - White */}
-          <div className="absolute inset-0 pointer-events-none">
-            <Image
-              src="/indonesia-map-white.png"
-              alt="Indonesia Map"
-              fill
-              sizes="256px"
-              className="object-cover opacity-20"
-              priority
-            />
-          </div>
-
-          {/* Animated Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-blue-50"></div>
-          <div className="absolute inset-0 opacity-30">
-            <div className="absolute inset-0 hero-pattern"></div>
-          </div>
-
-          {/* Animated Gradient Orbs */}
-          <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-blue-500/10 to-transparent rounded-full -translate-y-1/2 translate-x-1/4 sidebar-orb-1"></div>
-          <div className="absolute bottom-0 left-0 w-40 h-40 bg-gradient-to-tr from-blue-600/5 to-transparent rounded-full translate-y-1/2 -translate-x-1/4 sidebar-orb-2"></div>
-
+        <div className="flex h-full flex-col relative sidebar-shimmer bg-white/70">
           {/* Logo - Primary Blue Header with Indonesia Map */}
-          <div className="relative h-20 flex items-center justify-center bg-gradient-to-br from-blue-700 to-blue-600 shadow-md z-10 overflow-hidden">
-            {/* Blue Background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-900 to-blue-500"></div>
-
-            {/* Indonesia Map Background */}
-            <div className="absolute inset-0 pointer-events-none mix-blend-overlay">
+          <div className="relative h-20 flex items-center justify-center shadow-sm z-10 overflow-hidden">
+            {/* Background with Indonesia Map */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-900 to-blue-600">
               <Image
-                src="/indonesia-map-white.png"
+                src="/indonesia-map_red-and-blue.png"
                 alt="Indonesia Map"
                 fill
                 sizes="256px"
@@ -637,7 +612,6 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
                 priority
               />
             </div>
-
             {/* Logo with Floating Effect & Border from PNG */}
             <div className="relative flex items-center justify-center z-10">
               <div className="relative w-56 h-16 p-2">
@@ -674,13 +648,14 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
 
           </div>
 
+
           {/* Navigation */}
-          <div className="relative flex-1 overflow-y-auto">
+          <div className="relative flex-1 overflow-y-auto border-r border-slate-200/50 pb-4 shadow-md">
             <DashboardNav isPusat={isPusat}  isKeuangan={isKeuangan}/>
           </div>
 
           {/* Logout Button */}
-          <div className="relative p-4 border-t border-slate-200/50 bg-white/50 backdrop-blur-sm">
+          <div className="relative p-4 border-t border-r border-slate-200/50 bg-white/50 backdrop-blur-sm shadow-xl">
             <Button
               variant="outline"
               size="sm"
@@ -699,7 +674,7 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
         transition-all duration-300 relative
         ${sidebarCollapsed ? 'lg:pl-0' : 'lg:pl-64'}
       `}>
-        {/* Background Image - Indonesia Map with Primary Color */}
+        {/* Background Image - Indonesia Map */}
         <div className="fixed inset-0 pointer-events-none -z-10">
           <Image
             src="/indonesia-map_red-and-blue.png"
@@ -710,12 +685,7 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
             priority
           />
         </div>
-
-        {/* Primary Color Overlay - 70% opacity */}
-        <div className="fixed inset-0 pointer-events-none -z-10" style={{
-          backgroundColor: 'rgba(300, 300, 300, 0.5)'
-        }}></div>
-
+        <div className="fixed inset-0 pointer-events-none -z-10" style={{ backgroundColor: 'rgba(300, 300, 300, 0.01)' }}></div> 
         {/* Header */}
         <header className="sticky top-0 z-30 h-20 bg-white/80 backdrop-blur-lg shadow-sm border-b border-slate-200/50 transition-all duration-300 animate-fade-in">
           <div className="flex h-full items-center justify-between px-6">
@@ -747,8 +717,8 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
 
             <div className="flex items-center gap-3">
               {/* Date */}
-              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-slate-50 rounded-lg border border-blue-200 shadow-sm">
-                <ShieldCheck className="h-4 w-4 text-blue-600" />
+              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border border-slate-200 shadow-sm">
+                <ShieldCheck className="h-4 w-4 text-slate-600" />
                 <CurrentDate />
               </div>
 

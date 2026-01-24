@@ -1,8 +1,18 @@
 import { LoginForm } from '@/components/auth/login-form'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Image from 'next/image'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const session = await getServerSession(authOptions)
+
+  // Redirect to dashboard if already logged in
+  if (session) {
+    redirect('/dashboard')
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
       <div className="w-full max-w-md opacity-0 animate-fade-in">

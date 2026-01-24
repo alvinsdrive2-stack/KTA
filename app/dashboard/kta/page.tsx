@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Search, Download, Filter, FileText, CheckCircle, Package, CheckSquare, X, Calendar, FileSpreadsheet, Loader2 } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useKTASelection } from '@/contexts/KTASelectionContext'
+import { JenjangBadge } from '@/components/ui/jenjang-badge'
 import {
   Select,
   SelectContent,
@@ -483,9 +484,7 @@ export default function KTAPage() {
                           <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.idIzin}</td>
                           <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.nik}</td>
                           <td className="py-3 px-4">
-                            <Badge variant="outline" className="border-blue-200 text-blue-700">
-                              {request.jenjang}
-                            </Badge>
+                            <JenjangBadge jenjang={request.jenjang} />
                           </td>
                           <td className="py-3 px-4 text-sm text-slate-600">{request.jabatanKerja}</td>
                           {isPusatOrAdmin && (
