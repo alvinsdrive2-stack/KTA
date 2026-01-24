@@ -129,7 +129,7 @@ export async function PATCH(
 
     // Hash new password if provided
     if (password) {
-      const bcrypt = require('bcrypt')
+      const bcrypt = require('bcryptjs')
       updateData.password = await bcrypt.hash(password, 10)
     }
 
