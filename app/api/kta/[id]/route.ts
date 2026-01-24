@@ -88,3 +88,64 @@ export async function GET(
     )
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await authMiddleware(request)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const ktaId = params.id
+    const body = await request.json()
+
+    // Check if KTA exists
+    const existingKta = await prisma.kTARequest.findUnique({
+      where: { id: ktaId }
+    })
+
+    if (!existingKta) {
+      return NextResponse.json({ error: 'KTA not found' }, { status: 404 })
+    }
+
+    // Prepare update data
+    const updateData: any = {}
+
+    if (body.ktpUrl !== undefined) {
+      updateData.ktpUrl = body.ktpUrl
+    }
+    if (body.fotoUrl !== undefined) {
+      updateData.fotoUrl = body.fotoUrl
+    }
+    if (body.status !== undefined) {
+      updateData.status = body.status
+    }
+
+    // Update KTA
+    const updatedKta = await prisma.kTARequest.update({
+      where: { id: ktaId },
+      data: updateData,
+      select: {
+        id: true,
+        ktpUrl: true,
+        fotoUrl: true,
+        status: true,
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: updatedKta
+    })
+
+  } catch (error) {
+    console.error('Error updating KTA:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

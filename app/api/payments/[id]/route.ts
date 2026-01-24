@@ -71,6 +71,8 @@ export async function GET(
       totalNominal: payment.totalNominal,
       buktiPembayaranUrl: payment.buktiPembayaranUrl,
       status: payment.status,
+      isEnrolment: payment.isEnrolment,
+      keterangan: payment.keterangan,
       submittedByUser: {
         name: payment.submittedByUser.name,
       },

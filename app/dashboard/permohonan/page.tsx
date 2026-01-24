@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Eye, Edit, FileText, Filter } from 'lucide-react'
+import { Plus, Search, Eye, Edit, FileText, Filter, Upload } from 'lucide-react'
 import Link from 'next/link'
+import { ImportKtaModal } from '@/components/dashboard/import-kta-modal'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { PulseLogo } from '@/components/ui/loading-spinner'
@@ -55,6 +56,7 @@ export default function PermohonanPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [daerahFilter, setDaerahFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
@@ -133,6 +135,7 @@ export default function PermohonanPage() {
       READY_TO_PRINT: 'bg-cyan-100 text-cyan-800',
       PRINTED: 'bg-emerald-100 text-emerald-800',
       REJECTED: 'bg-red-100 text-red-800',
+      IMPORTED_PENDING_DOCS: 'bg-indigo-100 text-indigo-800',
     }
     return colors[status] || 'bg-gray-100 text-gray-800'
   }
@@ -148,6 +151,7 @@ export default function PermohonanPage() {
       READY_TO_PRINT: 'Siap Cetak',
       PRINTED: 'Sudah Cetak',
       REJECTED: 'Ditolak',
+      IMPORTED_PENDING_DOCS: 'Import - Perlu Dokumen',
     }
     return labels[status] || status.replace(/_/g, ' ')
   }
@@ -202,6 +206,17 @@ export default function PermohonanPage() {
                     Input Manual
                   </Button>
                 </Link>
+                <Button
+                  onClick={() => {
+                    setShowModal(false)
+                    setShowImportModal(true)
+                  }}
+                  variant="outline"
+                  className="w-full border-slate-300"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import Excel/CSV
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -372,6 +387,21 @@ export default function PermohonanPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Import KTA Modal */}
+      <ImportKtaModal
+        open={showImportModal}
+        onOpenChange={(open) => {
+          setShowImportModal(open)
+          if (!open) {
+            // Refresh data when modal closes
+            fetchKTARequests()
+          }
+        }}
+        onSuccess={() => {
+          fetchKTARequests()
+        }}
+      />
     </div>
   )
 }

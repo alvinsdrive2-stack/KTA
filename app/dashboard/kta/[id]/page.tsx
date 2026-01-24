@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import { ArrowLeft, Download, FileText, User, IdCard, Calendar, MapPin, Phone, Mail, Building, Eye, Upload, AlertCircle, Loader2, RefreshCw, Info } from 'lucide-react'
+import { ArrowLeft, Download, FileText, User, IdCard, Calendar, MapPin, Phone, Mail, Building, Eye, Upload, AlertCircle, Loader2, RefreshCw, Info, CheckCircle } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useSession } from '@/hooks/useSession'
 import { useToast } from '@/components/ui/use-toast'
@@ -34,6 +34,7 @@ interface KTARequest {
   status: string
   kartuGeneratedPath: string | null
   fotoUrl: string | null
+  ktpUrl: string | null
   qrCodePath: string | null
   hargaFinal: number
   daerah?: {
@@ -64,6 +65,10 @@ export default function KTADetailPage() {
   const [paymentProof, setPaymentProof] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
+
+  // Document upload states
+  const [uploadingKtp, setUploadingKtp] = useState(false)
+  const [uploadingFoto, setUploadingFoto] = useState(false)
 
   // Refresh states
   const [refreshing, setRefreshing] = useState(false)
@@ -320,11 +325,69 @@ export default function KTADetailPage() {
     }
   }
 
+  const handleUploadDocument = async (type: 'ktp' | 'foto', file: File) => {
+    if (!kta) return
+
+    const setUploading = type === 'ktp' ? setUploadingKtp : setUploadingFoto
+    setUploading(true)
+
+    try {
+      // Upload file
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', type)
+
+      const uploadResponse = await fetch('/api/upload/document', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const uploadData = await uploadResponse.json()
+
+      if (!uploadResponse.ok) {
+        throw new Error(uploadData.error || 'Gagal mengupload file')
+      }
+
+      // Update KTA with document URL
+      const updateResponse = await fetch(`/api/kta/${kta.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          [type === 'ktp' ? 'ktpUrl' : 'fotoUrl']: uploadData.url,
+          status: 'DRAFT',
+        }),
+      })
+
+      if (!updateResponse.ok) {
+        throw new Error('Gagal mengupdate data KTA')
+      }
+
+      toast({
+        variant: 'success',
+        title: 'Upload Berhasil',
+        description: `${type === 'ktp' ? 'KTP' : 'Foto'} berhasil diupload`,
+      })
+
+      // Refresh KTA data
+      fetchKTADetail(kta.id)
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Upload Gagal',
+        description: error instanceof Error ? error.message : 'Terjadi kesalahan',
+      })
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { label: string; className: string }> = {
       APPROVED_BY_PUSAT: { label: 'Terverifikasi', className: 'bg-green-100 text-green-800 border-green-200' },
       READY_TO_PRINT: { label: 'Siap Cetak', className: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
       PRINTED: { label: 'Sudah Cetak', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+      IMPORTED_PENDING_DOCS: { label: 'Perlu Dokumen', className: 'bg-amber-100 text-amber-800 border-amber-200' },
+      DRAFT: { label: 'Draft', className: 'bg-gray-100 text-gray-800 border-gray-200' },
     }
     return badges[status] || { label: status, className: 'bg-gray-100 text-gray-800' }
   }
@@ -406,6 +469,143 @@ export default function KTADetailPage() {
               </div>
               <IdCard className="h-12 w-12 text-blue-200" />
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Upload Documents Section - for IMPORTED_PENDING_DOCS status */}
+      {(kta.status === 'IMPORTED_PENDING_DOCS' || kta.status === 'DRAFT') && (
+        <Card className="card-3d bg-amber-50 border-amber-200 animate-slide-up-stagger stagger-2">
+          <CardHeader className="border-b border-amber-200 bg-amber-100/50">
+            <CardTitle className="flex items-center gap-2 text-lg text-amber-900">
+              <Upload className="h-5 w-5 text-amber-700" />
+              Upload Dokumen Wajib
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <Alert className="mb-4 bg-amber-100 border-amber-300">
+              <AlertCircle className="h-4 w-4 text-amber-700" />
+              <AlertDescription className="text-amber-800">
+                KTP dan Pas Foto harus diupload untuk melanjutkan proses KTA. Format yang diterima: JPG, PNG, atau PDF (maksimal 5MB).
+              </AlertDescription>
+            </Alert>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* KTP Upload */}
+              <div className="border-2 border-dashed border-amber-300 rounded-lg p-6 text-center bg-white">
+                <IdCard className="h-12 w-12 text-amber-400 mx-auto mb-3" />
+                <h3 className="font-semibold text-amber-900 mb-1">KTP (Kartu Tanda Penduduk)</h3>
+                {kta.ktpUrl ? (
+                  <div className="space-y-2">
+                    <CheckCircle className="h-6 w-6 text-emerald-600 mx-auto" />
+                    <p className="text-sm text-emerald-700 font-medium">KTP Sudah Diupload</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                      onClick={() => window.open(kta.ktpUrl, '_blank')}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Lihat
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleUploadDocument('ktp', file)
+                      }}
+                      className="hidden"
+                      id={`ktp-upload-${kta.id}`}
+                    />
+                    <label htmlFor={`ktp-upload-${kta.id}`}>
+                      <Button
+                        as="span"
+                        variant="outline"
+                        className="cursor-pointer border-amber-300 text-amber-700 hover:bg-amber-50"
+                        disabled={uploadingKtp}
+                      >
+                        {uploadingKtp ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Pilih File KTP
+                          </>
+                        )}
+                      </Button>
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Foto Upload */}
+              <div className="border-2 border-dashed border-amber-300 rounded-lg p-6 text-center bg-white">
+                <User className="h-12 w-12 text-amber-400 mx-auto mb-3" />
+                <h3 className="font-semibold text-amber-900 mb-1">Pas Foto 3x4</h3>
+                {kta.fotoUrl ? (
+                  <div className="space-y-2">
+                    <CheckCircle className="h-6 w-6 text-emerald-600 mx-auto" />
+                    <p className="text-sm text-emerald-700 font-medium">Foto Sudah Diupload</p>
+                    <div className="flex justify-center">
+                      <img
+                        src={kta.fotoUrl}
+                        alt={kta.nama}
+                        className="w-20 h-24 object-cover rounded border border-slate-200"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleUploadDocument('foto', file)
+                      }}
+                      className="hidden"
+                      id={`foto-upload-${kta.id}`}
+                    />
+                    <label htmlFor={`foto-upload-${kta.id}`}>
+                      <Button
+                        as="span"
+                        variant="outline"
+                        className="cursor-pointer border-amber-300 text-amber-700 hover:bg-amber-50"
+                        disabled={uploadingFoto}
+                      >
+                        {uploadingFoto ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Pilih File Foto
+                          </>
+                        )}
+                      </Button>
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {kta.ktpUrl && kta.fotoUrl && (
+              <div className="mt-4 p-3 bg-emerald-100 border border-emerald-300 rounded-lg">
+                <p className="text-sm font-medium text-emerald-800 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Dokumen Lengkap! Anda dapat melanjutkan ke proses berikutnya.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
