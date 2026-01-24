@@ -170,7 +170,7 @@ export default function KTAPreviewPage() {
           <div className="relative mx-auto" style={{ width: '600px', height: '380px' }}>
             {/* Template Background */}
             <img
-              src={`/template kta/${showFront ? 'KTA AI - FRONT.svg' : 'KTA AI - BACK.svg'}`}
+              src={`/template kta/${showFront ? 'KTA AI - FRONT.png' : 'KTA AI - BACK.png'}`}
               alt={showFront ? 'KTA Front' : 'KTA Back'}
               className="absolute top-0 left-0 w-full h-full object-contain"
             />

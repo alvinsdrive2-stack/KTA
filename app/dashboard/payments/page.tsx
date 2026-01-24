@@ -28,7 +28,7 @@ interface BulkPayment {
   totalJumlah: number
   totalNominal: number
   buktiPembayaranUrl: string
-  status: 'PENDING' | 'VERIFIED' | 'REJECTED'
+  status: 'PENDING' | 'PAID' | 'VERIFIED' | 'REJECTED' | 'WAITING_PAYMENT'
   submittedByUser: {
     name: string
   }
@@ -56,6 +56,7 @@ interface BulkPayment {
 export default function PaymentsPage() {
   const { session } = useSession()
   const [payments, setPayments] = useState<BulkPayment[]>([])
+  const [needsVerification, setNeedsVerification] = useState<BulkPayment[]>([])
   const [loading, setLoading] = useState(true)
   const [sessionLoading, setSessionLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -111,6 +112,18 @@ export default function PaymentsPage() {
         if (data.success) {
           setPayments(data.data)
           setTotalPages(data.pagination?.totalPages || 1)
+
+          // Also fetch payments that need verification
+          const verifyParams = new URLSearchParams()
+          verifyParams.append('status', 'NEEDS_VERIFICATION')
+          verifyParams.append('limit', '10')
+
+          const verifyResponse = await fetch(`/api/payments/list?${verifyParams}`)
+          const verifyData = await verifyResponse.json()
+
+          if (verifyData.success) {
+            setNeedsVerification(verifyData.data || [])
+          }
         } else {
           setError(data.error || 'Gagal memuat data pembayaran')
         }
@@ -185,6 +198,18 @@ export default function PaymentsPage() {
         setPayments(data.data)
         setTotalPages(data.pagination?.totalPages || 1)
         setError(null)
+
+        // Also refresh needs verification list
+        const verifyParams = new URLSearchParams()
+        verifyParams.append('status', 'NEEDS_VERIFICATION')
+        verifyParams.append('limit', '10')
+
+        const verifyResponse = await fetch(`/api/payments/list?${verifyParams}`)
+        const verifyData = await verifyResponse.json()
+
+        if (verifyData.success) {
+          setNeedsVerification(verifyData.data || [])
+        }
       } else {
         setError(data.error || 'Gagal memuat data pembayaran')
       }
@@ -198,11 +223,40 @@ export default function PaymentsPage() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      PENDING: 'bg-orange-100 text-orange-800',
-      VERIFIED: 'bg-green-100 text-green-800',
-      REJECTED: 'bg-red-100 text-red-800',
+      PENDING: 'bg-orange-100 text-orange-800 border-orange-800',
+      PAID: 'bg-yellow-100 text-yellow-800 border-yellow-800',
+      WAITING_PAYMENT: 'bg-purple-100 text-purple-800 border-purple-800',
+      VERIFIED: 'bg-green-100 text-green-800 border-green-800',
+      REJECTED: 'bg-red-100 text-red-800 border-red-800',
     }
     return colors[status] || 'bg-gray-100 text-gray-800'
+  }
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      PENDING: 'Menunggu Konfirmasi',
+      PAID: 'Perlu Verifikasi',
+      WAITING_PAYMENT: 'Menunggu Pembayaran',
+      VERIFIED: 'Terkonfirmasi',
+      REJECTED: 'Ditolak',
+    }
+    return labels[status] || status
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return <Clock className="h-3 w-3 mr-1" />
+      case 'PAID':
+      case 'WAITING_PAYMENT':
+        return <AlertCircle className="h-3 w-3 mr-1" />
+      case 'VERIFIED':
+        return <CheckCircle className="h-3 w-3 mr-1" />
+      case 'REJECTED':
+        return <XCircle className="h-3 w-3 mr-1" />
+      default:
+        return null
+    }
   }
 
   if (!isPusatOrAdmin && !sessionLoading) {
@@ -237,8 +291,53 @@ export default function PaymentsPage() {
         <p className="text-gray-600">Kelola konfirmasi pembayaran dari seluruh daerah</p>
       </div>
 
+      {/* Verification Notice */}
+      {needsVerification.length > 0 && (
+        <Card className="card-3d animate-slide-up-stagger stagger-2 border-2 border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <AlertCircle className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-900 mb-2">
+                  {needsVerification.length} Pembayaran Memerlukan Verifikasi
+                </h3>
+                <p className="text-sm text-blue-700 mb-3">
+                  Invoice dengan status <strong>Waiting Payment</strong> atau <strong>Paid</strong> perlu dicek dan dikonfirmasi.
+                </p>
+                <div className="space-y-2">
+                  {needsVerification.slice(0, 3).map((payment) => (
+                    <Link
+                      key={payment.id}
+                      href={`/dashboard/payments/${payment.id}`}
+                      className="block p-2 bg-white rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">{payment.invoiceNumber}</p>
+                                                          <p className="text-xs text-slate-500">{payment.daerah.namaDaerah} • {payment.totalJumlah} KTA</p>
+                                                        </div>
+                        <Badge className={getStatusColor(payment.status)}>
+                          {getStatusLabel(payment.status)}
+                        </Badge>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                {needsVerification.length > 3 && (
+                  <p className="text-xs text-blue-600 mt-2">
+                    Dan {needsVerification.length - 3} lainnya...
+                  </p>
+                                        )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Search and Filter */}
-      <Card className="card-3d animate-slide-up-stagger stagger-2">
+      <Card className="card-3d animate-slide-up-stagger stagger-3">
         <CardContent className="pt-6">
           <div className="flex gap-4">
             <div className="relative flex-1">
@@ -257,6 +356,8 @@ export default function PaymentsPage() {
               className="px-3 py-2 border border-gray-300 rounded-md w-48"
             >
               <option value="all">Semua Status</option>
+              <option value="WAITING_PAYMENT">Menunggu Pembayaran</option>
+              <option value="PAID">Perlu Verifikasi</option>
               <option value="PENDING">Menunggu Konfirmasi</option>
               <option value="VERIFIED">Terkonfirmasi</option>
               <option value="REJECTED">Ditolak</option>
@@ -284,7 +385,7 @@ export default function PaymentsPage() {
       </Card>
 
       {/* Payments List */}
-      <Card className="card-3d animate-slide-up-stagger stagger-3">
+      <Card className="card-3d animate-slide-up-stagger stagger-4">
         <CardHeader>
           <CardTitle>Daftar Pembayaran</CardTitle>
         </CardHeader>
@@ -310,24 +411,8 @@ export default function PaymentsPage() {
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="font-semibold">{payment.invoiceNumber}</h3>
                           <Badge className={getStatusColor(payment.status)}>
-                            {payment.status === 'PENDING' && (
-                              <>
-                                <Clock className="h-3 w-3 mr-1" />
-                                Menunggu Konfirmasi
-                              </>
-                            )}
-                            {payment.status === 'VERIFIED' && (
-                              <>
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Terkonfirmasi
-                              </>
-                            )}
-                            {payment.status === 'REJECTED' && (
-                              <>
-                                <XCircle className="h-3 w-3 mr-1" />
-                                Ditolak
-                              </>
-                            )}
+                            {getStatusIcon(payment.status)}
+                            {getStatusLabel(payment.status)}
                           </Badge>
                         </div>
 
@@ -379,7 +464,7 @@ export default function PaymentsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <Card className="card-3d animate-slide-up-stagger stagger-4">
+        <Card className="card-3d animate-slide-up-stagger stagger-5">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-600">

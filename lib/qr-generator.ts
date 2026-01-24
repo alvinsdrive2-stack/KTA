@@ -26,8 +26,8 @@ export class QRCodeGenerator {
     // Generate QR code URL using NIK
     const qrUrl = `${baseUrl}/verify/${nik}`
 
-    // Generate QR code as base64 data URL (no file writing needed)
-    const qrDataUrl = await QRCode.toDataURL(qrUrl, {
+    // Generate QR code as buffer first (more reliable than toDataURL)
+    const qrBuffer = await QRCode.toBuffer(qrUrl, {
       width: 200,
       margin: 1,
       color: {
@@ -35,6 +35,12 @@ export class QRCodeGenerator {
         light: '#FFFFFF',
       },
     })
+
+    // Convert buffer to base64 data URL
+    const base64 = qrBuffer.toString('base64')
+    const qrDataUrl = `data:image/png;base64,${base64}`
+
+    console.log('Generated QR code, buffer size:', qrBuffer.length, 'base64 size:', base64.length)
 
     return qrDataUrl // Returns "data:image/png;base64,..."
   }
