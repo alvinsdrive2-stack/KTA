@@ -1,4 +1,9 @@
+import { Metadata } from 'next'
 import { LoginForm } from '@/components/auth/login-form'
+
+export const metadata: Metadata = {
+  title: 'Login',
+}
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Image from 'next/image'
 import { getServerSession } from 'next-auth/next'

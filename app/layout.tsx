@@ -13,11 +13,17 @@ const manrope = Manrope({
 })
 
 export const metadata: Metadata = {
-  title: 'KTA Management System',
+  title: {
+    default: 'Gatensi KTA Management',
+    template: '%s - Gatensi KTA Management',
+  },
   description: 'Sistem Manajemen Kartu Tanda Anggota',
   icons: {
     icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
   },
+  manifest: '/manifest.json',
 }
 
 export default function RootLayout({
