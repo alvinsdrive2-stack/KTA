@@ -7,6 +7,7 @@ import { CurrentDate } from '@/components/ui/current-date'
 import { signOut } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import { usePageTitle } from '@/hooks/use-page-title'
 import { SidebarProvider, useSidebar } from '@/contexts/sidebar-context'
 import { PaymentSelectionProvider, usePaymentSelection } from '@/contexts/PaymentSelectionContext'
 import { InvoiceCreationProvider, useInvoiceCreation } from '@/contexts/InvoiceCreationContext'
@@ -542,6 +543,8 @@ function KTAFloatingBar() {
 
 function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProps) {
   const { session } = useSession()
+  usePageTitle() // Auto-set page title based on active nav
+
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { sidebarCollapsed, setSidebarCollapsed } = useSidebar()

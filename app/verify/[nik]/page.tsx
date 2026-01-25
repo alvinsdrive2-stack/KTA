@@ -1,4 +1,9 @@
+import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+
+export const metadata: Metadata = {
+  title: 'Verifikasi KTA',
+}
 import { prisma } from '@/lib/prisma'
 import { VerifyKTAPageClient } from './page-client'
 

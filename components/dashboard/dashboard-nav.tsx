@@ -347,3 +347,43 @@ export function DashboardNav({ isPusat, isKeuangan }: DashboardNavProps) {
     </nav>
   )
 }
+
+// Export for use in usePageTitle hook
+export function getNavTitle(pathname: string, userRole: string): string | null {
+  // Combine all nav items and section items
+  const allNavItems = [
+    ...navItems,
+    ...navSections.flatMap(s => s.items)
+  ]
+
+  // Filter by role
+  const filteredItems = allNavItems.filter(item => {
+    if (userRole === 'KEUANGAN') {
+      return item.roles.includes('KEUANGAN')
+    }
+    if (userRole === 'ADMIN') {
+      return item.roles.includes('ADMIN') || item.roles.includes('PUSAT')
+    }
+    if (userRole === 'PUSAT') {
+      return item.roles.includes('PUSAT') || item.roles.includes('ADMIN')
+    }
+    return item.roles.includes('DAERAH')
+  })
+
+  // Find exact match first
+  const exactMatch = filteredItems.find(item => item.href === pathname)
+  if (exactMatch) {
+    return exactMatch.title
+  }
+
+  // Find longest matching prefix
+  const matchingItems = filteredItems
+    .filter(item => item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
+    .sort((a, b) => (b.href?.length || 0) - (a.href?.length || 0))
+
+  if (matchingItems.length > 0) {
+    return matchingItems[0].title
+  }
+
+  return null
+}
