@@ -38,7 +38,8 @@ export async function POST(
                 id: true,
                 idIzin: true,
                 nama: true,
-                hargaBase: true
+                hargaBase: true,
+                hargaFinal: true
               }
             }
           }
@@ -60,19 +61,16 @@ export async function POST(
       return NextResponse.json({ error: 'Invoice already paid' }, { status: 400 })
     }
 
-    // Calculate total from hargaBase with discount
-    const totalHargaBase = bulkPayment.payments.reduce(
-      (sum, p) => sum + (p.ktaRequest.hargaBase || 0),
+    // Calculate total from hargaFinal (already includes upgrade pricing and discount)
+    const totalTagihan = bulkPayment.payments.reduce(
+      (sum, p) => sum + (p.ktaRequest.hargaFinal || 0),
       0
     )
-    const diskon = bulkPayment.daerah.diskonPersen || 0
-    const diskonAmount = Math.floor(totalHargaBase * diskon / 100)
-    const totalTagihan = totalHargaBase - diskonAmount
 
-    // Build item details
+    // Build item details using hargaFinal (already has correct pricing for upgrades)
     const itemDetails: MidtransItemDetails[] = bulkPayment.payments.map((payment, index) => ({
       id: payment.ktaRequest.idIzin || `kta-${index + 1}`,
-      price: Math.floor((payment.ktaRequest.hargaBase || 0) * (1 - diskon / 100)),
+      price: Math.floor(payment.ktaRequest.hargaFinal || 0),
       quantity: 1,
       name: `KTA - ${payment.ktaRequest.nama}`.substring(0, 50)
     }))

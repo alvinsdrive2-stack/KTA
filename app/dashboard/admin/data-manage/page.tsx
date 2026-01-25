@@ -331,6 +331,65 @@ export default function DataManagePage() {
     setFormData({})
   }
 
+  // Handle update
+  const handleUpdate = async () => {
+    if (!selectedItem) return
+
+    setSubmitting(true)
+
+    try {
+      const endpoint = activeTab === 'kta_requests'
+        ? `/api/admin/data-manage/kta-requests/${selectedItem.id}`
+        : activeTab === 'bulk_payments'
+        ? `/api/admin/data-manage/bulk-payments/${selectedItem.id}`
+        : `/api/admin/data-manage/payments/${selectedItem.id}`
+
+      const response = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          variant: 'success',
+          title: 'Berhasil',
+          description: 'Data berhasil diperbarui',
+        })
+        setIsEditModalOpen(false)
+        setSelectedItem(null)
+        resetForm()
+        fetchAllData()
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Gagal',
+          description: result.error || 'Gagal memperbarui data',
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Gagal',
+        description: 'Terjadi kesalahan saat memperbarui data',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Handle input change
+  const handleInputChange = (field: string, value: any) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
   // Open view modal
   const openViewModal = (item: any) => {
     setSelectedItem(item)
@@ -932,6 +991,297 @@ export default function DataManagePage() {
                 </>
               ) : (
                 'Hapus'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Data</DialogTitle>
+            <DialogDescription>
+              Perbarui data di bawah ini
+            </DialogDescription>
+          </DialogHeader>
+          {selectedItem && (
+            <div className="space-y-4 py-4">
+              {activeTab === 'kta_requests' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-idIzin">ID Izin</Label>
+                      <Input
+                        id="edit-idIzin"
+                        value={formData.idIzin || ''}
+                        onChange={(e) => handleInputChange('idIzin', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-nik">NIK</Label>
+                      <Input
+                        id="edit-nik"
+                        value={formData.nik || ''}
+                        onChange={(e) => handleInputChange('nik', e.target.value)}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-nama">Nama</Label>
+                      <Input
+                        id="edit-nama"
+                        value={formData.nama || ''}
+                        onChange={(e) => handleInputChange('nama', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-jabatanKerja">Jabatan Kerja</Label>
+                      <Input
+                        id="edit-jabatanKerja"
+                        value={formData.jabatanKerja || ''}
+                        onChange={(e) => handleInputChange('jabatanKerja', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-jenjang">Jenjang</Label>
+                      <Input
+                        id="edit-jenjang"
+                        value={formData.jenjang || ''}
+                        onChange={(e) => handleInputChange('jenjang', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-daerahId">Daerah</Label>
+                      <Select
+                        value={formData.daerahId || ''}
+                        onValueChange={(value) => handleInputChange('daerahId', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Daerah" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {daerahList.map((daerah) => (
+                            <SelectItem key={daerah.id} value={daerah.id}>
+                              {daerah.namaDaerah}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-status">Status</Label>
+                      <Select
+                        value={formData.status || ''}
+                        onValueChange={(value) => handleInputChange('status', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="DRAFT">Draft</SelectItem>
+                          <SelectItem value="FETCHED_FROM_SIKI">Dari SIKI</SelectItem>
+                          <SelectItem value="EDITED">Edited</SelectItem>
+                          <SelectItem value="WAITING_PAYMENT">Menunggu Pembayaran</SelectItem>
+                          <SelectItem value="READY_FOR_PUSAT">Siap ke Pusat</SelectItem>
+                          <SelectItem value="APPROVED_BY_PUSAT">Disetujui Pusat</SelectItem>
+                          <SelectItem value="READY_TO_PRINT">Siap Cetak</SelectItem>
+                          <SelectItem value="PRINTED">Sudah Cetak</SelectItem>
+                          <SelectItem value="REJECTED">Ditolak</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-email">Email</Label>
+                      <Input
+                        id="edit-email"
+                        type="email"
+                        value={formData.email || ''}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-noTelp">No. Telp</Label>
+                      <Input
+                        id="edit-noTelp"
+                        value={formData.noTelp || ''}
+                        onChange={(e) => handleInputChange('noTelp', e.target.value)}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-alamat">Alamat</Label>
+                      <Input
+                        id="edit-alamat"
+                        value={formData.alamat || ''}
+                        onChange={(e) => handleInputChange('alamat', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+              {activeTab === 'bulk_payments' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-invoiceNumber">Invoice Number</Label>
+                      <Input
+                        id="edit-invoiceNumber"
+                        value={formData.invoiceNumber || ''}
+                        onChange={(e) => handleInputChange('invoiceNumber', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-daerahId">Daerah</Label>
+                      <Select
+                        value={formData.daerahId || ''}
+                        onValueChange={(value) => handleInputChange('daerahId', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Daerah" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {daerahList.map((daerah) => (
+                            <SelectItem key={daerah.id} value={daerah.id}>
+                              {daerah.namaDaerah}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-status">Status</Label>
+                      <Select
+                        value={formData.status || ''}
+                        onValueChange={(value) => handleInputChange('status', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PENDING">Pending</SelectItem>
+                          <SelectItem value="PAID">Dibayar</SelectItem>
+                          <SelectItem value="VERIFIED">Terverifikasi</SelectItem>
+                          <SelectItem value="REJECTED">Ditolak</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-totalJumlah">Total Jumlah</Label>
+                      <Input
+                        id="edit-totalJumlah"
+                        type="number"
+                        value={formData.totalJumlah || ''}
+                        onChange={(e) => handleInputChange('totalJumlah', parseInt(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-totalNominal">Total Nominal</Label>
+                      <Input
+                        id="edit-totalNominal"
+                        type="number"
+                        value={formData.totalNominal || ''}
+                        onChange={(e) => handleInputChange('totalNominal', parseInt(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-isEnrolment">Is Enrolment</Label>
+                      <Select
+                        value={formData.isEnrolment?.toString() || 'false'}
+                        onValueChange={(value) => handleInputChange('isEnrolment', value === 'true')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true">Ya</SelectItem>
+                          <SelectItem value="false">Tidak</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-keterangan">Keterangan</Label>
+                      <Input
+                        id="edit-keterangan"
+                        value={formData.keterangan || ''}
+                        onChange={(e) => handleInputChange('keterangan', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+              {activeTab === 'payments' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Label htmlFor="edit-invoiceNumber">Invoice Number</Label>
+                      <Input
+                        id="edit-invoiceNumber"
+                        value={formData.invoiceNumber || ''}
+                        onChange={(e) => handleInputChange('invoiceNumber', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-rekeningTujuan">Rekening Tujuan</Label>
+                      <Input
+                        id="edit-rekeningTujuan"
+                        value={formData.rekeningTujuan || ''}
+                        onChange={(e) => handleInputChange('rekeningTujuan', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-statusPembayaran">Status Pembayaran</Label>
+                      <Select
+                        value={formData.statusPembayaran || ''}
+                        onValueChange={(value) => handleInputChange('statusPembayaran', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PENDING">Pending</SelectItem>
+                          <SelectItem value="PAID">Dibayar</SelectItem>
+                          <SelectItem value="VERIFIED">Terverifikasi</SelectItem>
+                          <SelectItem value="REJECTED">Ditolak</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-jumlah">Jumlah</Label>
+                      <Input
+                        id="edit-jumlah"
+                        type="number"
+                        value={formData.jumlah || ''}
+                        onChange={(e) => handleInputChange('jumlah', parseInt(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-buktiBayarLink">Bukti Bayar Link</Label>
+                      <Input
+                        id="edit-buktiBayarLink"
+                        value={formData.buktiBayarLink || ''}
+                        onChange={(e) => handleInputChange('buktiBayarLink', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={handleUpdate}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                'Simpan'
               )}
             </Button>
           </DialogFooter>
