@@ -121,10 +121,14 @@ export async function PATCH(
     if (email) updateData.email = email
     if (role) updateData.role = role
     if (typeof isActive === 'boolean') updateData.isActive = isActive
-    if (role === 'DAERAH') {
-      updateData.daerahId = daerahId || null
-    } else if (role === 'PUSAT' || role === 'ADMIN' || role === 'KEUANGAN') {
-      updateData.daerahId = null
+    if (daerahId !== undefined) updateData.daerahId = daerahId
+
+    // DAERAH role must have daerahId
+    if (role === 'DAERAH' && !daerahId) {
+      return NextResponse.json(
+        { success: false, error: 'Daerah harus dipilih untuk role BPD' },
+        { status: 400 }
+      )
     }
 
     // Hash new password if provided
