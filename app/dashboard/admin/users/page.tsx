@@ -87,6 +87,8 @@ const ROLE_COLORS: Record<string, string> = {
   KEUANGAN: 'bg-green-100 text-green-800',
 }
 
+const PUSAT_DAERAH_ID = 'cmjh08p6n00061h8ckl91rfqr'
+
 export default function UsersManagementPage() {
   const router = useRouter()
   const { session } = useSession()
@@ -114,7 +116,7 @@ export default function UsersManagementPage() {
     email: '',
     password: '',
     role: '',
-    daerahId: '',
+    daerahId: null as string | null,
     isActive: true,
   })
 
@@ -245,7 +247,7 @@ export default function UsersManagementPage() {
       email: '',
       password: '',
       role: '',
-      daerahId: '',
+      daerahId: null,
       isActive: true,
     })
   }
@@ -264,7 +266,7 @@ export default function UsersManagementPage() {
       email: user.email,
       password: '',
       role: user.role,
-      daerahId: user.daerahId || '',
+      daerahId: user.daerahId || null,
       isActive: user.isActive,
     })
     setIsEditModalOpen(true)
@@ -282,8 +284,8 @@ export default function UsersManagementPage() {
     onChange,
     disabled,
   }: {
-    value: string
-    onChange: (value: string) => void
+    value: string | null
+    onChange: (value: string | null) => void
     disabled?: boolean
   }) => {
     const [isOpen, setIsOpen] = useState(false)
@@ -291,7 +293,7 @@ export default function UsersManagementPage() {
     const containerRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
 
-    const isPusat = formData.role !== 'DAERAH'
+    const isPusat = value === PUSAT_DAERAH_ID || formData.role !== 'DAERAH'
     const selectedDaerah = daerahList.find((d) => d.id === value)
 
     // Filter daerah based on search term
@@ -915,7 +917,11 @@ export default function UsersManagementPage() {
               <Select
                 value={formData.role}
                 onValueChange={(value) => {
-                  setFormData({ ...formData, role: value, daerahId: '' })
+                  setFormData({
+                    ...formData,
+                    role: value,
+                    daerahId: value === 'DAERAH' ? null : PUSAT_DAERAH_ID
+                  })
                 }}
               >
                 <SelectTrigger id="create-role">
@@ -1007,7 +1013,11 @@ export default function UsersManagementPage() {
               <Select
                 value={formData.role}
                 onValueChange={(value) => {
-                  setFormData({ ...formData, role: value, daerahId: '' })
+                  setFormData({
+                    ...formData,
+                    role: value,
+                    daerahId: value === 'DAERAH' ? null : PUSAT_DAERAH_ID
+                  })
                 }}
               >
                 <SelectTrigger id="edit-role">

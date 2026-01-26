@@ -14,9 +14,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const klasifikasi = searchParams.get('klasifikasi')
 
-    const where: any = {
-      status: '1',
-    }
+    const where: any = {}
 
     if (klasifikasi) {
       where.klasifikasi = klasifikasi

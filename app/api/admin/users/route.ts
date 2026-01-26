@@ -122,6 +122,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // DAERAH role must have daerahId
+    if (role === 'DAERAH' && !daerahId) {
+      return NextResponse.json(
+        { success: false, error: 'Daerah harus dipilih untuk role BPD' },
+        { status: 400 }
+      )
+    }
+
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -145,7 +153,7 @@ export async function POST(request: NextRequest) {
         email,
         password: hashedPassword,
         role,
-        daerahId: role === 'DAERAH' ? daerahId : null,
+        daerahId,
       },
       select: {
         id: true,
