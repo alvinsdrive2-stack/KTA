@@ -93,12 +93,12 @@ export default function PusatPaymentPage() {
     }
   }, [searchParams, toast, router])
 
-  // Debounce search
+  // Debounce search - hanya fetch 500ms setelah user stop ngetik
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm)
     }, 500)
-    return () => clearTimeout(timer)
+    return () => clearTimeout(handler)
   }, [searchTerm])
 
   useEffect(() => {
