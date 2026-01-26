@@ -46,8 +46,13 @@ export function loadSnapScript(clientKey: string): Promise<void> {
       return
     }
 
+    const isProduction = process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === 'true'
+    const scriptUrl = isProduction
+      ? 'https://app.midtrans.com/snap/snap.js'
+      : 'https://app.sandbox.midtrans.com/snap/snap.js'
+
     const script = document.createElement('script')
-    script.src = 'https://app.sandbox.midtrans.com/snap/snap.js'
+    script.src = scriptUrl
     script.setAttribute('data-client-key', clientKey)
     script.onload = () => resolve()
     script.onerror = () => reject(new Error('Failed to load Midtrans Snap.js'))
