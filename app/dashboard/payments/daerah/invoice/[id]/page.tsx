@@ -447,9 +447,9 @@ export default function InvoiceDetailPage() {
                   </div>
                   <Button
                     onClick={handlePaymentWithMidtrans}
-                    disabled={isMidtransLoading}
+                    disabled={true}
                     size="lg"
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg w-full sm:w-auto"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg w-full sm:w-auto opacity-50 cursor-not-allowed"
                   >
                     {isMidtransLoading ? (
                       <>
