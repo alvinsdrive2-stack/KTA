@@ -16,9 +16,7 @@ export async function GET(request: NextRequest) {
     const jenjang = searchParams.get('jenjang')
 
     // Build where clause
-    const where: any = {
-      status: '1', // Only active records
-    }
+    const where: any = {}
 
     if (subklasifikasi) {
       where.subklasifikasi = subklasifikasi
@@ -78,7 +76,6 @@ export async function GET(request: NextRequest) {
 export async function GET_SUBKLASIFIKASI() {
   try {
     const subklasifikasiList = await prisma.jabatanKerja.findMany({
-      where: { status: '1' },
       distinct: ['subklasifikasi'],
       select: {
         subklasifikasi: true,

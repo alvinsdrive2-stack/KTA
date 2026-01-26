@@ -474,7 +474,7 @@ export default function KTADetailPage() {
       )}
 
       {/* Upload Documents Section - for IMPORTED_PENDING_DOCS status */}
-      {(kta.status === 'IMPORTED_PENDING_DOCS' || kta.status === 'DRAFT') && (
+      {(!kta.ktpUrl || !kta.fotoUrl) && (
         <Card className="card-3d bg-amber-50 border-amber-200 animate-slide-up-stagger stagger-2">
           <CardHeader className="border-b border-amber-200 bg-amber-100/50">
             <CardTitle className="flex items-center gap-2 text-lg text-amber-900">
@@ -483,12 +483,14 @@ export default function KTADetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <Alert className="mb-4 bg-amber-100 border-amber-300">
-              <AlertCircle className="h-4 w-4 text-amber-700" />
-              <AlertDescription className="text-amber-800">
-                KTP dan Pas Foto harus diupload untuk melanjutkan proses KTA. Format yang diterima: JPG, PNG, atau PDF (maksimal 5MB).
-              </AlertDescription>
-            </Alert>
+            {(!kta.ktpUrl || !kta.fotoUrl) && (
+              <Alert className="mb-4 bg-amber-100 border-amber-300">
+                <AlertCircle className="h-4 w-4 text-amber-700" />
+                <AlertDescription className="text-amber-800">
+                  KTP dan Pas Foto harus diupload untuk melanjutkan proses KTA. Format yang diterima: JPG, PNG, atau PDF (maksimal 5MB).
+                </AlertDescription>
+              </Alert>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* KTP Upload */}
