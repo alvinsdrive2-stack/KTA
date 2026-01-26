@@ -19,7 +19,9 @@
     "db:seed-users": "tsx prisma/seed-users.ts",
     "db:dump-supabase": "tsx scripts/dump-supabase.ts",
     "db:truncate-all": "tsx scripts/truncate-all-tables.ts",
-    "db:import-mysql": "tsx scripts/import-to-mysql.ts"
+    "db:import-mysql": "tsx scripts/import-to-mysql.ts",
+    "db:truncate-jabatan-kerja": "tsx scripts/truncate-jabatan-kerja.ts",
+    "db:sync-jabatan-kerja": "tsx scripts/sync-jabatan-kerja-from-siki.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
