@@ -52,6 +52,7 @@ export default function PermohonanPage() {
   const { toast } = useToast()
   const [ktaRequests, setKtaRequests] = useState<KTARequest[]>([])
   const [loading, setLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -66,6 +67,9 @@ export default function PermohonanPage() {
 
   // Check if user is PUSAT, ADMIN, or KEUANGAN
   const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN' || session?.user.role === 'KEUANGAN'
+
+  // Track initial load
+  const initialLoadDone = useRef(false)
 
   // Check for success params and show toast (only once)
   useEffect(() => {
@@ -87,12 +91,12 @@ export default function PermohonanPage() {
     }
   }, [searchParams, toast, router])
 
-  // Debounce search term
+  // Debounce search - hanya fetch 500ms setelah user stop ngetik
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm)
     }, 500)
-    return () => clearTimeout(timer)
+    return () => clearTimeout(handler)
   }, [searchTerm])
 
   useEffect(() => {
@@ -101,7 +105,11 @@ export default function PermohonanPage() {
 
   const fetchKTARequests = async () => {
     try {
-      setLoading(true)
+      // Only show loading skeleton for subsequent fetches, not initial load
+      if (initialLoadDone.current) {
+        setIsFetching(true)
+      }
+
       const params = new URLSearchParams()
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
       if (daerahFilter && daerahFilter !== 'all') params.append('daerahKode', daerahFilter)
@@ -122,6 +130,8 @@ export default function PermohonanPage() {
       console.error('Error fetching KTA requests:', error)
     } finally {
       setLoading(false)
+      setIsFetching(false)
+      initialLoadDone.current = true
     }
   }
 
@@ -233,12 +243,18 @@ export default function PermohonanPage() {
               <Input
                 placeholder="Cari berdasarkan nama, ID Izin, atau NIK..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setCurrentPage(1) // Reset to page 1 when searching
+                }}
                 className="pl-10 bg-white"
               />
             </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(val) => {
+              setStatusFilter(val)
+              setCurrentPage(1)
+            }}>
               <SelectTrigger className="w-48 bg-white">
                 <SelectValue placeholder="Filter Status" />
               </SelectTrigger>
@@ -253,7 +269,10 @@ export default function PermohonanPage() {
             </Select>
 
             {isPusatOrAdmin && (
-              <Select value={daerahFilter} onValueChange={setDaerahFilter}>
+              <Select value={daerahFilter} onValueChange={(val) => {
+                setDaerahFilter(val)
+                setCurrentPage(1)
+              }}>
                 <SelectTrigger className="w-48 bg-white">
                   <SelectValue placeholder="Filter Daerah" />
                 </SelectTrigger>
@@ -302,32 +321,50 @@ export default function PermohonanPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {ktaRequests.map((request) => (
-                    <tr
-                      key={request.id}
-                      className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/dashboard/kta/${request.id}`)}
-                    >
-                      <td className="py-3 px-4 text-sm text-slate-900 font-medium">{request.nama}</td>
-                      <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.idIzin}</td>
-                      <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.nik}</td>
-                      <td className="py-3 px-4">
-                        {request.jenjang ? <JenjangBadge jenjang={request.jenjang} /> : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-slate-600">{request.jabatanKerja}</td>
-                      {(isPusatOrAdmin || session?.user.daerahId) && (
-                        <td className="py-3 px-4 text-sm text-slate-600">{request.daerah?.namaDaerah || '-'}</td>
-                      )}
-                      <td className="py-3 px-4">
-                        <Badge className={getStatusColor(request.status)}>
-                          {getStatusLabel(request.status)}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-slate-600">
-                        {new Date(request.createdAt).toLocaleDateString('id-ID')}
-                      </td>
-                    </tr>
-                  ))}
+                  {isFetching ? (
+                    // Skeleton loading rows
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="border-b border-slate-100">
+                        <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                        <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                        <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                        <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                        <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                        {(isPusatOrAdmin || session?.user.daerahId) && (
+                          <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                        )}
+                        <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                        <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                      </tr>
+                    ))
+                  ) : (
+                    ktaRequests.map((request) => (
+                      <tr
+                        key={request.id}
+                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+                        onClick={() => router.push(`/dashboard/kta/${request.id}`)}
+                      >
+                        <td className="py-3 px-4 text-sm text-slate-900 font-medium">{request.nama}</td>
+                        <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.idIzin}</td>
+                        <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.nik}</td>
+                        <td className="py-3 px-4">
+                          {request.jenjang ? <JenjangBadge jenjang={request.jenjang} /> : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-slate-600">{request.jabatanKerja}</td>
+                        {(isPusatOrAdmin || session?.user.daerahId) && (
+                          <td className="py-3 px-4 text-sm text-slate-600">{request.daerah?.namaDaerah || '-'}</td>
+                        )}
+                        <td className="py-3 px-4">
+                          <Badge className={getStatusColor(request.status)}>
+                            {getStatusLabel(request.status)}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-slate-600">
+                          {new Date(request.createdAt).toLocaleDateString('id-ID')}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

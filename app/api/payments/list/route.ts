@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       whereClause.OR = [
-        { invoiceNumber: { contains: search, mode: 'insensitive' } },
-        { daerah: { namaDaerah: { contains: search, mode: 'insensitive' } } },
-        { submittedByUser: { name: { contains: search, mode: 'insensitive' } } }
+        { invoiceNumber: { contains: search } },
+        { daerah: { namaDaerah: { contains: search } } },
+        { submittedByUser: { name: { contains: search } } }
       ]
     }
 
