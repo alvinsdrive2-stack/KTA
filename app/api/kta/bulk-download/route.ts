@@ -174,15 +174,18 @@ export async function POST(request: NextRequest) {
           }
 
           // Prepare data for PDF generation
-          // Try to fetch photo via proxy for external URLs (at generation time)
+          // Fetch photo directly from SIKI URL (same as single KTA download)
           let fotoData = kta.fotoData || undefined
 
           if (!fotoData && kta.fotoUrl && kta.fotoUrl.startsWith('http')) {
-            // Try to fetch via internal proxy
+            // Fetch directly from URL (no proxy)
             try {
-              const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-              const proxyUrl = `${baseUrl}/api/proxy/image?url=${encodeURIComponent(kta.fotoUrl)}`
-              const response = await fetch(proxyUrl)
+              console.log(`📸 Fetching photo directly from URL: ${kta.fotoUrl}`)
+              const response = await fetch(kta.fotoUrl, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                },
+              })
 
               if (response.ok) {
                 const arrayBuffer = await response.arrayBuffer()
@@ -190,12 +193,12 @@ export async function POST(request: NextRequest) {
                 const contentType = response.headers.get('content-type') || 'image/jpeg'
                 const mimeType = contentType.split(';')[0].trim()
                 fotoData = `data:${mimeType};base64,${buffer.toString('base64')}`
-                console.log(`✅ Fetched photo via proxy for ${kta.nama}`)
+                console.log(`✅ Fetched photo for ${kta.nama}`)
               } else {
-                console.log(`⚠️ Proxy fetch failed for ${kta.nama}: ${response.status}`)
+                console.log(`⚠️ Photo fetch failed for ${kta.nama}: ${response.status}`)
               }
             } catch (error) {
-              console.log(`⚠️ Proxy fetch error for ${kta.nama}:`, error instanceof Error ? error.message : 'Unknown')
+              console.log(`⚠️ Photo fetch error for ${kta.nama}:`, error instanceof Error ? error.message : 'Unknown')
             }
           }
 
