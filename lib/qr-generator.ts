@@ -21,7 +21,7 @@ export class QRCodeGenerator {
    * (always shows the latest approved KTA for that NIK)
    */
   static async generateKTAQR(options: QRCodeOptions): Promise<string> {
-    const { nik, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'Kta.Gatensi.or.id/KTA' } = options
+    const { nik, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'Kta.Gatensi.or.id' } = options
 
     // Generate QR code URL using NIK
     const qrUrl = `${baseUrl}/verify/${nik}`
@@ -59,7 +59,7 @@ export class QRCodeGenerator {
    * Generate QR code as buffer (for file operations if needed)
    */
   static async generateKTAQRBuffer(options: QRCodeOptions): Promise<Buffer> {
-    const { nik, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'kta.Gatensi.or.id/KTA' } = options
+    const { nik, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'kta.Gatensi.or.id' } = options
 
     // Generate QR code URL using NIK
     const qrUrl = `${baseUrl}/verify/${nik}`

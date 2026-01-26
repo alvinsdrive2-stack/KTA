@@ -181,7 +181,7 @@ async function getManropeFont(): Promise<Buffer | ArrayBuffer> {
   const isDevelopment = process.env.NODE_ENV === 'development'
   const fontUrl = isDevelopment
     ? 'http://localhost:3000/fonts/Manrope-SemiBold.ttf'
-    : 'KTA.Gatensi.or.id/KTAfonts/Manrope-SemiBold.ttf'
+    : 'KTA.Gatensi.or.id/fonts/Manrope-SemiBold.ttf'
 
   try {
     console.log('Fetching font from:', fontUrl)
@@ -218,7 +218,7 @@ async function getManropeMediumFont(): Promise<Buffer | ArrayBuffer> {
   const isDevelopment = process.env.NODE_ENV === 'development'
   const fontUrl = isDevelopment
     ? 'http://localhost:3000/fonts/Manrope-Medium.ttf'
-    : 'KTA.Gatensi.or.id/KTAfonts/Manrope-Medium.ttf'
+    : 'KTA.Gatensi.or.id/fonts/Manrope-Medium.ttf'
 
   try {
     console.log('Fetching medium font from:', fontUrl)
