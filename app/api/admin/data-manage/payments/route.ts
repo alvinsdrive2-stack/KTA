@@ -36,9 +36,9 @@ export async function GET(request: NextRequest) {
     const where: any = {}
     if (search) {
       where.OR = [
-        { invoiceNumber: { contains: search, mode: 'insensitive' } },
-        { ktaRequest: { nama: { contains: search, mode: 'insensitive' } } },
-        { ktaRequest: { idIzin: { contains: search, mode: 'insensitive' } } },
+        { invoiceNumber: { contains: search } },
+        { ktaRequest: { nama: { contains: search } } },
+        { ktaRequest: { idIzin: { contains: search } } },
       ]
     }
     if (status) {

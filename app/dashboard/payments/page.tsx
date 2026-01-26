@@ -59,7 +59,9 @@ export default function PaymentsPage() {
   const [needsVerification, setNeedsVerification] = useState<BulkPayment[]>([])
   const [loading, setLoading] = useState(true)
   const [sessionLoading, setSessionLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [daerahFilter, setDaerahFilter] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -138,6 +140,14 @@ export default function PaymentsPage() {
     fetchInitialData()
   }, [session, isPusatOrAdmin])
 
+  // Debounce search - hanya fetch 500ms setelah user stop ngetik
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 500)
+    return () => clearTimeout(handler)
+  }, [searchTerm])
+
   // Separate useEffect for filters/pagination (only after initial load)
   useEffect(() => {
     // Skip if session still loading or initial fetch not done
@@ -147,9 +157,9 @@ export default function PaymentsPage() {
 
     const fetchFilteredData = async () => {
       try {
-        setLoading(true)
+        setIsFetching(true) // Only show skeleton, not full page reload
         const params = new URLSearchParams()
-        if (searchTerm) params.append('search', searchTerm)
+        if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
         if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
         if (daerahFilter && daerahFilter !== 'all') params.append('daerahKode', daerahFilter)
         params.append('page', currentPage.toString())
@@ -169,12 +179,12 @@ export default function PaymentsPage() {
         setError('Terjadi kesalahan saat memuat data')
         console.error('Fetch payments error:', error)
       } finally {
-        setLoading(false)
+        setIsFetching(false)
       }
     }
 
     fetchFilteredData()
-  }, [searchTerm, statusFilter, daerahFilter, currentPage, sessionLoading, isPusatOrAdmin])
+  }, [debouncedSearchTerm, statusFilter, daerahFilter, currentPage, sessionLoading, isPusatOrAdmin])
 
   const fetchPayments = async () => {
     // This function is now only used for manual refresh after verify
@@ -185,7 +195,7 @@ export default function PaymentsPage() {
     try {
       setLoading(true)
       const params = new URLSearchParams()
-      if (searchTerm) params.append('search', searchTerm)
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
       if (daerahFilter && daerahFilter !== 'all') params.append('daerahKode', daerahFilter)
       params.append('page', currentPage.toString())
@@ -352,7 +362,10 @@ export default function PaymentsPage() {
 
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setCurrentPage(1)
+              }}
               className="px-3 py-2 border border-gray-300 rounded-md w-48"
             >
               <option value="all">Semua Status</option>
@@ -365,7 +378,10 @@ export default function PaymentsPage() {
 
             <select
               value={daerahFilter}
-              onChange={(e) => setDaerahFilter(e.target.value)}
+              onChange={(e) => {
+                setDaerahFilter(e.target.value)
+                setCurrentPage(1)
+              }}
               className="px-3 py-2 border border-gray-300 rounded-md w-48"
             >
               <option value="all">Semua Daerah</option>
@@ -395,6 +411,25 @@ export default function PaymentsPage() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
+          ) : isFetching ? (
+            // Skeleton loading
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 space-y-2">
+                      <div className="h-5 bg-slate-200 rounded animate-pulse w-1/3"></div>
+                      <div className="h-4 bg-slate-200 rounded animate-pulse w-1/4"></div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div className="h-4 bg-slate-200 rounded animate-pulse"></div>
+                        <div className="h-4 bg-slate-200 rounded animate-pulse"></div>
+                        <div className="h-4 bg-slate-200 rounded animate-pulse"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : payments.length === 0 ? (
             <p className="text-center text-gray-500 py-8">Tidak ada data pembayaran yang ditemukan</p>
           ) : (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/useSession'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -50,12 +50,16 @@ export default function KTAPage() {
   const { selectedKTAs, toggleKTA, clearSelection, selectedCount } = useKTASelection()
   const [ktaRequests, setKtaRequests] = useState<KTARequest[]>([])
   const [loading, setLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [selectionMode, setSelectionMode] = useState(false)
+
+  // Track initial load
+  const initialLoadDone = useRef(false)
 
   // Date filter states
   const [startDate, setStartDate] = useState('')
@@ -80,7 +84,10 @@ export default function KTAPage() {
 
   const fetchKTARequests = async () => {
     try {
-      setLoading(true)
+      // Only show loading skeleton for subsequent fetches, not initial load
+      if (initialLoadDone.current) {
+        setIsFetching(true)
+      }
 
       // Build query string for filters - only fetch verified/approved KTAs
       const params = new URLSearchParams()
@@ -112,6 +119,8 @@ export default function KTAPage() {
       console.error('Error fetching KTA requests:', error)
     } finally {
       setLoading(false)
+      setIsFetching(false)
+      initialLoadDone.current = true
     }
   }
 
@@ -451,7 +460,28 @@ export default function KTAPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ktaRequests.map((request) => {
+                    {isFetching ? (
+                      // Skeleton loading rows
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <tr key={i} className="border-b border-slate-100">
+                          <td className={`transition-all duration-300 ease-out overflow-hidden ${
+                            selectionMode ? 'w-12 opacity-100 py-3 px-4' : 'w-0 opacity-0 p-0'
+                          }`}>
+                            <div className="h-4 bg-slate-200 rounded animate-pulse"></div>
+                          </td>
+                          <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                          <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                          <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                          <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                          <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                          <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                          {isPusatOrAdmin && <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>}
+                          <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                          <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
+                        </tr>
+                      ))
+                    ) : (
+                      ktaRequests.map((request) => {
                       const isSelected = selectedKTAs.find(k => k.id === request.id)
 
                       return (
@@ -500,7 +530,8 @@ export default function KTAPage() {
                           </td>
                         </tr>
                       )
-                    })}
+                    })
+                  )}
                   </tbody>
                 </table>
               </div>

@@ -98,6 +98,7 @@ export default function UsersManagementPage() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
+  const [daerahFilter, setDaerahFilter] = useState('ALL')
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['pusat', 'all']))
 
   // Modal states
@@ -144,7 +145,7 @@ export default function UsersManagementPage() {
 
     fetchUsers()
     fetchDaerahList()
-  }, [session, roleFilter])
+  }, [session, roleFilter, daerahFilter])
 
   const fetchUsers = async () => {
     try {
@@ -156,6 +157,10 @@ export default function UsersManagementPage() {
 
       if (roleFilter && roleFilter !== 'ALL') {
         params.append('role', roleFilter)
+      }
+
+      if (daerahFilter && daerahFilter !== 'ALL') {
+        params.append('daerahId', daerahFilter)
       }
 
       const response = await fetch(`/api/admin/users?${params}`)
@@ -669,7 +674,7 @@ export default function UsersManagementPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
-                    placeholder="Cari nama atau email..."
+                    placeholder="Cari nama, email, atau daerah..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="pl-10"
@@ -686,6 +691,19 @@ export default function UsersManagementPage() {
                   <SelectItem value="PUSAT">BPP</SelectItem>
                   <SelectItem value="ADMIN">Admin</SelectItem>
                   <SelectItem value="KEUANGAN">Keuangan</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={daerahFilter} onValueChange={setDaerahFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter Daerah" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Semua Daerah</SelectItem>
+                  {daerahList.map((daerah) => (
+                    <SelectItem key={daerah.id} value={daerah.id}>
+                      {daerah.namaDaerah}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

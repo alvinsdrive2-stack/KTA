@@ -84,9 +84,9 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       whereClause.OR = [
-        { nama: { contains: search, mode: 'insensitive' } },
-        { idIzin: { contains: search, mode: 'insensitive' } },
-        { nik: { contains: search, mode: 'insensitive' } }
+        { nama: { contains: search } },
+        { idIzin: { contains: search } },
+        { nik: { contains: search } }
       ]
     }
 
