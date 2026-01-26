@@ -523,26 +523,24 @@ export default function KTADetailPage() {
                       className="hidden"
                       id={`ktp-upload-${kta.id}`}
                     />
-                    <label htmlFor={`ktp-upload-${kta.id}`}>
-                      <Button
-                        as="span"
-                        variant="outline"
-                        className="cursor-pointer border-amber-300 text-amber-700 hover:bg-amber-50"
-                        disabled={uploadingKtp}
-                      >
-                        {uploadingKtp ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-4 w-4 mr-2" />
-                            Pilih File KTP
-                          </>
-                        )}
-                      </Button>
-                    </label>
+                    <Button
+                      variant="outline"
+                      className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                      disabled={uploadingKtp}
+                      onClick={() => document.getElementById(`ktp-upload-${kta.id}`)?.click()}
+                    >
+                      {uploadingKtp ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Pilih File KTP
+                        </>
+                      )}
+                    </Button>
                   </div>
                 )}
               </div>
@@ -575,26 +573,24 @@ export default function KTADetailPage() {
                       className="hidden"
                       id={`foto-upload-${kta.id}`}
                     />
-                    <label htmlFor={`foto-upload-${kta.id}`}>
-                      <Button
-                        as="span"
-                        variant="outline"
-                        className="cursor-pointer border-amber-300 text-amber-700 hover:bg-amber-50"
-                        disabled={uploadingFoto}
-                      >
-                        {uploadingFoto ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-4 w-4 mr-2" />
-                            Pilih File Foto
-                          </>
-                        )}
-                      </Button>
-                    </label>
+                    <Button
+                      variant="outline"
+                      className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                      disabled={uploadingFoto}
+                      onClick={() => document.getElementById(`foto-upload-${kta.id}`)?.click()}
+                    >
+                      {uploadingFoto ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Pilih File Foto
+                        </>
+                      )}
+                    </Button>
                   </div>
                 )}
               </div>
