@@ -39,7 +39,7 @@ export default async function LoginPage() {
         </div>
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-xl font-semibold text-slate-900">
-              Login Sistem KTA
+              Login Management KTA
             </CardTitle>
             <CardDescription className="text-slate-500 text-sm">
               Masuk ke dashboard untuk mengelola Kartu Tanda Anggota
