@@ -712,7 +712,7 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">
-                  {isPusat ? 'Sistem KTA Pusat' : isKeuangan ? 'Sistem KTA Keuangan' : 'Sistem KTA Daerah'}
+                  {isPusat ? 'Sistem KTA BPP Pusat' : isKeuangan ? 'Sistem KTA Keuangan' : 'Sistem KTA BPD Daerah'}
                 </h1>
                 <p className="text-sm text-slate-500">Selamat datang kembali, {session?.user?.name || 'User'}</p>
               </div>
