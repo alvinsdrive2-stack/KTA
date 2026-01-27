@@ -13,7 +13,7 @@ import { PulseLogo } from '@/components/ui/loading-spinner'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/components/ui/use-toast'
 import { usePaymentSelection } from '@/contexts/PaymentSelectionContext'
-
+import { getJenjangCategory } from '@/lib/kta-upgrade'
 interface KTARequest {
   id: string
   idIzin: string
@@ -322,7 +322,7 @@ export default function DaerahPaymentPage() {
                           <span>•</span>
                           <span className="font-mono">{request.nik}</span>
                           <span>•</span>
-                          <span>Jenjang {request.jenjang}</span>
+                          <span>Jenjang {getJenjangCategory(request.jenjang)}</span>
                           {request.isUpgrade && request.upgradeFromKtaId && (
                             <>
                               <span>•</span>

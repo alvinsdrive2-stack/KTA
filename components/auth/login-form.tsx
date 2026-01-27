@@ -84,7 +84,7 @@ export function LoginForm() {
             id="email"
             type="email"
             placeholder="nama@example.com"
-            className={`pl-10 transition-all duration-200 ${focusedField === 'email' ? 'border-blue-500 ring-2 ring-blue-100' : ''}`}
+            className={`pl-10 transition-all duration-200 ${focusedField === 'email' ? 'border-blue-500 ring-2 ring-blue-500/20' : ''}`}
             {...form.register('email')}
             disabled={isLoading}
             onFocus={() => setFocusedField('email')}
@@ -108,7 +108,7 @@ export function LoginForm() {
             id="password"
             type="password"
             placeholder="Masukkan password"
-            className={`pl-10 transition-all duration-200 ${focusedField === 'password' ? 'border-blue-500 ring-2 ring-blue-100' : ''}`}
+            className={`pl-10 transition-all duration-200 ${focusedField === 'password' ? 'border-blue-500 ring-2 ring-blue-500' : ''}`}
             {...form.register('password')}
             disabled={isLoading}
             onFocus={() => setFocusedField('password')}

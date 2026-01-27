@@ -601,13 +601,8 @@ export default function DataManagePage() {
                   {activeTab === 'kta_requests' && (
                     <>
                       <SelectItem value="DRAFT">Draft</SelectItem>
-                      <SelectItem value="FETCHED_FROM_SIKI">Dari SIKI</SelectItem>
-                      <SelectItem value="EDITED">Edited</SelectItem>
                       <SelectItem value="WAITING_PAYMENT">Menunggu Pembayaran</SelectItem>
-                      <SelectItem value="READY_FOR_PUSAT">Siap ke Pusat</SelectItem>
-                      <SelectItem value="APPROVED_BY_PUSAT">Disetujui Pusat</SelectItem>
                       <SelectItem value="READY_TO_PRINT">Siap Cetak</SelectItem>
-                      <SelectItem value="PRINTED">Sudah Cetak</SelectItem>
                       <SelectItem value="REJECTED">Ditolak</SelectItem>
                     </>
                   )}

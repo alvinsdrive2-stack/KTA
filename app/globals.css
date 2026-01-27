@@ -43,7 +43,7 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 30 73% 34%;
+    --ring: 217 91% 60%;
 
     --radius: 0.5rem;
   }
@@ -85,6 +85,14 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Global form focus styles - use primary color */
+  input:focus,
+  textarea:focus,
+  select:focus,
+  button:focus-visible {
+    @apply ring-2 ring-ring ring-offset-2 outline-none;
   }
 }
 

@@ -11,42 +11,51 @@ async function generateNomorKTA(daerahId: string, jenjang: string): Promise<stri
   const jenjangNum = parseInt(jenjang, 10)
   let jenjangCode: string
   let jenjangCategory: string
+  let sequenceField: 'lastSequenceAhli' | 'lastSequenceTeknisi' | 'lastSequenceOperator'
 
   if (jenjangNum >= 1 && jenjangNum <= 3) {
     jenjangCode = '03'
     jenjangCategory = 'Operator'
+    sequenceField = 'lastSequenceOperator'
   } else if (jenjangNum >= 4 && jenjangNum <= 6) {
     jenjangCode = '02'
     jenjangCategory = 'Teknisi/Analis'
+    sequenceField = 'lastSequenceTeknisi'
   } else if (jenjangNum >= 7 && jenjangNum <= 9) {
     jenjangCode = '01'
     jenjangCategory = 'Ahli'
+    sequenceField = 'lastSequenceAhli'
   } else {
     throw new Error(`Invalid jenjang: ${jenjang}. Must be between 1-9.`)
   }
 
-  // Get daerah kode
+  // Get daerah with current sequence
   const daerah = await prisma.daerah.findUnique({
     where: { id: daerahId },
-    select: { kodeDaerah: true }
+    select: {
+      kodeDaerah: true,
+      lastSequenceAhli: true,
+      lastSequenceTeknisi: true,
+      lastSequenceOperator: true
+    }
   })
 
   if (!daerah) {
     throw new Error('Daerah not found')
   }
 
-  // Count existing KTAs with the same daerah and jenjang category code
-  const existingCount = await prisma.kTARequest.count({
-    where: {
-      daerahId,
-      nomorKTA: {
-        contains: `${daerah.kodeDaerah}.${jenjangCode}.`
-      }
-    }
+  // Get current sequence and increment
+  const currentSequence = daerah[sequenceField]
+  const nextSequence = currentSequence + 1
+
+  // Update sequence in database
+  await prisma.daerah.update({
+    where: { id: daerahId },
+    data: { [sequenceField]: nextSequence }
   })
 
   // Generate sequence number (6 digits, padded with zeros)
-  const sequence = String(existingCount + 1).padStart(6, '0')
+  const sequence = String(nextSequence).padStart(6, '0')
   const nomorKTA = `${daerah.kodeDaerah}.${jenjangCode}.${sequence}`
 
   console.log(`🎫 Generated nomorKTA: ${nomorKTA} (daerah=${daerah.kodeDaerah}, jenjang=${jenjang}, category=${jenjangCategory}, code=${jenjangCode}, sequence=${sequence})`)
