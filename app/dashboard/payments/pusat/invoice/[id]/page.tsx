@@ -269,7 +269,7 @@ export default function PusatInvoiceDetailPage() {
             {payment.status === 'PENDING' && (
               <>
                 <Clock className="h-4 w-4 mr-1" />
-                Menunggu Konfirmasi
+                Menunggu Pembayaran
               </>
             )}
             {payment.status === 'PAID' && (

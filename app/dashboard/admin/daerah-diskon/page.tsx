@@ -158,7 +158,7 @@ export default function DaerahDiskonPage() {
     <div className="space-y-5">
       {/* Header */}
       <div className="animate-slide-up-stagger stagger-1">
-        <h1 className="text-2xl font-semibold text-slate-900">Kelola Diskon Daerah</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Kelola Porsi BPD</h1>
         <p className="text-slate-500 text-sm">
           Atur diskon untuk setiap daerah (0-100%)
         </p>
@@ -226,7 +226,7 @@ export default function DaerahDiskonPage() {
                   {/* Diskon Input */}
                   <div className="flex items-center gap-2">
                     <Label htmlFor={`diskon-${daerah.id}`} className="text-sm text-slate-700">
-                      Diskon:
+                      Porsi:
                     </Label>
                     <div className="flex items-center gap-2">
                       <Input

@@ -77,6 +77,7 @@ export default function InvoiceDetailPage() {
   const [paymentProof, setPaymentProof] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const isPusatOnly = session?.user.role === 'PUSAT' 
 
   useEffect(() => {
     if (params.id) {
@@ -447,9 +448,8 @@ export default function InvoiceDetailPage() {
                   </div>
                   <Button
                     onClick={handlePaymentWithMidtrans}
-                    disabled={true}
                     size="lg"
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg w-full sm:w-auto opacity-50 cursor-not-allowed"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg w-full sm:w-auto"
                   >
                     {isMidtransLoading ? (
                       <>
@@ -467,16 +467,19 @@ export default function InvoiceDetailPage() {
               </div>
 
               {/* Manual Payment Option */}
+              {isPusatOnly && (
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="p-3 bg-green-600 rounded-full">
                       <Upload className="h-6 w-6 text-white" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-900">Transfer Bank Manual</h3>
-                      <p className="text-sm text-slate-600">Upload bukti transfer setelah melakukan pembayaran</p>
-                    </div>
+                    
+                      <div>
+                        <h3 className="font-semibold text-slate-900">Transfer Bank Manual</h3>
+                        <p className="text-sm text-slate-600">Upload bukti transfer setelah melakukan pembayaran</p>
+                      </div>
+                    
                   </div>
                   <Button
                     onClick={() => setShowUploadModal(true)}
@@ -488,7 +491,7 @@ export default function InvoiceDetailPage() {
                     Upload Bukti
                   </Button>
                 </div>
-              </div>
+              </div>)}
             </div>
           ) : (
             <div className="bg-green-50 border border-green-200 rounded-xl p-6">
