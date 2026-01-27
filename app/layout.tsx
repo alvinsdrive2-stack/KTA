@@ -5,11 +5,12 @@ import { AuthProvider } from '@/components/providers/auth-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'], display: 'swap' })
 const manrope = Manrope({
   subsets: ['latin'],
   weight: ['200', '300', '400', '500'],
   variable: '--font-manrope',
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
@@ -23,7 +24,6 @@ export const metadata: Metadata = {
     shortcut: '/favicon.png',
     apple: '/favicon.png',
   },
-  manifest: '/manifest.json',
 }
 
 export default function RootLayout({
