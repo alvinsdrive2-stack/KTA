@@ -293,7 +293,7 @@ export default function PaymentDetailPage() {
             {payment.status === 'PENDING' && (
               <>
                 <Clock className="h-4 w-4 mr-1" />
-                Menunggu Konfirmasi
+                Menunggu Pembayaran
               </>
             )}
             {payment.status === 'VERIFIED' && (
@@ -324,7 +324,7 @@ export default function PaymentDetailPage() {
                   <div className="flex-1">
                     <p className="font-semibold text-purple-900">Enrolment (GRATIS - SUDAH DIBAYAR)</p>
                     <p className="text-sm text-purple-700 mt-1">
-                      Ini adalah enrolment gratis - pembayaran sudah terkonfirmasi. KTA status: READY_FOR_PUSAT, menunggu konfirmasi dari Keuangan.
+                      Ini adalah enrolment gratis - pembayaran sudah terkonfirmasi. KTA status: READY_FOR_PUSAT, Menunggu Pembayaran dari Keuangan.
                     </p>
                     {payment.keterangan && (
                       <div className="mt-2 p-2 bg-purple-100 rounded-md">
@@ -375,7 +375,7 @@ export default function PaymentDetailPage() {
                       Status: Sudah Dibayar
                     </p>
                     <p className="text-sm text-green-800 mt-1">
-                      Enrolment ini sudah terkonfirmasi dan pembayaran sudah selesai (GRATIS). KTA dengan status READY_FOR_PUSAT menunggu konfirmasi dari Keuangan.
+                      Enrolment ini sudah terkonfirmasi dan pembayaran sudah selesai (GRATIS). KTA dengan status READY_FOR_PUSAT Menunggu Pembayaran dari Keuangan.
                     </p>
                   </div>
                 </div>

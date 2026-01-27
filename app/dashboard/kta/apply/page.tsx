@@ -1080,12 +1080,12 @@ export default function KTAApplyPage() {
                       </div>
                       {diskonPersen > 0 && (
                         <div className="flex justify-between text-sm items-center">
-                          <span className="text-slate-600">Diskon ({diskonPersen}%)</span>
+                          <span className="text-slate-600">Porsi ({diskonPersen}%)</span>
                           <span className="font-medium text-green-600">-Rp {(upgradeInfo.hargaBaru * diskonPersen / 100).toLocaleString('id-ID')}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-sm">
-                        <span className="text-slate-600">Harga Setelah Diskon</span>
+                        <span className="text-slate-600">Harga Setelah Porsi</span>
                         <span className="font-medium">Rp {(upgradeInfo.hargaBaru - (upgradeInfo.hargaBaru * diskonPersen / 100)).toLocaleString('id-ID')}</span>
                       </div>
                       <div className="flex justify-between text-sm items-center">

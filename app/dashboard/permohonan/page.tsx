@@ -67,6 +67,8 @@ export default function PermohonanPage() {
 
   // Check if user is PUSAT, ADMIN, or KEUANGAN
   const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN' || session?.user.role === 'KEUANGAN'
+  // Check if user is PUSAT only
+  const isPusatOnly = session?.user.role === 'PUSAT'
 
   // Track initial load
   const initialLoadDone = useRef(false)
@@ -156,7 +158,7 @@ export default function PermohonanPage() {
       DRAFT: 'Draft',
       FETCHED_FROM_SIKI: 'Diambil dari SIKI',
       EDITED: 'Diedit',
-      WAITING_PAYMENT: 'Menunggu Konfirmasi',
+      WAITING_PAYMENT: 'Menunggu Pembayaran',
       READY_FOR_PUSAT: 'Siap ke Pusat',
       APPROVED_BY_PUSAT: 'Terkonfirmasi',
       READY_TO_PRINT: 'Siap Cetak',
@@ -208,26 +210,28 @@ export default function PermohonanPage() {
                 <Link href="/dashboard/kta/apply" className="block">
                   <Button className="w-full bg-slate-800 text-slate-100 hover:bg-slate-700">
                     <FileText className="h-4 w-4 mr-2" />
-                    Ajukan KTA Baru
+                    Ajukan KTA dengan ID Izin
                   </Button>
                 </Link>
-                <Link href="/dashboard/permohonan/create-manual" className="block">
-                  <Button variant="outline" className="w-full border-slate-300">
-                    <Edit className="h-4 w-4 mr-2" />
-                    Input Manual
+                  <Link href="/dashboard/permohonan/create-manual" className="block">
+                    <Button variant="outline" className="w-full border-slate-300">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Input Manual
+                    </Button>
+                  </Link>
+                {isPusatOnly && (
+                  <Button
+                    onClick={() => {
+                      setShowModal(false)
+                      setShowImportModal(true)
+                    }}
+                    variant="outline"
+                    className="w-full border-slate-300"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import Excel/CSV
                   </Button>
-                </Link>
-                <Button
-                  onClick={() => {
-                    setShowModal(false)
-                    setShowImportModal(true)
-                  }}
-                  variant="outline"
-                  className="w-full border-slate-300"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import Excel/CSV
-                </Button>
+                )}
               </div>
             </DialogContent>
           </Dialog>

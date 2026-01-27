@@ -331,7 +331,7 @@ export default function DaerahDetailPage() {
             <CardContent className="pt-5">
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="diskon">Diskon Daerah (%)</Label>
+                  <Label htmlFor="diskon">Porsi BPD (%)</Label>
                   <div className="flex items-center gap-2 mt-2">
                     <Input
                       id="diskon"
