@@ -244,7 +244,7 @@ export default function PaymentsPage() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      PENDING: 'Menunggu Konfirmasi',
+      PENDING: 'Menunggu Pembayaran',
       PAID: 'Perlu Verifikasi',
       WAITING_PAYMENT: 'Menunggu Pembayaran',
       VERIFIED: 'Terkonfirmasi',
@@ -371,7 +371,7 @@ export default function PaymentsPage() {
               <option value="all">Semua Status</option>
               <option value="WAITING_PAYMENT">Menunggu Pembayaran</option>
               <option value="PAID">Perlu Verifikasi</option>
-              <option value="PENDING">Menunggu Konfirmasi</option>
+              <option value="PENDING">Menunggu Pembayaran</option>
               <option value="VERIFIED">Terkonfirmasi</option>
               <option value="REJECTED">Ditolak</option>
             </select>

@@ -160,7 +160,7 @@ export default function PusatPaymentPage() {
   const getBulkPaymentStatusBadge = (status: string) => {
     const badges: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
       PENDING: {
-        label: 'Menunggu Konfirmasi',
+        label: 'Menunggu Pembayaran',
         className: 'bg-amber-100 text-amber-800 border-amber-200',
         icon: <Clock className="h-3 w-3" />
       },

@@ -16,6 +16,7 @@ const nextConfig = {
   },
   env: {
     NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: process.env.MIDTRANS_CLIENT_KEY,
+    NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION: process.env.MIDTRANS_ENVIRONMENT === 'production' ? 'true' : 'false',
   },
 }
 

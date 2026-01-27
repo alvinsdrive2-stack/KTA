@@ -399,7 +399,7 @@ export default function DashboardPage() {
       DRAFT: 'Draft',
       FETCHED_FROM_SIKI: 'Diambil dari SIKI',
       EDITED: 'Diedit',
-      WAITING_PAYMENT: 'Menunggu Konfirmasi',
+      WAITING_PAYMENT: 'Menunggu Pembayaran',
       READY_FOR_PUSAT: 'Siap Verifikasi Pusat',
       APPROVED_BY_PUSAT: 'Terkonfirmasi',
       READY_TO_PRINT: 'Siap Cetak',
@@ -456,7 +456,7 @@ export default function DashboardPage() {
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">
-                {isDaerah ? 'Dashboard Daerah' : isPusatOrAdmin ? 'Dashboard Pusat' : 'Dashboard'}
+                {isDaerah ? 'Dashboard Badan Pengurus Daerah' : isPusatOrAdmin ? 'Dashboard Badan Pengurus Pusat' : 'Dashboard'}
               </h1>
               <p className="text-white/90">
                 {isDaerah

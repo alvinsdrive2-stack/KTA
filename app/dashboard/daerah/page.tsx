@@ -231,7 +231,7 @@ export default function DaerahListPage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Diskon</span>
+                    <span className="text-slate-600">Porsi</span>
                     <span className="font-semibold text-blue-600">
                       {daerah.diskonPersen}%
                     </span>

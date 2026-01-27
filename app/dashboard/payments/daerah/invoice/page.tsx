@@ -187,7 +187,7 @@ export default function CreateInvoicePage() {
 
             {diskonPersen > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-green-600">Diskon Daerah ({diskonPersen}%)</span>
+                <span className="text-green-600">Porsi BPD ({diskonPersen}%)</span>
                 <span className="font-medium text-green-600">
                   -Rp {totalDiskon.toLocaleString('id-ID')}
                 </span>
@@ -206,7 +206,7 @@ export default function CreateInvoicePage() {
             {diskonPersen > 0 && (
               <div className="text-sm text-green-600 bg-green-50 p-3 rounded-lg flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />
-                <span>Anda hemat Rp {totalDiskon.toLocaleString('id-ID')} dengan diskon daerah!</span>
+                <span>Anda hemat Rp {totalDiskon.toLocaleString('id-ID')} dengan Porsi BPD!</span>
               </div>
             )}
           </div>
