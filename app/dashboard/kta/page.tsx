@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Search, Download, Filter, FileText, CheckCircle, Package, CheckSquare, X, Calendar, FileSpreadsheet, Loader2 } from 'lucide-react'
+import { Search, Download, Filter, FileText, CheckCircle, Package, CheckSquare, X, Calendar, FileSpreadsheet, Loader2, Upload, Database } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useKTASelection } from '@/contexts/KTASelectionContext'
 import { JenjangBadge } from '@/components/ui/jenjang-badge'
+import { ImportKtaLegacyModal } from '@/components/dashboard/import-kta-legacy-modal'
 import {
   Select,
   SelectContent,
@@ -21,7 +22,7 @@ import {
 
 interface KTARequest {
   id: string
-  idIzin: string
+  idIzin: string | null
   nama: string
   nik: string
   jenjang: string
@@ -66,8 +67,12 @@ export default function KTAPage() {
   const [endDate, setEndDate] = useState('')
   const [downloading, setDownloading] = useState(false)
 
+  // Import modal state (ADMIN only)
+  const [importLegacyModalOpen, setImportLegacyModalOpen] = useState(false)
+
   // Check if user is PUSAT, ADMIN, or KEUANGAN
   const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN' || session?.user.role === 'KEUANGAN'
+  const isAdmin = session?.user.role === 'ADMIN'
 
   // Debounce search term
   useEffect(() => {
@@ -249,6 +254,14 @@ export default function KTAPage() {
 
   return (
     <>
+      <ImportKtaLegacyModal
+        open={importLegacyModalOpen}
+        onOpenChange={setImportLegacyModalOpen}
+        onSuccess={() => {
+          fetchKTARequests()
+        }}
+      />
+
       <div className="space-y-5 overflow-hidden">
         {/* Header */}
         <div className="animate-slide-up-stagger stagger-1">
@@ -371,6 +384,27 @@ export default function KTAPage() {
                     </>
                   )}
                 </Button>
+
+                {isAdmin && (
+                  <>
+                    <Button
+                      onClick={() => setImportLegacyModalOpen(true)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import Data Lama
+                    </Button>
+
+                    <Button
+                      onClick={() => router.push('/dashboard/kta/legacy')}
+                      variant="outline"
+                      className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                    >
+                      <Database className="h-4 w-4 mr-2" />
+                      Lihat Data Legacy
+                    </Button>
+                  </>
+                )}
               </div>
 
               {/* Filter info */}
@@ -511,7 +545,7 @@ export default function KTAPage() {
                           </td>
                           <td className="py-3 px-4 text-sm text-slate-900 font-medium">{request.nama}</td>
                           <td className="py-3 px-4 text-sm text-slate-700 font-mono">{request.nomorKTA || '-'}</td>
-                          <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.idIzin}</td>
+                          <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.idIzin || '-'}</td>
                           <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.nik}</td>
                           <td className="py-3 px-4">
                             <JenjangBadge jenjang={request.jenjang} />

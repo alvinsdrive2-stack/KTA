@@ -94,7 +94,7 @@ model Subklasifikasi {
 
 model KTARequest {
   id                 String          @id @default(cuid())
-  idIzin             String          @unique
+  idIzin             String?         @unique
   daerahId           String
   requestedBy        String
   nik                String
