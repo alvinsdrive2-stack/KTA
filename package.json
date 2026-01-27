@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:network": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -21,7 +22,8 @@
     "db:truncate-all": "tsx scripts/truncate-all-tables.ts",
     "db:import-mysql": "tsx scripts/import-to-mysql.ts",
     "db:truncate-jabatan-kerja": "tsx scripts/truncate-jabatan-kerja.ts",
-    "db:sync-jabatan-kerja": "tsx scripts/sync-jabatan-kerja-from-siki.ts"
+    "db:sync-jabatan-kerja": "tsx scripts/sync-jabatan-kerja-from-siki.ts",
+    "db:sync-jabatan-kerja-asap": "tsx scripts/sync-jabatan-kerja-from-asap.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

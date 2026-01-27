@@ -61,6 +61,7 @@ export default function PermohonanPage() {
   const [showImportModal, setShowImportModal] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [daerahList, setDaerahList] = useState<Daerah[]>([])
 
   // Track if we've already shown the toast
   const hasShownToast = useRef(false)
@@ -104,6 +105,22 @@ export default function PermohonanPage() {
   useEffect(() => {
     fetchKTARequests()
   }, [statusFilter, daerahFilter, debouncedSearchTerm, currentPage])
+
+  // Fetch daerah list for filter
+  useEffect(() => {
+    const fetchDaerahList = async () => {
+      try {
+        const response = await fetch('/api/daerah')
+        const data = await response.json()
+        if (data.success) {
+          setDaerahList(data.data)
+        }
+      } catch (error) {
+        console.error('Error fetching daerah list:', error)
+      }
+    }
+    fetchDaerahList()
+  }, [])
 
   const fetchKTARequests = async () => {
     try {
@@ -265,10 +282,8 @@ export default function PermohonanPage() {
               <SelectContent>
                 <SelectItem value="all">Semua Status</SelectItem>
                 <SelectItem value="DRAFT">Draft</SelectItem>
-                <SelectItem value="FETCHED_FROM_SIKI">Diambil dari SIKI</SelectItem>
                 <SelectItem value="WAITING_PAYMENT">Menunggu Pembayaran</SelectItem>
-                <SelectItem value="APPROVED_BY_PUSAT">Terkonfirmasi</SelectItem>
-                <SelectItem value="PRINTED">Sudah Cetak</SelectItem>
+                <SelectItem value="READY_TO_PRINT">Siap Cetak</SelectItem>
               </SelectContent>
             </Select>
 
@@ -277,19 +292,16 @@ export default function PermohonanPage() {
                 setDaerahFilter(val)
                 setCurrentPage(1)
               }}>
-                <SelectTrigger className="w-48 bg-white">
+                <SelectTrigger className="w-64 bg-white">
                   <SelectValue placeholder="Filter Daerah" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Daerah</SelectItem>
-                  <SelectItem value="00">00 - Nasional</SelectItem>
-                  <SelectItem value="11">11 - Aceh</SelectItem>
-                  <SelectItem value="12">12 - Sumatera Utara</SelectItem>
-                  <SelectItem value="31">31 - DKI Jakarta</SelectItem>
-                  <SelectItem value="32">32 - Jawa Barat</SelectItem>
-                  <SelectItem value="33">33 - Jawa Tengah</SelectItem>
-                  <SelectItem value="34">34 - DI Yogyakarta</SelectItem>
-                  <SelectItem value="35">35 - Jawa Timur</SelectItem>
+                  {daerahList.map((daerah) => (
+                    <SelectItem key={daerah.id} value={daerah.kodeDaerah}>
+                      {daerah.kodeDaerah} - {daerah.namaDaerah}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}

@@ -39,14 +39,29 @@ export async function POST(request: NextRequest) {
     // Extract klasifikasi data from klasifikasi_kualifikasi array
     const klasifikasiKualifikasi = sikiData.data.klasifikasi_kualifikasi?.[0]
     let subklasifikasiId = null
+    let subklasifikasiName = ''
     let jabatanKerja = 'N/A'
     let jenjang = ''
 
     if (klasifikasiKualifikasi) {
       const kodeSubklasifikasi = klasifikasiKualifikasi.subklasifikasi
+      const kodeJabker = klasifikasiKualifikasi.id_jabatan_kerja || klasifikasiKualifikasi.kode_jabker || ''
       const idKlasifikasi = klasifikasiKualifikasi.klasifikasi
-      jabatanKerja = klasifikasiKualifikasi.jabatan_kerja || 'N/A'
       jenjang = klasifikasiKualifikasi.jenjang || ''
+
+      // Get subklasifikasi name from SIKI API
+      const { sikiApi } = await import('@/lib/siki-api')
+      if (kodeSubklasifikasi) {
+        const subklasifikasiNameFromAPI = await sikiApi.getSubklasifikasiName(kodeSubklasifikasi)
+        subklasifikasiName = subklasifikasiNameFromAPI || kodeSubklasifikasi
+      }
+
+      // Get jabatan kerja name from lookup table
+      if (kodeJabker) {
+        const { getJabatanKerjaByKode } = await import('@/lib/jabker-lookup')
+        const jabatanKerjaFromLookup = await getJabatanKerjaByKode(kodeJabker)
+        jabatanKerja = jabatanKerjaFromLookup || kodeJabker
+      }
 
       if (kodeSubklasifikasi && idKlasifikasi) {
         // Try to find existing subklasifikasi
@@ -54,7 +69,7 @@ export async function POST(request: NextRequest) {
           where: { kodeSubklasifikasi: kodeSubklasifikasi }
         })
 
-        // If not found, create new entry
+        // If not found, create new entry with proper name
         if (!subklasifikasi) {
           // Parse kode_subklasifikasi to extract id_subklasifikasi (after first 2 chars)
           const idSubklasifikasi = kodeSubklasifikasi.substring(2).toUpperCase()
@@ -64,7 +79,7 @@ export async function POST(request: NextRequest) {
               idKlasifikasi: idKlasifikasi,
               idSubklasifikasi: idSubklasifikasi,
               kodeSubklasifikasi: kodeSubklasifikasi,
-              subklasifikasi: `${idKlasifikasi}${idSubklasifikasi}`, // Fallback name
+              subklasifikasi: subklasifikasiName || `${idKlasifikasi}${idSubklasifikasi}`,
             }
           })
         }
@@ -131,6 +146,7 @@ export async function POST(request: NextRequest) {
           nik: sikiData.data.nik || '',
           nama: sikiData.data.nama || '',
           jabatanKerja: jabatanKerja,
+          subklasifikasi: subklasifikasiName, // Store name directly, not code
           subklasifikasiId: subklasifikasiId,
           jenjang: jenjang,
           noTelp: sikiData.data.telepon || '',

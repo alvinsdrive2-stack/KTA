@@ -42,21 +42,24 @@ model Session {
 }
 
 model Daerah {
-  id           String        @id @default(cuid())
-  namaDaerah   String
-  kodeDaerah   String        @unique
-  alamat       String?
-  telepon      String?
-  email        String?
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  kodePropinsi String?
-  diskonPersen Int           @default(0)
-  bulkPayments BulkPayment[]
-  ktaRequests  KTARequest[]
-  regionPrices RegionPrice[]
-  users        User[]
+  id                   String        @id @default(cuid())
+  namaDaerah           String
+  kodeDaerah           String        @unique
+  alamat               String?
+  telepon              String?
+  email                String?
+  isActive             Boolean       @default(true)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  kodePropinsi         String?
+  diskonPersen         Int           @default(0)
+  lastSequenceAhli     Int           @default(0)
+  lastSequenceTeknisi  Int           @default(0)
+  lastSequenceOperator Int           @default(0)
+  bulkPayments         BulkPayment[]
+  ktaRequests          KTARequest[]
+  regionPrices         RegionPrice[]
+  users                User[]
 
   @@map("daerah")
 }
@@ -255,6 +258,16 @@ model JabatanKerja {
   @@index([jenjangId])
   @@index([idJabatanKerja])
   @@map("jabatan_kerja")
+}
+
+model LookupJabker {
+  id           String   @id @default(cuid())
+  kodeJabker   String   @unique
+  jabatanKerja String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("lookup_jabker")
 }
 
 enum UserRole {
