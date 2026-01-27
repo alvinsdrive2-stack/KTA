@@ -775,13 +775,16 @@ export default function KTAApplyPage() {
                 <Label htmlFor="idIzin" className="text-slate-700">ID Izin <span className="text-red-600">*</span></Label>
                 <Input
                   id="idIzin"
-                  placeholder="Contoh: 1234567890123456"
+                  placeholder=" Contoh : I-202600000000000000, I-202500000000000000"
                   {...form.register('idIzin')}
                   disabled={isLoading}
                   className="bg-white"
                 />
+                <p className="text-xs text-slate-500 mt-2">
+                  Masukkan 21 digit nomor ID Izin yang Anda dapatkan dari SIKI.
+                </p>
                 <p className="text-xs text-slate-500">
-                  Masukkan 21 digit nomor ID Izin yang Anda dapatkan dari SIKI
+                  Dapat dipisahkan dengan koma, atau spasi untuk menambahkan banyak ID Izin sekaligus.
                 </p>
                 {form.formState.errors.idIzin && (
                   <p className="text-sm text-red-600 flex items-center gap-1">

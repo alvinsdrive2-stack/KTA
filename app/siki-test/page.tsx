@@ -22,45 +22,85 @@ interface SIKIResponse {
   }>
 }
 
+interface ResultWithTiming {
+  data: SIKIResponse | null
+  error: string | null
+  timing: number // in ms
+}
+
 export default function SIKITestPage() {
   const [nik, setNik] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<SIKIResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [results, setResults] = useState<ResultWithTiming[]>([])
+  const [totalTime, setTotalTime] = useState(0)
 
   const handleSearch = async () => {
-    if (!nik || nik.length < 5) {
-      setError('Masukkan NIK yang valid')
+    // Parse NIKs - split by comma or space, filter empty
+    const niks = nik
+      .split(/[,\s]+/)
+      .map(n => n.trim())
+      .filter(n => n.length > 0)
+
+    if (niks.length === 0) {
       return
     }
 
     setLoading(true)
-    setError(null)
-    setResult(null)
+    setResults([])
+    setTotalTime(0)
+
+    const startTime = performance.now()
 
     try {
-      const res = await fetch(`/api/siki/${nik}`)
+      // Use bulk API endpoint
+      const res = await fetch('/api/siki/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ niks }),
+      })
+
       const data = await res.json()
 
       if (!res.ok) {
         throw new Error(data.error || 'Terjadi kesalahan')
       }
 
-      setResult(data)
+      // Map bulk response to ResultWithTiming format
+      const newResults: ResultWithTiming[] = data.results.map((r: any) => ({
+        data: r.status === 'success' ? r : null,
+        error: r.error || null,
+        timing: r.timing || 0,
+      }))
+
+      const elapsed = performance.now() - startTime
+      setResults(newResults)
+      setTotalTime(elapsed)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan')
+      const errorMsg = err instanceof Error ? err.message : 'Terjadi kesalahan'
+      // Show error for all NIKs
+      const newResults: ResultWithTiming[] = niks.map(n => ({
+        data: null,
+        error: errorMsg,
+        timing: 0,
+      }))
+      setResults(newResults)
     } finally {
       setLoading(false)
     }
   }
 
+  const foundCount = results.filter(r => r.data && !r.error).length
+  const avgTime = results.length > 0 ? totalTime / results.length : 0
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow p-6">
-          <h1 className="text-2xl font-bold mb-2">Test SIKI Lookup</h1>
+          <h1 className="text-2xl font-bold mb-2">Test SIKI Lookup (Bulk)</h1>
           <p className="text-gray-600 mb-6">
-            Cari data SIKI berdasarkan NIK - Page ini tidak butuh login
+            Cari data SIKI berdasarkan NIK - Support multiple NIKs pisahkan dengan koma atau spasi
           </p>
 
           <div className="flex gap-2 mb-6">
@@ -68,7 +108,7 @@ export default function SIKITestPage() {
               type="text"
               value={nik}
               onChange={(e) => setNik(e.target.value)}
-              placeholder="Masukkan NIK..."
+              placeholder="Masukkan NIK(s) pisahkan dengan koma atau spasi..."
               className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
@@ -81,96 +121,79 @@ export default function SIKITestPage() {
             </button>
           </div>
 
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-              {error}
-            </div>
-          )}
-
-          {result && (
-            <div className="space-y-4">
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h2 className="font-semibold text-green-800 mb-2">Data Ditemukan!</h2>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-gray-600">Nama:</span>{' '}
-                    <span className="font-medium">{result.personal?.nama || '-'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">NIK:</span>{' '}
-                    <span className="font-medium">{result.nik}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">ID Izin:</span>{' '}
-                    <span className="font-medium">{result.id_izin}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Jenjang Tertinggi:</span>{' '}
-                    <span className="font-bold text-blue-600 text-lg">{result.jenjang}</span>
-                  </div>
+          {/* Benchmark Summary */}
+          {results.length > 0 && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="font-semibold text-blue-800 mb-2">Benchmark Results</h3>
+              <div className="grid grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">Total NIK:</span>
+                  <div className="font-bold text-lg">{results.length}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Ditemukan:</span>
+                  <div className="font-bold text-lg text-green-600">{foundCount}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Total Time:</span>
+                  <div className="font-bold text-lg">{totalTime.toFixed(0)}ms</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Avg Time:</span>
+                  <div className="font-bold text-lg">{avgTime.toFixed(0)}ms</div>
                 </div>
               </div>
-
-              {result.klasifikasi.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-2">Klasifikasi Kualifikasi:</h3>
-                  <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="px-4 py-2 text-left">Jenjang</th>
-                          <th className="px-4 py-2 text-left">Subklasifikasi</th>
-                          <th className="px-4 py-2 text-left">Kualifikasi</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {result.klasifikasi.map((k, i) => (
-                          <tr key={i} className="border-t">
-                            <td className="px-4 py-2 font-medium">{k.jenjang}</td>
-                            <td className="px-4 py-2">{k.subklasifikasi}</td>
-                            <td className="px-4 py-2">{k.kualifikasi}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {result.personal?.tempat_lahir && (
-                <div className="p-4 bg-gray-50 rounded-lg text-sm">
-                  <div>
-                    <span className="text-gray-600">TTL:</span>{' '}
-                    <span>
-                      {result.personal.tempat_lahir}, {result.personal.tanggal_lahir}
-                    </span>
-                  </div>
-                  {result.personal.email && (
-                    <div>
-                      <span className="text-gray-600">Email:</span> {result.personal.email}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
-          <div className="mt-6 pt-6 border-t">
-            <p className="text-xs text-gray-500">
-              <strong>Test NIKs dari data:</strong>
-            </p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {['3278021606940009', '1471052001910022', '6171051806930002'].map((testNik) => (
-                <button
-                  key={testNik}
-                  onClick={() => setNik(testNik)}
-                  className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
-                >
-                  {testNik}
-                </button>
-              ))}
+          {/* Results Table */}
+          {results.length > 0 && (
+            <div className="border rounded-lg overflow-hidden mb-6">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left">NIK</th>
+                    <th className="px-4 py-3 text-left">Nama</th>
+                    <th className="px-4 py-3 text-center">Jenjang</th>
+                    <th className="px-4 py-3 text-center">Time</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.map((result, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="px-4 py-3 font-mono text-xs">
+                        {result.data?.nik || '-'}
+                      </td>
+                      <td className="px-4 py-3">
+                        {result.data?.personal?.nama || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {result.data?.jenjang !== undefined ? (
+                          <span className="font-bold text-blue-600">
+                            {result.data.jenjang}
+                          </span>
+                        ) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`font-mono text-xs ${result.timing > 1000 ? 'text-orange-600' : 'text-gray-600'}`}>
+                          {result.timing.toFixed(0)}ms
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {result.error ? (
+                          <span className="text-red-600">{result.error}</span>
+                        ) : (
+                          <span className="text-green-600">Found</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+          )}
+
         </div>
       </div>
     </div>

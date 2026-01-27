@@ -734,8 +734,27 @@ export default function CreateManualPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:border-blue-400 transition-colors">
-                    <div className="text-center">
+                  <div
+                    className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer"
+                    onClick={() => document.getElementById('ktp-upload')?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      e.currentTarget.classList.add('border-blue-500', 'bg-blue-50')
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault()
+                      e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50')
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50')
+                      const file = e.dataTransfer.files?.[0]
+                      if (file && ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'].includes(file.type)) {
+                        handleFileChange('ktp', file)
+                      }
+                    }}
+                  >
+                    <div className="text-center pointer-events-none">
                       <IdCard className="h-10 w-10 mx-auto text-slate-400 mb-2" />
                       <p className="text-sm text-slate-600 mb-2">
                         Klik untuk upload atau drag & drop
@@ -759,16 +778,6 @@ export default function CreateManualPage() {
                         className="hidden"
                         id="ktp-upload"
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => document.getElementById('ktp-upload')?.click()}
-                        disabled={isLoading}
-                        className="mt-2"
-                      >
-                        Pilih File
-                      </Button>
                     </div>
                   </div>
                 )}

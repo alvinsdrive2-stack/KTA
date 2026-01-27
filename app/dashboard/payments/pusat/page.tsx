@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
 import { usePaymentSelection } from '@/contexts/PaymentSelectionContext'
+import {getJenjangCategory} from '@/components/ui/jenjang-badge'
 
 interface KTARequest {
   id: string
@@ -321,7 +322,7 @@ export default function PusatPaymentPage() {
                           <span>•</span>
                           <span className="font-mono">{request.nik}</span>
                           <span>•</span>
-                          <span>Jenjang {request.jenjang}</span>
+                          <span>Jenjang {getJenjangCategory(request.jenjang)}</span>
                           {request.isUpgrade && request.upgradeFromKtaId && (
                             <>
                               <span>•</span>

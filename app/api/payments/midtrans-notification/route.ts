@@ -1,8 +1,119 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyNotification, mapPaymentStatus } from '@/lib/midtrans'
+import { QRCodeGenerator } from '@/lib/qr-generator'
 
 export const dynamic = 'force-dynamic'
+
+// Helper function to generate nomorKTA
+async function generateNomorKTA(daerahId: string, jenjang: string): Promise<string> {
+  const jenjangNum = parseInt(jenjang, 10)
+  let jenjangCode: string
+  let jenjangCategory: string
+  let sequenceField: 'lastSequenceAhli' | 'lastSequenceTeknisi' | 'lastSequenceOperator'
+
+  if (jenjangNum >= 1 && jenjangNum <= 3) {
+    jenjangCode = '03'
+    jenjangCategory = 'Operator'
+    sequenceField = 'lastSequenceOperator'
+  } else if (jenjangNum >= 4 && jenjangNum <= 6) {
+    jenjangCode = '02'
+    jenjangCategory = 'Teknisi/Analis'
+    sequenceField = 'lastSequenceTeknisi'
+  } else if (jenjangNum >= 7 && jenjangNum <= 9) {
+    jenjangCode = '01'
+    jenjangCategory = 'Ahli'
+    sequenceField = 'lastSequenceAhli'
+  } else {
+    throw new Error(`Invalid jenjang: ${jenjang}. Must be between 1-9.`)
+  }
+
+  const daerah = await prisma.daerah.findUnique({
+    where: { id: daerahId },
+    select: {
+      kodeDaerah: true,
+      lastSequenceAhli: true,
+      lastSequenceTeknisi: true,
+      lastSequenceOperator: true
+    }
+  })
+
+  if (!daerah) {
+    throw new Error('Daerah not found')
+  }
+
+  const currentSequence = daerah[sequenceField]
+  const nextSequence = currentSequence + 1
+
+  await prisma.daerah.update({
+    where: { id: daerahId },
+    data: { [sequenceField]: nextSequence }
+  })
+
+  const sequence = String(nextSequence).padStart(6, '0')
+  const nomorKTA = `${daerah.kodeDaerah}.${jenjangCode}.${sequence}`
+
+  console.log(`🎫 Generated nomorKTA: ${nomorKTA} (daerah=${daerah.kodeDaerah}, jenjang=${jenjang}, category=${jenjangCategory}, code=${jenjangCode}, sequence=${sequence})`)
+
+  return nomorKTA
+}
+
+// Helper function to prepare KTA for print
+async function prepareKTAForPrint(ktaId: string) {
+  console.log(`📄 Preparing KTA for print: ${ktaId}`)
+
+  try {
+    const ktaRequest = await prisma.kTARequest.findUnique({
+      where: { id: ktaId },
+      select: {
+        id: true,
+        nomorKTA: true,
+        daerahId: true,
+        jenjang: true,
+        nama: true,
+        nik: true,
+        status: true
+      }
+    })
+
+    if (!ktaRequest) {
+      throw new Error('KTA not found')
+    }
+
+    if (ktaRequest.nomorKTA && ktaRequest.status === 'READY_TO_PRINT') {
+      console.log(`⏭️  KTA ${ktaId} already ready: ${ktaRequest.nomorKTA}`)
+      return
+    }
+
+    let nomorKTA = ktaRequest.nomorKTA
+    if (!nomorKTA) {
+      console.log(`🔢 Generating nomorKTA for daerahId=${ktaRequest.daerahId}, jenjang=${ktaRequest.jenjang}`)
+      nomorKTA = await generateNomorKTA(ktaRequest.daerahId, ktaRequest.jenjang)
+      console.log(`✅ Generated nomorKTA for ${ktaRequest.nama}: ${nomorKTA}`)
+    }
+
+    let qrCodePath = ktaRequest.qrCodePath
+    if (!qrCodePath) {
+      qrCodePath = await QRCodeGenerator.generateKTAQR({
+        nik: ktaRequest.nik,
+      })
+    }
+
+    await prisma.kTARequest.update({
+      where: { id: ktaId },
+      data: {
+        nomorKTA,
+        qrCodePath,
+        status: 'READY_TO_PRINT'
+      }
+    })
+
+    console.log(`💾 Updated KTA ${ktaId} - ready to print`)
+  } catch (error) {
+    console.error(`❌ Error preparing KTA ${ktaId}:`, error)
+    throw error
+  }
+}
 
 /**
  * Midtrans Payment Notification Handler (Webhook)
@@ -104,20 +215,25 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // If payment is verified, update KTA request status to READY_TO_PRINT
+    // If payment is verified, generate nomorKTA and update KTA request status to READY_TO_PRINT
     if (newStatus === 'VERIFIED') {
       const ktaRequestIds = bulkPayment.payments.map(p => p.ktaRequestId)
 
-      await prisma.kTARequest.updateMany({
-        where: {
-          id: { in: ktaRequestIds }
-        },
-        data: {
-          status: 'READY_TO_PRINT'
-        }
-      })
+      console.log(`🎨 Preparing ${ktaRequestIds.length} KTA(s) for print (Midtrans verified)...`)
+      let succeeded = 0
+      let failed = 0
 
-      console.log(`Updated ${ktaRequestIds.length} KTA requests to READY_TO_PRINT (Midtrans auto-verified)`)
+      for (const ktaId of ktaRequestIds) {
+        try {
+          await prepareKTAForPrint(ktaId)
+          succeeded++
+        } catch (error) {
+          console.error(`❌ Failed to prepare KTA ${ktaId}:`, error)
+          failed++
+        }
+      }
+
+      console.log(`✅ Prepared ${succeeded} KTA(s) for print${failed > 0 ? ` (${failed} failed)` : ''} (Midtrans verified)`)
     }
 
     return NextResponse.json({

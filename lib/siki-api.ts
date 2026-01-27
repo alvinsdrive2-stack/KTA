@@ -1,4 +1,5 @@
 import { extractProvinceFromAddress, getProvinceNameByKode } from './province-mapping'
+import { getOrCreateJabatanKerja } from './jabker-lookup'
 
 interface SIKIData {
   nik: string
@@ -84,29 +85,16 @@ export class SIKIApiClient {
     }
   }
 
-  // Fetch jabatan kerja by code from new API
+  // Fetch jabatan kerja by code from local lookup table (with ASAP fallback)
   async getJabatanKerjaByCode(kodeJabker: string): Promise<string | null> {
     try {
-      const url = `https://asap.lspgatensi.id/api/jabker?kode_jabker=${kodeJabker}`
-      console.log('Fetching jabatan kerja from:', url)
+      console.log(`Looking up jabatan kerja: "${kodeJabker}"`)
 
-      const response = await fetch(url)
+      // Use hybrid lookup: check local table first, then fetch from ASAP if not found
+      const jabatanKerja = await getOrCreateJabatanKerja(kodeJabker)
 
-      if (!response.ok) {
-        console.error('Failed to fetch jabatan kerja:', response.status)
-        return null
-      }
-
-      const data = await response.json()
-
-      // Check response structure and extract jabatan_kerja field
-      if (data && data.data && data.data.jabatan_kerja) {
-        console.log(`✓ Found jabatan kerja: "${kodeJabker}" → "${data.data.jabatan_kerja}"`)
-        return data.data.jabatan_kerja
-      }
-
-      console.log(`⚠️ Jabatan kerja "${kodeJabker}" not found in API response`)
-      return null
+      console.log(`✓ Found jabatan kerja: "${kodeJabker}" → "${jabatanKerja}"`)
+      return jabatanKerja
     } catch (error) {
       console.error('Error fetching jabatan kerja by code:', error)
       return null
