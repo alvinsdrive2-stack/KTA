@@ -57,14 +57,45 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Initialize date range
+    // Initialize date labels based on period
     const dateLabels: string[] = []
-    const currentDate = new Date(startDate)
-    while (currentDate <= now) {
-      // Use local date format instead of ISO to avoid timezone issues
-      const dateKey = formatDateKey(currentDate)
-      dateLabels.push(dateKey)
-      currentDate.setDate(currentDate.getDate() + 1)
+
+    if (period === 'week') {
+      // Week: every day
+      const currentDate = new Date(startDate)
+      while (currentDate <= now) {
+        const dateKey = formatDateKey(currentDate)
+        dateLabels.push(dateKey)
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
+    } else if (period === 'month') {
+      // Month: every 5 days (1-5, 6-10, etc.)
+      const currentDate = new Date(startDate)
+      let dayCounter = 1
+      while (currentDate <= now) {
+        // Group every 5 days
+        const groupDay = Math.floor((dayCounter - 1) / 5) * 5 + 1
+        const groupDate = new Date(currentDate)
+        groupDate.setDate(groupDay)
+        const dateKey = formatDateKey(groupDate)
+
+        if (!dateLabels.includes(dateKey)) {
+          dateLabels.push(dateKey)
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1)
+        dayCounter++
+      }
+    } else if (period === 'year') {
+      // Year: by month
+      const currentDate = new Date(startDate)
+      while (currentDate <= now) {
+        const dateKey = formatDateKeyMonth(currentDate)
+        if (!dateLabels.includes(dateKey)) {
+          dateLabels.push(dateKey)
+        }
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
     }
 
     // Fetch all active regions
@@ -74,7 +105,7 @@ export async function GET(request: NextRequest) {
       orderBy: { namaDaerah: 'asc' },
     })
 
-    // Group by date and region - initialize ALL regions with 0
+    // Group by date and region
     const regionDataMap: Record<string, Record<string, number>> = {}
 
     allRegions.forEach((region) => {
@@ -88,11 +119,26 @@ export async function GET(request: NextRequest) {
     // Fill in the counts
     ktaRequests.forEach((request) => {
       const regionName = request.daerah?.namaDaerah
-      // Only count if the region exists in our map
       if (regionName && regionDataMap[regionName]) {
-        // Use local date format instead of ISO to avoid timezone issues
-        const dateKey = formatDateKey(request.createdAt)
-        regionDataMap[regionName][dateKey]++
+        let dateKey: string
+
+        if (period === 'week') {
+          dateKey = formatDateKey(request.createdAt)
+        } else if (period === 'month') {
+          // Group by 5-day periods
+          const dayOfMonth = request.createdAt.getDate()
+          const groupDay = Math.floor((dayOfMonth - 1) / 5) * 5 + 1
+          const groupDate = new Date(request.createdAt)
+          groupDate.setDate(groupDay)
+          dateKey = formatDateKey(groupDate)
+        } else {
+          // year: group by month
+          dateKey = formatDateKeyMonth(request.createdAt)
+        }
+
+        if (regionDataMap[regionName][dateKey] !== undefined) {
+          regionDataMap[regionName][dateKey]++
+        }
       }
     })
 
@@ -107,7 +153,7 @@ export async function GET(request: NextRequest) {
       .slice(0, 5) // Top 5 regions
       .map(([region]) => region)
 
-    // Build chart data - one data point per date
+    // Build chart data
     const chartData = dateLabels.map((date) => {
       const dataPoint: any = {
         date: formatDate(date, period),
@@ -142,16 +188,27 @@ function formatDateKey(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+// Format date as YYYY-MM for monthly grouping
+function formatDateKeyMonth(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
+
 function formatDate(dateString: string, period: string): string {
   const date = new Date(dateString)
 
   if (period === 'week') {
     // For week, show day name (e.g., "Sen", "Sel")
-    const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
     return days[date.getDay()]
   } else if (period === 'month') {
-    // For month, show date (e.g., "1 Jan", "15 Jan")
-    return date.getDate() + ' ' + date.toLocaleDateString('id-ID', { month: 'short' })
+    // For month, show date range (e.g., "1-5 Jan", "26-31 Jan")
+    const startDay = date.getDate()
+    // Get the last day of the month dynamically
+    const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+    const endDay = Math.min(startDay + 4, lastDayOfMonth)
+    return `${startDay}-${endDay} ${date.toLocaleDateString('id-ID', { month: 'short' })}`
   } else {
     // For year, show month name (e.g., "Jan", "Feb")
     return date.toLocaleDateString('id-ID', { month: 'short' })

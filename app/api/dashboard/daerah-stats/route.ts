@@ -63,28 +63,64 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Initialize all dates in the range with 0
+    // Initialize date labels based on period
     const groupedData: Record<string, number> = {}
-    const currentDate = new Date(startDate)
-    while (currentDate <= now) {
-      // Use local timezone to avoid UTC shift
-      const year = currentDate.getFullYear()
-      const month = String(currentDate.getMonth() + 1).padStart(2, '0')
-      const day = String(currentDate.getDate()).padStart(2, '0')
-      const dateKey = `${year}-${month}-${day}`
-      groupedData[dateKey] = 0
-      currentDate.setDate(currentDate.getDate() + 1)
+
+    if (period === 'week') {
+      // Week: every day
+      const currentDate = new Date(startDate)
+      while (currentDate <= now) {
+        const dateKey = formatDateKey(currentDate)
+        groupedData[dateKey] = 0
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
+    } else if (period === 'month') {
+      // Month: every 5 days (1-5, 6-10, etc.)
+      const currentDate = new Date(startDate)
+      let dayCounter = 1
+      while (currentDate <= now) {
+        // Group every 5 days
+        const groupDay = Math.floor((dayCounter - 1) / 5) * 5 + 1
+        const groupDate = new Date(currentDate)
+        groupDate.setDate(groupDay)
+        const dateKey = formatDateKey(groupDate)
+
+        if (!groupedData[dateKey]) {
+          groupedData[dateKey] = 0
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1)
+        dayCounter++
+      }
+    } else if (period === 'year') {
+      // Year: by month
+      const currentDate = new Date(startDate)
+      while (currentDate <= now) {
+        const dateKey = formatDateKeyMonth(currentDate)
+        if (!groupedData[dateKey]) {
+          groupedData[dateKey] = 0
+        }
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
     }
 
-    // Count printed KTA per date - use local timezone to avoid UTC shift
+    // Count printed KTA per date group
     printedKTA.forEach((kta) => {
-      // Get the local date components to avoid UTC conversion issues
-      const localDate = new Date(kta.createdAt.getTime())
-      // Format as YYYY-MM-DD in local timezone
-      const year = localDate.getFullYear()
-      const month = String(localDate.getMonth() + 1).padStart(2, '0')
-      const day = String(localDate.getDate()).padStart(2, '0')
-      const dateKey = `${year}-${month}-${day}`
+      let dateKey: string
+
+      if (period === 'week') {
+        dateKey = formatDateKey(kta.createdAt)
+      } else if (period === 'month') {
+        // Group by 5-day periods
+        const dayOfMonth = kta.createdAt.getDate()
+        const groupDay = Math.floor((dayOfMonth - 1) / 5) * 5 + 1
+        const groupDate = new Date(kta.createdAt)
+        groupDate.setDate(groupDay)
+        dateKey = formatDateKey(groupDate)
+      } else {
+        // year: group by month
+        dateKey = formatDateKeyMonth(kta.createdAt)
+      }
 
       if (groupedData.hasOwnProperty(dateKey)) {
         groupedData[dateKey]++
@@ -158,14 +194,34 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Format date as YYYY-MM-DD using local timezone (not UTC)
+function formatDateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// Format date as YYYY-MM for monthly grouping
+function formatDateKeyMonth(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
+
 function formatDate(dateString: string, period: string): string {
   const date = new Date(dateString)
 
   if (period === 'week') {
-    const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
     return days[date.getDay()]
   } else if (period === 'month') {
-    return date.getDate() + ' ' + date.toLocaleDateString('id-ID', { month: 'short' })
+    // Show date range (e.g., "1-5 Jan", "26-31 Jan")
+    const startDay = date.getDate()
+    // Get the last day of the month dynamically
+    const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+    const endDay = Math.min(startDay + 4, lastDayOfMonth)
+    return `${startDay}-${endDay} ${date.toLocaleDateString('id-ID', { month: 'short' })}`
   } else {
     return date.toLocaleDateString('id-ID', { month: 'short' })
   }
