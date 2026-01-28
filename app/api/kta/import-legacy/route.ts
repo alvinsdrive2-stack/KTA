@@ -19,6 +19,7 @@ interface ImportedRow {
   alamat: string
   tanggalDaftar: string
   daerahKode?: string
+  daerahId?: string
 }
 
 // Helper to parse Excel/CSV date
@@ -60,7 +61,7 @@ function normalizeColumnName(name: string): string {
 }
 
 // Helper to find column mapping
-function mapColumns(headers: string[]): { mapping: Record<string, string>; normalized: Record<string, string> } {
+function mapColumns(headers: string[], rawData?: any[]): { mapping: Record<string, string>; normalized: Record<string, string> } {
   const mapping: Record<string, string> = {}
   const normalized: Record<string, string> = {}
 
@@ -74,7 +75,7 @@ function mapColumns(headers: string[]): { mapping: Record<string, string>; norma
     nama: ['NAMA_LENGKAP', 'NAMALENGKAP', 'NAMA', 'FULLNAME', 'FULL_NAME', 'NAMALAHIR', 'NAMA_LAHIR'],
     nik: ['NIK', 'NO_NIK', 'NOMOR_NIK', 'NOIDENTITAS', 'NO_ID'],
     idIzin: ['ID_IZIN', 'IDIZIN', 'REGISTRATION_NUMBER'],
-    nomorKTA: ['NOMOR_KTA', 'NOKTA', 'NO_KTA', 'KTA', 'NO_ANGGOTA', 'NOMOR_ANGGOTA'],
+    nomorKTA: ['NOMOR_KTA', 'NOKTA', 'NO_KTA', 'KTA', 'NO_ANGGOTA', 'NOMOR_ANGGOTA', 'NO_KTA_ASLI', 'NOMOR_KTA_ASLI', 'NOMORKTA', 'NOMOR KTA', 'NO KTA','Nomor KTA (Opsional)'],
     jenjang: ['JENJANG', 'LEVEL', 'TINGKAT', 'GRADE'],
     jabatanKerja: ['JABATAN_KERJA', 'JABATANKERJA', 'JABATAN', 'POSITION', 'JOB_TITLE'],
     subklasifikasi: ['SUBKLASIFIKASI', 'SUB_KLASIFIKASI', 'SUBCLASS', 'SUB_CLASSIFICATION', 'KLASIFIKASI'],
@@ -95,6 +96,24 @@ function mapColumns(headers: string[]): { mapping: Record<string, string>; norma
       }
     }
   })
+
+  // Fallback for nomorKTA: try to detect by content pattern (XX.YY.ZZZZZZ format)
+  // if no column was found by name
+  if (!mapping.nomorKTA && rawData && rawData.length > 0) {
+    for (const header of headers) {
+      // Check if this column contains values matching KTA number pattern
+      const sampleValue = rawData[0]?.[header]
+      if (sampleValue) {
+        const trimmed = sampleValue.toString().trim()
+        // Pattern: XX.YY.ZZZZZZ where X, Y, Z are digits
+        if (/^\d{2}\.\d{2}\.\d{6}$/.test(trimmed)) {
+          console.log(`[DEBUG] Detected nomorKTA column by pattern: ${header} (sample: ${trimmed})`)
+          mapping.nomorKTA = header
+          break
+        }
+      }
+    }
+  }
 
   return { mapping, normalized }
 }
@@ -187,7 +206,14 @@ export async function POST(request: NextRequest) {
     console.log('Raw headers:', headers)
 
     // Map columns
-    const { mapping: columnMapping, normalized } = mapColumns(headers)
+    const { mapping: columnMapping, normalized } = mapColumns(headers, rawData)
+
+    // Debug: Log column mapping for nomorKTA
+    console.log('[DEBUG] Column mapping:', {
+      nomorKTA: columnMapping.nomorKTA,
+      allMappings: columnMapping,
+      normalizedHeaders: normalized
+    })
 
     // Check if required columns are present (idIzin is optional for legacy data)
     const requiredColumns = ['nama', 'nik', 'jabatanKerja', 'subklasifikasi', 'jenjang', 'noTelp', 'email', 'alamat']
@@ -242,13 +268,14 @@ export async function POST(request: NextRequest) {
         const nomorKTAValue = columnMapping.nomorKTA ? row[columnMapping.nomorKTA] : undefined
         const nomorKTA = nomorKTAValue?.toString().trim() || undefined
 
-        // Debug log for nomorKTA
-        if (i === 0 && nomorKTA) {
-          console.log('[DEBUG] First row nomorKTA:', {
-            nomorKTAValue,
-            nomorKTA,
+        // Debug log for nomorKTA - log first few rows regardless of whether nomorKTA exists
+        if (i < 3) {
+          console.log(`[DEBUG] Row ${i + 1} nomorKTA:`, {
             columnKey: columnMapping.nomorKTA,
-            rawValue: row[columnMapping.nomorKTA]
+            rawValue: nomorKTAValue,
+            rawType: typeof nomorKTAValue,
+            nomorKTA,
+            hasMapping: !!columnMapping.nomorKTA
           })
         }
 
@@ -420,33 +447,37 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { rows, daerahId } = body
+    const { rows } = body
 
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json({ error: 'No data to import' }, { status: 400 })
     }
 
-    // Determine daerah
-    let finalDaerahId = daerahId || session.user.daerahId
-
-    if (!finalDaerahId) {
-      return NextResponse.json({ error: 'Daerah is required' }, { status: 400 })
-    }
-
-    // Get daerah diskon
-    const daerah = await prisma.daerah.findUnique({
-      where: { id: finalDaerahId },
-      select: { diskonPersen: true, kodeDaerah: true }
-    })
-
-    const diskonPersen = daerah?.diskonPersen || 0
-
-    // Process each row
+    // Process each row - daerahId comes from each row (extracted from nomorKTA)
     const results = []
     const errors = []
 
     for (const row of rows) {
       try {
+        // daerahId is required per row (extracted from nomorKTA)
+        const finalDaerahId = row.daerahId
+        if (!finalDaerahId) {
+          errors.push({
+            row: row.no,
+            nik: row.nik,
+            nama: row.nama,
+            error: 'Daerah ID tidak ditemukan. Pastikan Nomor KTA diisi dengan format yang benar (XX.YY.ZZZZZZ)'
+          })
+          continue
+        }
+
+        // Get daerah diskon for this specific row's daerah
+        const daerah = await prisma.daerah.findUnique({
+          where: { id: finalDaerahId },
+          select: { diskonPersen: true, kodeDaerah: true }
+        })
+
+        const diskonPersen = daerah?.diskonPersen || 0
         const jenjangNum = parseInt(row.jenjang, 10)
         const hargaBase = jenjangNum >= 7 ? 300000 : 100000
         const hargaFinal = Math.floor(hargaBase - (hargaBase * diskonPersen / 100))
@@ -468,7 +499,7 @@ export async function PUT(request: NextRequest) {
             fotoUrl: null, // Empty for legacy data
             daerahId: finalDaerahId,
             requestedBy: session.user.id,
-            status: 'DRAFT', // Draft status for legacy data
+            status: 'IMPORTED_PENDING_DOCS', // Draft status for legacy data
             hargaRegion: hargaFinal,
             diskonPersen,
             hargaBase: hargaBase,
@@ -484,7 +515,8 @@ export async function PUT(request: NextRequest) {
           nama: ktaRequest.nama,
           nik: ktaRequest.nik,
           jenjang: ktaRequest.jenjang,
-          nomorKTA: ktaRequest.nomorKTA, // For debugging
+          nomorKTA: ktaRequest.nomorKTA,
+          daerahId: finalDaerahId,
         })
       } catch (err) {
         console.error(`Error importing legacy row ${row.no}:`, err)

@@ -69,7 +69,7 @@ export default function PermohonanPage() {
   // Check if user is PUSAT, ADMIN, or KEUANGAN
   const isPusatOrAdmin = session?.user.role === 'PUSAT' || session?.user.role === 'ADMIN' || session?.user.role === 'KEUANGAN'
   // Check if user is PUSAT only
-  const isPusatOnly = session?.user.role === 'PUSAT'
+  const isPusatOnly = session?.user.role === 'PUSAT'|| session?.user.role === 'ADMIN'
 
   // Track initial load
   const initialLoadDone = useRef(false)

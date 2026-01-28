@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
     // Legacy data = DRAFT status OR (READY_TO_PRINT AND missing foto/ktp)
     const whereClause: any = {
           AND: [
-            { status: 'READY_TO_PRINT' },
-            { OR: [{ ktpUrl: null }, { fotoUrl: null }] }
+            { status: 'IMPORTED_PENDING_DOCS' },
+            { OR: [{ ktpUrl: null }, { fotoUrl: null }, { idIzin: null }] }
           ]
     }
 
