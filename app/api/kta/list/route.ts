@@ -90,13 +90,6 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    // Exclude legacy/incomplete data from main dashboard
-    // Only show records with status READY_TO_PRINT, APPROVED, or PRINTED
-    whereClause.AND = [
-      {
-        status: { in: ['READY_TO_PRINT', 'APPROVED_BY_PUSAT', 'PRINTED'] }
-      }
-    ]
 
     const [ktaRequests, total] = await Promise.all([
       prisma.kTARequest.findMany({

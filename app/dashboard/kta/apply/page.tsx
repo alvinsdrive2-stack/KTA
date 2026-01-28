@@ -1174,8 +1174,7 @@ export default function KTAApplyPage() {
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      setSikiData(null)
-                      setKtaRequestId(null)
+                      window.location.reload()
                     }}
                     disabled={isLoading}
                     className="border-slate-300"
