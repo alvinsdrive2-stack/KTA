@@ -46,16 +46,20 @@ interface ChartProps {
   className?: string
 }
 
-// Gatensi Brand Colors
+// Gatensi Brand Colors - Navy Blue Theme
 const LSP_COLORS = {
-  red: '#E31937',
-  redDark: '#B91C1C',
-  redLight: '#FEE2E2',
-  blue: '#1E3A8A',
-  blueDark: '#1E40AF',
-  blueLight: '#DBEAFE',
-  orange: '#f59446',
+  blue: '#1e40af',
+  blueDark: '#1e3a8a',
+  blueLight: '#dbeafe',
+  blue50: '#eff6ff',
+  blue100: '#dbeafe',
+  blue500: '#3b82f6',
+  blue600: '#2563eb',
+  blue800: '#1e40af',
+  blue900: '#1e3a8a',
+  red: '#dc2626',
   green: '#22c55e',
+  orange: '#f59446',
   purple: '#a855f7',
   cyan: '#06b6d4',
   pink: '#ec4899',
@@ -75,167 +79,24 @@ const REGION_COLORS = [
   LSP_COLORS.yellow,
 ]
 
-// Custom tooltip styling following shadcn/ui patterns
-const tooltipStyle = {
-  backgroundColor: 'rgba(255, 255, 255, 0.98)',
-  border: '1px solid rgba(226, 232, 240, 1)',
-  borderRadius: '12px',
-  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-  padding: '12px 16px',
-  fontSize: '13px',
-  fontFamily: 'system-ui, -apple-system, sans-serif',
+// Custom tooltip styling following the new design
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-lg">
+        <p className="text-slate-500 text-xs mb-1">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} className="text-sm" style={{ color: entry.color }}>
+            {entry.name}: {entry.value}
+          </p>
+        ))}
+      </div>
+    )
+  }
+  return null
 }
 
-const tooltipLabelStyle = {
-  color: '#64748b',
-  fontSize: '12px',
-  fontWeight: 500,
-  marginBottom: '4px',
-}
-
-export function StatusChart({ data, className }: { data: StatusData[] } & ChartProps) {
-  return (
-    <Card className={'card-3d ' + (className || '')}>
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold text-slate-900">
-          Distribusi Status KTA
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey="value"
-            >
-              {data.map((entry, index) => (
-                <Cell key={'cell-' + index} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={tooltipStyle}
-              labelStyle={tooltipLabelStyle}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="flex flex-wrap justify-center gap-4 mt-4">
-          {data.map((item) => (
-            <div key={item.name} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: item.color }}
-              />
-              <span className="text-sm text-slate-600">{item.name}</span>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-export function MonthlyTrendsChart({ data, className }: { data: MonthlyData[] } & ChartProps) {
-  return (
-    <Card className={'card-3d ' + (className || '')}>
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold text-slate-900">
-          Tren Bulanan
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="month" stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
-            <YAxis stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} />
-            <Legend />
-            <Bar dataKey="total" name="Total" fill={LSP_COLORS.blue} radius={[4, 4, 0, 0]} />
-            <Bar dataKey="approved" name="Disetujui" fill={LSP_COLORS.green} radius={[4, 4, 0, 0]} />
-            <Bar dataKey="pending" name="Pending" fill={LSP_COLORS.orange} radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  )
-}
-
-export function StatusBreakdownChart({ data, className }: { data: StatusData[] } & ChartProps) {
-  return (
-    <Card className={'card-3d ' + (className || '')}>
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold text-slate-900">
-          Breakdown Status
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={true} />
-            <XAxis type="number" stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
-            <YAxis type="category" dataKey="name" stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} width={100} />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} />
-            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-              {data.map((entry, index) => (
-                <Cell key={'cell-' + index} fill={entry.color} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  )
-}
-
-export function TrendLineChart({ data, className }: { data: MonthlyData[] } & ChartProps) {
-  return (
-    <Card className={'card-3d ' + (className || '')}>
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold text-slate-900">
-          Tren Pertumbuhan
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-            <XAxis dataKey="month" stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
-            <YAxis stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
-            <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey="total"
-              stroke={LSP_COLORS.blue}
-              strokeWidth={3}
-              dot={{ fill: LSP_COLORS.blue, r: 4, strokeWidth: 2, stroke: '#fff' }}
-              activeDot={{ r: 6, stroke: LSP_COLORS.blue, strokeWidth: 2, fill: '#fff' }}
-              name="Total"
-            />
-            <Line
-              type="monotone"
-              dataKey="approved"
-              stroke={LSP_COLORS.red}
-              strokeWidth={3}
-              dot={{ fill: LSP_COLORS.red, r: 4, strokeWidth: 2, stroke: '#fff' }}
-              activeDot={{ r: 6, stroke: LSP_COLORS.red, strokeWidth: 2, fill: '#fff' }}
-              name="Disetujui"
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  )
-}
-
-export type TimePeriod = 'week' | 'month' | 'year'
-
+// NEW STYLE: Modern Revenue Chart Design
 export function DailySubmissionChart({
   data,
   onPeriodChange,
@@ -247,74 +108,118 @@ export function DailySubmissionChart({
   currentPeriod?: TimePeriod
   className?: string
 } & ChartProps) {
+  // Calculate totals
+  const totalCount = data.reduce((sum, item) => sum + item.count, 0)
+
+  // Calculate growth (compare first half vs second half)
+  const midpoint = Math.floor(data.length / 2)
+  const firstHalf = data.slice(0, midpoint).reduce((sum, item) => sum + item.count, 0)
+  const secondHalf = data.slice(midpoint).reduce((sum, item) => sum + item.count, 0)
+  const growth = firstHalf > 0 ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100) : 0
+
   return (
-    <Card className={'card-3d animate-slide-up ' + (className || '')}>
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <CardTitle className="text-lg font-semibold text-slate-900">
-            Pengajuan KTA per Hari
-          </CardTitle>
-          <div className="flex gap-2">
-            <Button
-              variant={currentPeriod === 'week' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onPeriodChange?.('week')}
-              className={currentPeriod === 'week' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
-            >
-              Seminggu
-            </Button>
-            <Button
-              variant={currentPeriod === 'month' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onPeriodChange?.('month')}
-              className={currentPeriod === 'month' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
-            >
-              Sebulan
-            </Button>
-            <Button
-              variant={currentPeriod === 'year' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onPeriodChange?.('year')}
-              className={currentPeriod === 'year' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
-            >
-              Setahun
-            </Button>
+    <div className={'bg-white rounded-2xl p-6 shadow-sm border border-slate-200 ' + (className || '')}>
+      {/* Title */}
+      <h3 className="text-lg font-semibold text-brand-blue-900 mb-6">Pengajuan KTA Per Hari</h3>
+
+      {/* Header Section */}
+      <div className="flex justify-between items-start mb-6">
+        {/* Metrics */}
+        <div className="flex gap-8">
+          <div>
+            <p className="text-3xl font-bold text-brand-blue-900">{totalCount}</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">Total Pengajuan</p>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-3xl font-bold text-brand-blue-900">{data.length > 0 ? data[data.length - 1].count : 0}</p>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Hari Ini</p>
+              {growth > 0 && (
+                <span className="text-xs text-emerald-600 font-medium">
+                  ↑{growth}% dari periode lalu
+                </span>
+              )}
+              {growth < 0 && (
+                <span className="text-xs text-red-600 font-medium">
+                  ↓{Math.abs(growth)}% dari periode lalu
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+
+        {/* Period Filters */}
+        <div className="flex gap-2">
+          {(['week', 'month', 'year'] as const).map((period) => (
+            <button
+              key={period}
+              onClick={() => onPeriodChange?.(period)}
+              className={`px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-wider transition-all ${
+                currentPeriod === period
+                  ? 'bg-brand-blue-800 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {period === 'week' ? 'Minggu' : period === 'month' ? 'Bulan' : 'Tahun'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Chart Section */}
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={data}
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            key={`daily-${currentPeriod}`}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
             <XAxis
               dataKey="date"
-              stroke="var(--muted-foreground)"
-              style={{ fontSize: '12px' }}
+              stroke="#94a3b8"
+              tick={{ fill: '#64748b', fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
               interval="preserveStartEnd"
             />
-            <YAxis stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
-            <Tooltip
-              contentStyle={tooltipStyle}
-              labelStyle={tooltipLabelStyle}
-              labelFormatter={(label) => `Tanggal: ${label}`}
-              formatter={(value) => [value, 'Jumlah Pengajuan']}
+            <YAxis
+              stroke="#94a3b8"
+              tick={{ fill: '#64748b', fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
             />
+            <Tooltip content={<CustomTooltip />} />
             <Line
               type="monotone"
               dataKey="count"
-              stroke={LSP_COLORS.blue}
-              strokeWidth={3}
-              dot={{ fill: LSP_COLORS.blue, r: 4, strokeWidth: 2, stroke: '#fff' }}
-              activeDot={{ r: 6, stroke: LSP_COLORS.blue, strokeWidth: 3, fill: '#fff' }}
+              stroke="#1e40af"
+              strokeWidth={2.5}
+              dot={{ fill: '#1e40af', r: 4, strokeWidth: 2 }}
+              activeDot={{ r: 6, fill: '#1e3a8a', stroke: '#1e40af', strokeWidth: 2 }}
               name="Pengajuan"
+              animationBegin={0}
+              animationDuration={800}
+              animationEasing="ease-out"
             />
           </LineChart>
         </ResponsiveContainer>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Period Labels */}
+      {data.length > 0 && (
+        <div className="flex justify-between mt-2">
+          <span className="text-xs text-slate-400 uppercase">{data[0].date}</span>
+          <span className="text-xs text-brand-blue-800 uppercase font-medium">{data[data.length - 1].date}</span>
+        </div>
+      )}
+    </div>
   )
 }
 
+// NEW STYLE: Region Chart
 export function RegionSubmissionChart({
   data,
   regions = [],
@@ -328,92 +233,123 @@ export function RegionSubmissionChart({
   currentPeriod?: TimePeriod
   className?: string
 } & ChartProps) {
+  // Calculate total submissions
+  const totalSubmissions = data.reduce((sum, item) => {
+    let count = 0
+    regions.forEach(region => {
+      count += typeof item[region] === 'number' ? item[region] : 0
+    })
+    return sum + count
+  }, 0)
+
   return (
-    <Card className={'card-3d animate-slide-up ' + (className || '')}>
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <CardTitle className="text-lg font-semibold text-slate-900">
-            Pengajuan KTA per Daerah
-          </CardTitle>
-          <div className="flex gap-2">
-            <Button
-              variant={currentPeriod === 'week' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onPeriodChange?.('week')}
-              className={currentPeriod === 'week' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
-            >
-              Seminggu
-            </Button>
-            <Button
-              variant={currentPeriod === 'month' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onPeriodChange?.('month')}
-              className={currentPeriod === 'month' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
-            >
-              Sebulan
-            </Button>
-            <Button
-              variant={currentPeriod === 'year' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onPeriodChange?.('year')}
-              className={currentPeriod === 'year' ? 'bg-Gatensi-blue hover:bg-Gatensi-blueDark text-white' : ''}
-            >
-              Setahun
-            </Button>
+    <div className={'bg-white rounded-2xl p-6 shadow-sm border border-slate-200 ' + (className || '')}>
+      {/* Title */}
+      <h3 className="text-lg font-semibold text-brand-blue-900 mb-6">Pengajuan KTA Per Daerah</h3>
+
+      {/* Header Section */}
+      <div className="flex justify-between items-start mb-6">
+        {/* Metrics */}
+        <div className="flex gap-8">
+          <div>
+            <p className="text-3xl font-bold text-brand-blue-900">{totalSubmissions}</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">Total Pengajuan</p>
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-brand-blue-900">{regions.length}</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">Daerah Aktif</p>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        {/* Region Legend */}
-        {regions.length > 0 && (
-          <div className="flex flex-wrap gap-4 mb-4">
-            {regions.map((region, index) => (
-              <div key={region} className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: REGION_COLORS[index % REGION_COLORS.length] }}
-                />
-                <span className="text-sm text-slate-600">{region}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+
+        {/* Period Filters */}
+        <div className="flex gap-2">
+          {(['week', 'month', 'year'] as const).map((period) => (
+            <button
+              key={period}
+              onClick={() => onPeriodChange?.(period)}
+              className={`px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-wider transition-all ${
+                currentPeriod === period
+                  ? 'bg-brand-blue-800 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {period === 'week' ? 'Minggu' : period === 'month' ? 'Bulan' : 'Tahun'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Region Legend */}
+      
+
+      {/* Chart Section */}
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={data}
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            key={`region-${currentPeriod}`}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
             <XAxis
               dataKey="date"
-              stroke="var(--muted-foreground)"
-              style={{ fontSize: '12px' }}
+              stroke="#94a3b8"
+              tick={{ fill: '#64748b', fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
               interval="preserveStartEnd"
             />
-            <YAxis stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
-            <Tooltip
-              contentStyle={tooltipStyle}
-              labelStyle={tooltipLabelStyle}
-              labelFormatter={(label) => `Tanggal: ${label}`}
-              formatter={(value: number, name: string) => [value, name]}
+            <YAxis
+              stroke="#94a3b8"
+              tick={{ fill: '#64748b', fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
             />
-            <Legend />
+            <Tooltip content={<CustomTooltip />} />
             {regions.map((region, index) => (
               <Line
                 key={region}
                 type="monotone"
                 dataKey={region}
                 stroke={REGION_COLORS[index % REGION_COLORS.length]}
-                strokeWidth={2.5}
-                dot={{ fill: REGION_COLORS[index % REGION_COLORS.length], r: 3, strokeWidth: 2, stroke: '#fff' }}
-                activeDot={{ r: 5, stroke: REGION_COLORS[index % REGION_COLORS.length], strokeWidth: 2, fill: '#fff' }}
+                strokeWidth={2}
+                dot={{ fill: REGION_COLORS[index % REGION_COLORS.length], r: 3, strokeWidth: 2 }}
+                activeDot={{ r: 5, fill: '#1e3a8a', strokeWidth: 2 }}
                 name={region}
+                animationBegin={index * 100}
+                animationDuration={800}
+                animationEasing="ease-out"
               />
             ))}
           </LineChart>
         </ResponsiveContainer>
-      </CardContent>
-    </Card>
+      </div>
+      {regions.length > 0 && (
+        <div className="flex flex-wrap gap-3 mb-4">
+          {regions.map((region, index) => (
+            <div key={region} className="flex items-center gap-2">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: REGION_COLORS[index % REGION_COLORS.length] }}
+              />
+              <span className="text-xs text-slate-600">{region}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Period Labels */}
+      {data.length > 0 && (
+        <div className="flex justify-between mt-2">
+          <span className="text-xs text-slate-400 uppercase">{data[0].date}</span>
+          <span className="text-xs text-brand-blue-800 uppercase font-medium">{data[data.length - 1].date}</span>
+        </div>
+      )}
+    </div>
   )
 }
 
+// Comparison Card - Keep original design but update colors
 interface DaerahComparisonData {
   thisMonthCount: number
   lastMonthCount: number
@@ -436,11 +372,11 @@ export function DaerahComparisonCard({ data, className }: { data: DaerahComparis
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 shadow-sm">
               <div className="text-xs text-slate-600 mb-1">Bulan Ini</div>
-              <div className="text-3xl font-bold text-slate-900 count-up">{data.thisMonthCount}</div>
+              <div className="text-3xl font-bold text-brand-blue-900 count-up">{data.thisMonthCount}</div>
             </div>
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 shadow-sm">
               <div className="text-xs text-slate-600 mb-1">Bulan Lalu</div>
-              <div className="text-3xl font-bold text-slate-900 count-up">{data.lastMonthCount}</div>
+              <div className="text-3xl font-bold text-brand-blue-900 count-up">{data.lastMonthCount}</div>
             </div>
           </div>
 
@@ -469,9 +405,9 @@ export function DaerahComparisonCard({ data, className }: { data: DaerahComparis
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-Gatensi-blue to-Gatensi-blueDark rounded-xl p-5 text-white shadow-lg">
-            <div className="text-xs text-slate-500 mb-1">Total KTA Dicetak</div>
-            <div className="text-4xl font-bold text-blue-800 count-up">{data.totalPrinted}</div>
+          <div className="bg-gradient-to-br from-brand-blue-800 to-brand-blue-900 rounded-xl p-5 text-white shadow-lg">
+            <div className="text-xs text-blue-200 mb-1">Total KTA Dicetak</div>
+            <div className="text-4xl font-bold text-white count-up">{data.totalPrinted}</div>
           </div>
         </div>
       </CardContent>
@@ -479,6 +415,7 @@ export function DaerahComparisonCard({ data, className }: { data: DaerahComparis
   )
 }
 
+// NEW STYLE: Daerah Printed Chart
 export function DaerahPrintedChart({
   data,
   onPeriodChange,
@@ -490,70 +427,176 @@ export function DaerahPrintedChart({
   currentPeriod?: TimePeriod
   className?: string
 } & ChartProps) {
+  // Calculate totals
+  const totalPrinted = data.reduce((sum, item) => sum + item.count, 0)
+
+  // Calculate growth
+  const midpoint = Math.floor(data.length / 2)
+  const firstHalf = data.slice(0, midpoint).reduce((sum, item) => sum + item.count, 0)
+  const secondHalf = data.slice(midpoint).reduce((sum, item) => sum + item.count, 0)
+  const growth = firstHalf > 0 ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100) : 0
+
   return (
-    <Card className={'card-3d animate-slide-up ' + (className || '')}>
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <CardTitle className="text-lg font-semibold text-slate-900">
-            KTA Dicetak per Periode
-          </CardTitle>
-          <div className="flex gap-2">
-            <Button
-              variant={currentPeriod === 'week' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onPeriodChange?.('week')}
-              className={currentPeriod === 'week' ? 'bg-Gatensi-red hover:bg-Gatensi-redDark text-white' : ''}
-            >
-              Seminggu
-            </Button>
-            <Button
-              variant={currentPeriod === 'month' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onPeriodChange?.('month')}
-              className={currentPeriod === 'month' ? 'bg-Gatensi-red hover:bg-Gatensi-redDark text-white' : ''}
-            >
-              Sebulan
-            </Button>
-            <Button
-              variant={currentPeriod === 'year' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onPeriodChange?.('year')}
-              className={currentPeriod === 'year' ? 'bg-Gatensi-red hover:bg-Gatensi-redDark text-white' : ''}
-            >
-              Setahun
-            </Button>
+    <div className={'bg-white rounded-2xl p-6 shadow-sm border border-slate-200 ' + (className || '')}>
+      {/* Title */}
+      <h3 className="text-lg font-semibold text-brand-blue-900 mb-6">KTA Dicetak Per Periode</h3>
+
+      {/* Header Section */}
+      <div className="flex justify-between items-start mb-6">
+        {/* Metrics */}
+        <div className="flex gap-8">
+          <div>
+            <p className="text-3xl font-bold text-brand-blue-900">{totalPrinted}</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">Total Dicetak</p>
+          </div>
+          <div>
+            <p className="text-3xl font-bold text-brand-blue-900">{data.length > 0 ? data[data.length - 1].count : 0}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Terakhir</p>
+              {growth > 0 && (
+                <span className="text-xs text-emerald-600 font-medium">
+                  ↑{growth}% MOM
+                </span>
+              )}
+              {growth < 0 && (
+                <span className="text-xs text-red-600 font-medium">
+                  ↓{Math.abs(growth)}% MOM
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+
+        {/* Period Filters */}
+        <div className="flex gap-2">
+          {(['week', 'month', 'year'] as const).map((period) => (
+            <button
+              key={period}
+              onClick={() => onPeriodChange?.(period)}
+              className={`px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-wider transition-all ${
+                currentPeriod === period
+                  ? 'bg-brand-red-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {period === 'week' ? 'Minggu' : period === 'month' ? 'Bulan' : 'Tahun'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Chart Section */}
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={data}
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            key={`daerah-${currentPeriod}`}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
             <XAxis
               dataKey="date"
-              stroke="var(--muted-foreground)"
-              style={{ fontSize: '12px' }}
+              stroke="#94a3b8"
+              tick={{ fill: '#64748b', fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
               interval="preserveStartEnd"
             />
-            <YAxis stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
+            <YAxis
+              stroke="#94a3b8"
+              tick={{ fill: '#64748b', fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+            />
             <Tooltip
-              contentStyle={tooltipStyle}
-              labelStyle={tooltipLabelStyle}
+              contentStyle={{
+                backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                border: '1px solid rgba(226, 232, 240, 1)',
+                borderRadius: '12px',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                padding: '12px 16px',
+              }}
               labelFormatter={(label) => `Tanggal: ${label}`}
               formatter={(value) => [value, 'KTA Dicetak']}
             />
             <Line
               type="monotone"
               dataKey="count"
-              stroke={LSP_COLORS.red}
-              strokeWidth={3}
-              dot={{ fill: LSP_COLORS.red, r: 4, strokeWidth: 2, stroke: '#fff' }}
-              activeDot={{ r: 6, stroke: LSP_COLORS.red, strokeWidth: 3, fill: '#fff' }}
+              stroke="#dc2626"
+              strokeWidth={2.5}
+              dot={{ fill: '#dc2626', r: 4, strokeWidth: 2 }}
+              activeDot={{ r: 6, fill: '#b91c1c', stroke: '#dc2626', strokeWidth: 2 }}
               name="KTA Dicetak"
+              animationBegin={0}
+              animationDuration={800}
+              animationEasing="ease-out"
             />
           </LineChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Period Labels */}
+      {data.length > 0 && (
+        <div className="flex justify-between mt-2">
+          <span className="text-xs text-slate-400 uppercase">{data[0].date}</span>
+          <span className="text-xs text-brand-red-600 uppercase font-medium">{data[data.length - 1].date}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Keep other legacy charts for now
+export function StatusChart({ data, className }: { data: StatusData[] } & ChartProps) {
+  return (
+    <Card className={'card-3d ' + (className || '')}>
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold text-slate-900">
+          Distribusi Status KTA
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey="value"
+            >
+              {data.map((entry, index) => (
+                <Cell key={'cell-' + index} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                border: '1px solid rgba(226, 232, 240, 1)',
+                borderRadius: '12px',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                padding: '12px 16px',
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="flex flex-wrap justify-center gap-4 mt-4">
+          {data.map((item) => (
+            <div key={item.name} className="flex items-center gap-2">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="text-sm text-slate-600">{item.name}</span>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   )
 }
+
+export type TimePeriod = 'week' | 'month' | 'year'

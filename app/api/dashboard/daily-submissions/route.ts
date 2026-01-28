@@ -63,22 +63,65 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Group by date
+    // Group by date based on period
     const groupedData: Record<string, number> = {}
 
-    // Initialize all dates in the range with 0
-    const currentDate = new Date(startDate)
-    while (currentDate <= now) {
-      // Use local date format instead of ISO to avoid timezone issues
-      const dateKey = formatDateKey(currentDate)
-      groupedData[dateKey] = 0
-      currentDate.setDate(currentDate.getDate() + 1)
+    if (period === 'week') {
+      // Week: show every day
+      const currentDate = new Date(startDate)
+      while (currentDate <= now) {
+        const dateKey = formatDateKey(currentDate)
+        groupedData[dateKey] = 0
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
+    } else if (period === 'month') {
+      // Month: show every 5 days (1-5, 6-10, etc.)
+      const currentDate = new Date(startDate)
+      let dayCounter = 1
+      while (currentDate <= now) {
+        // Group every 5 days
+        const groupDay = Math.floor((dayCounter - 1) / 5) * 5 + 1
+        const groupDate = new Date(currentDate)
+        groupDate.setDate(groupDay)
+        const dateKey = formatDateKey(groupDate)
+
+        if (!groupedData[dateKey]) {
+          groupedData[dateKey] = 0
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1)
+        dayCounter++
+      }
+    } else if (period === 'year') {
+      // Year: show by month
+      const currentDate = new Date(startDate)
+      while (currentDate <= now) {
+        const dateKey = formatDateKeyMonth(currentDate)
+        if (!groupedData[dateKey]) {
+          groupedData[dateKey] = 0
+        }
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
     }
 
-    // Count submissions per date
+    // Count submissions per date group
     ktaRequests.forEach((request) => {
-      // Use local date format instead of ISO to avoid timezone issues
-      const dateKey = formatDateKey(request.createdAt)
+      let dateKey: string
+
+      if (period === 'week') {
+        dateKey = formatDateKey(request.createdAt)
+      } else if (period === 'month') {
+        // Group by 5-day periods
+        const dayOfMonth = request.createdAt.getDate()
+        const groupDay = Math.floor((dayOfMonth - 1) / 5) * 5 + 1
+        const groupDate = new Date(request.createdAt)
+        groupDate.setDate(groupDay)
+        dateKey = formatDateKey(groupDate)
+      } else {
+        // year: group by month
+        dateKey = formatDateKeyMonth(request.createdAt)
+      }
+
       if (groupedData.hasOwnProperty(dateKey)) {
         groupedData[dateKey]++
       }
@@ -111,16 +154,27 @@ function formatDateKey(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+// Format date as YYYY-MM for monthly grouping
+function formatDateKeyMonth(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
+
 function formatDate(dateString: string, period: string): string {
   const date = new Date(dateString)
 
   if (period === 'week') {
     // For week, show day name (e.g., "Sen", "Sel")
-    const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
     return days[date.getDay()]
   } else if (period === 'month') {
-    // For month, show date (e.g., "1 Jan", "15 Jan")
-    return date.getDate() + ' ' + date.toLocaleDateString('id-ID', { month: 'short' })
+    // For month, show date range (e.g., "1-5 Jan", "26-31 Jan")
+    const startDay = date.getDate()
+    // Get the last day of the month dynamically
+    const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+    const endDay = Math.min(startDay + 4, lastDayOfMonth)
+    return `${startDay}-${endDay} ${date.toLocaleDateString('id-ID', { month: 'short' })}`
   } else {
     // For year, show month name (e.g., "Jan", "Feb")
     return date.toLocaleDateString('id-ID', { month: 'short' })

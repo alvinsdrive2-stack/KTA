@@ -1,0 +1,1615 @@
+{
+  "info": {
+    "name": "KTA Management API",
+    "description": "API documentation for KTA (Kartu Tanda Anggota) Management System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Authentication token from login response"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Authenticate user and return session token. Save the token from response to use in other requests."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"id\": \"string\",\n      \"name\": \"string\",\n      \"email\": \"string\",\n      \"role\": \"ADMIN|DAERAH|PUSAT|KEUANGAN\"\n    },\n    \"sessionToken\": \"string\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Get current authenticated user information"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Logout current user and invalidate session"
+          }
+        }
+      ]
+    },
+    {
+      "name": "KTA Requests",
+      "item": [
+        {
+          "name": "List KTA Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/list?page=1&limit=10&status=&daerahKode=&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "list"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Filter by status (DRAFT, WAITING_PAYMENT, READY_TO_PRINT, etc.)",
+                  "disabled": true
+                },
+                {
+                  "key": "daerahKode",
+                  "value": "",
+                  "description": "Filter by daerah code (ADMIN/PUSAT/KEUANGAN only)",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search by nama, ID Izin, or NIK",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get list of KTA requests with pagination and filters. ADMIN/PUSAT/KEUANGAN see all records, DAERAH only see their own."
+          }
+        },
+        {
+          "name": "Get KTA Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "KTA Request ID"
+                }
+              ]
+            },
+            "description": "Get detailed information of a specific KTA request"
+          }
+        },
+        {
+          "name": "Create KTA Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idIzin\": \"string\",\n  \"jenjang\": \"1-10\",\n  \"jabatanKerja\": \"string\",\n  \"subklasifikasi\": \"string\",\n  \"daerahId\": \"string\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "create"]
+            },
+            "description": "Create a new KTA request by ID Izin (will fetch data from SIKI)"
+          }
+        },
+        {
+          "name": "Create Manual KTA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nik\": \"16 digit NIK\",\n  \"nama\": \"Full Name\",\n  \"jenjang\": \"1-10\",\n  \"jabatanKerja\": \"string\",\n  \"subklasifikasi\": \"string\",\n  \"noTelp\": \"string\",\n  \"email\": \"email@example.com\",\n  \"alamat\": \"Full Address\",\n  \"daerahId\": \"string\",\n  \"tanggalDaftar\": \"YYYY-MM-DD\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/create-manual",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "create-manual"]
+            },
+            "description": "Create a new KTA request manually without SIKI"
+          }
+        },
+        {
+          "name": "Fetch SIKI Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nik\": \"16 digit NIK\",\n  \"idIzin\": \"string\",\n  \"jenjang\": \"1-10\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/fetch-siki",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "fetch-siki"]
+            },
+            "description": "Fetch person data from SIKI API by NIK and/or ID Izin"
+          }
+        },
+        {
+          "name": "Submit KTA Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nama\": \"string\",\n  \"nik\": \"string\",\n  \"jabatanKerja\": \"string\",\n  \"subklasifikasi\": \"string\",\n  \"jenjang\": \"string\",\n  \"noTelp\": \"string\",\n  \"email\": \"string\",\n  \"alamat\": \"string\",\n  \"ktpUrl\": \"string\",\n  \"fotoUrl\": \"string\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/:id/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", ":id", "submit"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "KTA Request ID"
+                }
+              ]
+            },
+            "description": "Submit KTA request data (create new or update existing)"
+          }
+        },
+        {
+          "name": "Submit to Pusat",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/:id/submit-to-pusat",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", ":id", "submit-to-pusat"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "KTA Request ID"
+                }
+              ]
+            },
+            "description": "Submit KTA request to PUSAT for approval (DAERAH role only)"
+          }
+        },
+        {
+          "name": "Upload Document",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "type",
+                  "value": "ktp",
+                  "description": "Document type: ktp or foto"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/:id/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", ":id", "upload"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "KTA Request ID"
+                }
+              ]
+            },
+            "description": "Upload KTP or Foto for KTA request"
+          }
+        },
+        {
+          "name": "Generate PDF",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/:id/generate-pdf",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", ":id", "generate-pdf"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "KTA Request ID"
+                }
+              ]
+            },
+            "description": "Generate KTA card PDF (ADMIN/PUSAT only)"
+          }
+        },
+        {
+          "name": "Print KTA",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/:id/print",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", ":id", "print"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "KTA Request ID"
+                }
+              ]
+            },
+            "description": "Mark KTA as printed"
+          }
+        },
+        {
+          "name": "Refresh SIKI Data",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/:id/refresh-siki",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", ":id", "refresh-siki"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "KTA Request ID"
+                }
+              ]
+            },
+            "description": "Refresh SIKI data for existing KTA request"
+          }
+        },
+        {
+          "name": "Bulk Download",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"id1\", \"id2\", \"id3\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/bulk-download",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "bulk-download"]
+            },
+            "description": "Bulk download KTA cards as ZIP"
+          }
+        },
+        {
+          "name": "Export to Excel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"id1\", \"id2\", \"id3\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/export/excel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "export", "excel"]
+            },
+            "description": "Export KTA data to Excel"
+          }
+        },
+        {
+          "name": "Check Upgrade",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nik\": \"16 digit NIK\",\n  \"jenjang\": \"1-10\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/check-upgrade",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "check-upgrade"]
+            },
+            "description": "Check if person is eligible for jenjang upgrade"
+          }
+        },
+        {
+          "name": "Push Enrol to SIKI",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/push-enrol",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "push-enrol"]
+            },
+            "description": "Push enrolment data to SIKI system"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "List Payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/list?page=1&limit=10&status=&daerahKode=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "list"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Filter by status",
+                  "disabled": true
+                },
+                {
+                  "key": "daerahKode",
+                  "value": "",
+                  "description": "Filter by daerah",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get list of payments with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get payment details by ID"
+          }
+        },
+        {
+          "name": "Create Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ktaRequestIds\": [\"id1\", \"id2\"],\n  \"paymentMethod\": \"MIDTRANS|MANUAL\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/create-invoice",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "create-invoice"]
+            },
+            "description": "Create payment invoice for KTA requests"
+          }
+        },
+        {
+          "name": "Get Invoice",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/invoice/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "invoice", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get invoice details"
+          }
+        },
+        {
+          "name": "Get Invoice PDF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/invoice/:id/pdf",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "invoice", ":id", "pdf"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Download invoice as PDF"
+          }
+        },
+        {
+          "name": "Get Midtrans Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/invoice/:id/midtrans-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "invoice", ":id", "midtrans-token"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get Midtrans payment token for checkout"
+          }
+        },
+        {
+          "name": "Midtrans Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_status\": \"string\",\n  \"order_id\": \"string\",\n  \"status_code\": \"string\",\n  \"gross_amount\": \"string\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/midtrans-notification",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "midtrans-notification"]
+            },
+            "description": "Midtrans webhook notification handler"
+          }
+        },
+        {
+          "name": "Upload Payment Proof",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "invoiceId",
+                  "value": "",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/upload-proof",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "upload-proof"]
+            },
+            "description": "Upload manual payment proof"
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoiceId\": \"string\",\n  \"verified\": true,\n  \"notes\": \"string\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "verify"]
+            },
+            "description": "Verify manual payment (KEUANGAN only)"
+          }
+        },
+        {
+          "name": "Bulk Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ktaRequestIds\": [\"id1\", \"id2\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/bulk",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "bulk"]
+            },
+            "description": "Create bulk payment for multiple KTA requests"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Daerah",
+      "item": [
+        {
+          "name": "List Daerah",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/daerah",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "daerah"]
+            },
+            "description": "Get list of all daerah (regions)"
+          }
+        },
+        {
+          "name": "Get Daerah Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/daerah/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "daerah", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get daerah details by ID"
+          }
+        },
+        {
+          "name": "Get Daerah Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/daerah/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "daerah", "stats"]
+            },
+            "description": "Get statistics for user's daerah"
+          }
+        },
+        {
+          "name": "Get Price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jenjang\": \"1-10\",\n  \"daerahId\": \"string\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/daerah/price",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "daerah", "price"]
+            },
+            "description": "Calculate KTA price based on jenjang and daerah"
+          }
+        },
+        {
+          "name": "Get My Diskon",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/daerah/my-diskon",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "daerah", "my-diskon"]
+            },
+            "description": "Get discount percentage for user's daerah"
+          }
+        }
+      ]
+    },
+    {
+      "name": "SIKI",
+      "item": [
+        {
+          "name": "Get SIKI Data by NIK",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/siki/:nik",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "siki", ":nik"],
+              "variable": [
+                {
+                  "key": "nik",
+                  "value": "",
+                  "description": "16 digit NIK"
+                }
+              ]
+            },
+            "description": "Get person data from SIKI by NIK"
+          }
+        },
+        {
+          "name": "Bulk Fetch SIKI",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"niks\": [\"nik1\", \"nik2\", \"nik3\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/siki/bulk",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "siki", "bulk"]
+            },
+            "description": "Bulk fetch SIKI data by multiple NIKs"
+          }
+        },
+        {
+          "name": "Get SIKI Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nik\": \"string\",\n  \"idIzin\": \"string\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/siki/get-data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "siki", "get-data"]
+            },
+            "description": "Get SIKI data by NIK or ID Izin"
+          }
+        },
+        {
+          "name": "SIKI Index",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/siki/index?page=1&limit=100&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "siki", "index"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search by NIK or ID Izin",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get SIKI index with pagination (cached data)"
+          }
+        },
+        {
+          "name": "Fetch SIKI Bulk for Apply",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"idIzin\": \"string\", \"jenjang\": \"1-10\" },\n    { \"nik\": \"string\", \"jenjang\": \"1-10\" }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/fetch-siki-bulk",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "fetch-siki-bulk"]
+            },
+            "description": "Bulk fetch SIKI data for KTA application page"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users?page=1&limit=10&role=&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "role",
+                  "value": "",
+                  "description": "Filter by role",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search by name or email",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get list of users (ADMIN only)"
+          }
+        },
+        {
+          "name": "Get User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get user details (ADMIN only)"
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"string\",\n  \"email\": \"email@example.com\",\n  \"password\": \"password\",\n  \"role\": \"ADMIN|DAERAH|PUSAT|KEUANGAN\",\n  \"daerahId\": \"string (optional for DAERAH role)\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users"]
+            },
+            "description": "Create new user (ADMIN only)"
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"string\",\n  \"email\": \"email@example.com\",\n  \"role\": \"ADMIN|DAERAH|PUSAT|KEUANGAN\",\n  \"daerahId\": \"string\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Update user (ADMIN only)"
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Delete user (ADMIN only)"
+          }
+        },
+        {
+          "name": "Assign Daerah to User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"string\",\n  \"daerahId\": \"string\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/assign-daerah",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "assign-daerah"]
+            },
+            "description": "Assign daerah to DAERAH user (ADMIN only)"
+          }
+        },
+        {
+          "name": "Get KTA Sequence",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/kta-sequence?daerahId=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "kta-sequence"],
+              "query": [
+                {
+                  "key": "daerahId",
+                  "value": "",
+                  "description": "Filter by daerah (optional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get KTA number sequences by daerah (ADMIN only)"
+          }
+        },
+        {
+          "name": "Import KTA Sequence",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/kta-sequence/import",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "kta-sequence", "import"]
+            },
+            "description": "Import KTA sequence from Excel (ADMIN only)"
+          }
+        },
+        {
+          "name": "KTA Sequence Template",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/kta-sequence/template",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "kta-sequence", "template"]
+            },
+            "description": "Download KTA sequence import template (ADMIN only)"
+          }
+        },
+        {
+          "name": "Update Daerah Diskon",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"daerahId\": \"string\",\n  \"diskonPersen\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/daerah/diskon",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "daerah", "diskon"]
+            },
+            "description": "Update discount percentage for daerah (ADMIN only)"
+          }
+        },
+        {
+          "name": "Regenerate QR Codes",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/regenerate-qr-codes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "regenerate-qr-codes"]
+            },
+            "description": "Regenerate QR codes for all KTA (ADMIN only)"
+          }
+        },
+        {
+          "name": "Clear KTA Cache",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clear-kta-cache",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "clear-kta-cache"]
+            },
+            "description": "Clear KTA cache (ADMIN only)"
+          }
+        },
+        {
+          "name": "Data Manage - KTA Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/data-manage/kta-requests?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "data-manage", "kta-requests"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get all KTA requests for data management (ADMIN only)"
+          }
+        },
+        {
+          "name": "Data Manage - KTA Request Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/data-manage/kta-requests/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "data-manage", "kta-requests", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get KTA request detail for editing (ADMIN only)"
+          }
+        },
+        {
+          "name": "Data Manage - Payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/data-manage/payments?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "data-manage", "payments"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get all payments for data management (ADMIN only)"
+          }
+        },
+        {
+          "name": "Data Manage - Payment Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/data-manage/payments/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "data-manage", "payments", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get payment detail for editing (ADMIN only)"
+          }
+        },
+        {
+          "name": "Data Manage - Bulk Payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/data-manage/bulk-payments?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "data-manage", "bulk-payments"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get all bulk payments for data management (ADMIN only)"
+          }
+        },
+        {
+          "name": "Data Manage - Bulk Payment Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/data-manage/bulk-payments/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "data-manage", "bulk-payments", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get bulk payment detail for editing (ADMIN only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Daerah Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/daerah-stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "daerah-stats"]
+            },
+            "description": "Get dashboard statistics for daerah users"
+          }
+        },
+        {
+          "name": "Daily Submissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/daily-submissions?days=30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "daily-submissions"],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30",
+                  "description": "Number of days to fetch"
+                }
+              ]
+            },
+            "description": "Get daily submission statistics"
+          }
+        },
+        {
+          "name": "Region Submissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/region-submissions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "region-submissions"]
+            },
+            "description": "Get submission statistics by region"
+          }
+        },
+        {
+          "name": "Finance Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/finance/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "finance", "stats"]
+            },
+            "description": "Get finance statistics (KEUANGAN only)"
+          }
+        },
+        {
+          "name": "Finance Trend",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/finance/trend?days=30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "finance", "trend"],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30"
+                }
+              ]
+            },
+            "description": "Get finance trend data (KEUANGAN only)"
+          }
+        },
+        {
+          "name": "Finance by Region",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/finance/by-region",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "finance", "by-region"]
+            },
+            "description": "Get finance data grouped by region (KEUANGAN only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Referensi",
+      "item": [
+        {
+          "name": "List Jabatan Kerja",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/referensi/jabatan-kerja",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "referensi", "jabatan-kerja"]
+            },
+            "description": "Get list of jabatan kerja (job positions)"
+          }
+        },
+        {
+          "name": "List Subklasifikasi",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/referensi/subklasifikasi",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "referensi", "subklasifikasi"]
+            },
+            "description": "Get list of subklasifikasi (sub-classifications)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Import / Legacy",
+      "item": [
+        {
+          "name": "Import KTA",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/import",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "import"]
+            },
+            "description": "Import KTA data from Excel/CSV file (ADMIN only)"
+          }
+        },
+        {
+          "name": "Import Legacy KTA - Parse",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/import-legacy",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "import-legacy"]
+            },
+            "description": "Parse legacy KTA data from file for preview (ADMIN only)"
+          }
+        },
+        {
+          "name": "Import Legacy KTA - Confirm",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rows\": [\n    {\n      \"no\": 1,\n      \"nama\": \"string\",\n      \"nik\": \"string\",\n      \"idIzin\": \"string\",\n      \"nomorKTA\": \"string\",\n      \"jenjang\": \"string\",\n      \"jabatanKerja\": \"string\",\n      \"subklasifikasi\": \"string\",\n      \"noTelp\": \"string\",\n      \"email\": \"string\",\n      \"alamat\": \"string\",\n      \"tanggalDaftar\": \"ISO date string\",\n      \"daerahId\": \"string (extracted from nomorKTA)\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/import-legacy",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "import-legacy"]
+            },
+            "description": "Confirm and import legacy KTA data (ADMIN only)"
+          }
+        },
+        {
+          "name": "List Legacy KTA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/legacy?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "legacy"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get list of legacy imported KTA (ADMIN only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public / Utility",
+      "item": [
+        {
+          "name": "Get Public KTA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/kta/public/:id/:nomorKTA",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "kta", "public", ":id", ":nomorKTA"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                },
+                {
+                  "key": "nomorKTA",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get public KTA card data (no auth required)"
+          }
+        },
+        {
+          "name": "Generate QR Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/qr/:idIzin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "qr", ":idIzin"],
+              "variable": [
+                {
+                  "key": "idIzin",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Generate QR code for KTA verification (no auth required)"
+          }
+        },
+        {
+          "name": "Upload Document",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/upload/document",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "upload", "document"]
+            },
+            "description": "Upload document file"
+          }
+        },
+        {
+          "name": "Proxy Image",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/proxy/image?url=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "proxy", "image"],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "",
+                  "description": "Image URL to proxy"
+                }
+              ]
+            },
+            "description": "Proxy image URL to avoid CORS issues"
+          }
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "API health check endpoint"
+          }
+        }
+      ]
+    }
+  ]
+}
