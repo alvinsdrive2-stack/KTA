@@ -204,7 +204,7 @@ export default function DashboardPage() {
       draftKTA: data.filter((kta) => kta.status === 'DRAFT').length,
       waitingPayment: data.filter((kta) => kta.status === 'WAITING_PAYMENT').length,
       waitingApproval: data.filter((kta) =>
-        kta.status === 'READY_FOR_PUSAT' || kta.status === 'WAITING_PAYMENT'
+        kta.status === 'DRAFT'
       ).length,
       approvedKTA: approvedKTA.length,
       printedKTA: data.filter((kta) => kta.status === 'READY_TO_PRINT' || kta.status === 'PRINTED').length,
@@ -432,7 +432,7 @@ export default function DashboardPage() {
   const statsData = [
     { title: 'Total KTA', value: stats.totalKTA, icon: FileText, description: 'Total permohonan KTA', color: 'slate' as const },
     { title: 'Menunggu Pembayaran', value: stats.waitingPayment, icon: Clock, description: 'Belum melakukan pembayaran', color: 'orange' as const },
-    { title: 'Menunggu Persetujuan', value: stats.waitingApproval, icon: UserCheck, description: 'Sedang dalam proses verifikasi', color: 'blue' as const },
+    { title: 'Draft', value: stats.waitingApproval, icon: UserCheck, description: 'Belum Mencetak Invoice', color: 'blue' as const },
   ]
 
   const isPusatOrAdmin = userRole === 'PUSAT' || userRole === 'ADMIN' || userRole === 'KEUANGAN'
