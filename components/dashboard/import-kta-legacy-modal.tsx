@@ -33,6 +33,7 @@ interface ImportedRow {
   alamat: string
   tanggalDaftar: string
   daerahKode?: string
+  daerahId?: string
 }
 
 interface ImportKtaLegacyModalProps {
@@ -79,7 +80,6 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
   } | null>(null)
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
   const [daerahList, setDaerahList] = useState<Daerah[]>([])
-  const [selectedDaerah, setSelectedDaerah] = useState<string>('')
 
   const fetchDaerah = async () => {
     try {
@@ -96,9 +96,6 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
   useEffect(() => {
     if (open) {
       fetchDaerah()
-      if (session?.user.daerahId) {
-        setSelectedDaerah(session.user.daerahId)
-      }
     }
   }, [open])
 
@@ -182,11 +179,43 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
       return
     }
 
-    if (!selectedDaerah) {
+    // Extract kodeDaerah from nomorKTA and match with daerah table
+    const dataWithDaerahId = selectedData.map(row => {
+      let daerahId: string | undefined
+
+      console.log(`[DEBUG] Processing row ${row.no}:`, {
+        nomorKTA: row.nomorKTA,
+        hasNomorKTA: !!row.nomorKTA
+      })
+
+      if (row.nomorKTA) {
+        // Extract kodeDaerah from nomorKTA (2 digits before the first dot)
+        // Format: XX.YY.ZZZZZZ where XX is kodeDaerah
+        const match = row.nomorKTA.match(/^(\d{2})\./)
+        console.log(`[DEBUG] Row ${row.no} match result:`, match)
+        if (match) {
+          const kodeDaerah = match[1]
+          console.log(`[DEBUG] Row ${row.no} kodeDaerah extracted:`, kodeDaerah)
+          // Find matching daerah
+          const matchedDaerah = daerahList.find(d => d.kodeDaerah === kodeDaerah)
+          console.log(`[DEBUG] Row ${row.no} matchedDaerah:`, matchedDaerah)
+          daerahId = matchedDaerah?.id
+        }
+      }
+
+      return {
+        ...row,
+        daerahId,
+      }
+    })
+
+    // Check if all rows have valid daerahId
+    const rowsWithoutDaerah = dataWithDaerahId.filter(r => !r.daerahId)
+    if (rowsWithoutDaerah.length > 0) {
       toast({
         variant: 'destructive',
-        title: 'Daerah wajib dipilih',
-        description: 'Silakan pilih daerah terlebih dahulu',
+        title: 'Daerah tidak ditemukan',
+        description: `${rowsWithoutDaerah.length} data tidak memiliki kode daerah yang valid. Pastikan Nomor KTA diisi dengan format yang benar (XX.YY.ZZZZZZ)`,
       })
       return
     }
@@ -198,8 +227,7 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          rows: selectedData,
-          daerahId: selectedDaerah,
+          rows: dataWithDaerahId,
         }),
       })
 
@@ -252,10 +280,10 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
   }
 
   const downloadTemplate = () => {
-    const headers = ['Nama Lengkap', 'NIK', 'ID Izin (Opsional)', 'Nomor KTA (Opsional)', 'Jenjang', 'Jabatan Kerja', 'Subklasifikasi', 'NoTelp', 'Email', 'Alamat', 'Tanggal Daftar (YYYY-MM-DD)', 'Daerah (Optional)']
+    const headers = ['Nama Lengkap', 'NIK', 'ID Izin (Opsional)', 'Nomor KTA (Opsional)', 'Jenjang', 'Jabatan Kerja', 'Subklasifikasi', 'NoTelp', 'Email', 'Alamat', 'Tanggal Daftar (YYYY-MM-DD)']
     const sampleData = [
-      ['Ahmad Fauzi', '1234567890123456', '', '12.34.123456', '3', 'Pelaksana Lapangan', 'BL003', '081234567890', 'ahmad@example.com', 'Jl. Contoh No. 123', '2024-01-15', ''],
-      ['Siti Rahayu', '2345678901234567', '', '12.34.123457', '5', 'Pelaksana Lapangan', 'BL003', '082345678901', 'siti@example.com', 'Jl. Contoh No. 456', '2024-01-16', ''],
+      ['Ahmad Fauzi', '1234567890123456', '', '12.34.123456', '3', 'Pelaksana Lapangan', 'BL003', '081234567890', 'ahmad@example.com', 'Jl. Contoh No. 123', '2024-01-15'],
+      ['Siti Rahayu', '2345678901234567', '', '12.34.123457', '5', 'Pelaksana Lapangan', 'BL003', '082345678901', 'siti@example.com', 'Jl. Contoh No. 456', '2024-01-16'],
     ]
 
     const wb = XLSX.utils.book_new()
@@ -273,7 +301,6 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
       { wch: 25 }, // Email
       { wch: 30 }, // Alamat
       { wch: 20 }, // Tanggal
-      { wch: 15 }, // Daerah
     ]
 
     for (let i = 2; i <= sampleData.length + 1; i++) {
@@ -329,7 +356,7 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
           </DialogTitle>
           {step === 'upload' && (
             <DialogDescription className="text-slate-500">
-              Upload file Excel atau CSV yang berisi data KTA lama. ID Izin, KTP, dan Foto boleh kosong.
+              Upload file Excel atau CSV yang berisi data KTA lama. Daerah akan diambil otomatis dari Nomor KTA (2 digit sebelum titik pertama).
             </DialogDescription>
           )}
         </DialogHeader>
@@ -361,7 +388,8 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
                       <li>• ID Izin opsional - boleh dikosongkan</li>
                       <li>• URL KTP dan Foto akan kosong (nanti bisa diupload)</li>
                       <li>• Status akan menjadi DRAFT</li>
-                      <li>• Nanti idIzin bisa di-fetch dari SIKI berdasarkan NIK</li>
+                      <li>• Daerah diambil otomatis dari 2 digit pertama Nomor KTA (sebelum titik pertama)</li>
+                      <li>• Format Nomor KTA: XX.YY.ZZZZZZ (XX = kode daerah)</li>
                     </ul>
                   </div>
                 </div>
@@ -407,22 +435,6 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
                     <p className="text-xs text-slate-500">Format: .xlsx, .xls, .csv (Maks 5MB)</p>
                   </div>
                 )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Daerah *</label>
-                <Select value={selectedDaerah} onValueChange={setSelectedDaerah}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="Pilih Daerah" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {daerahList.map(daerah => (
-                      <SelectItem key={daerah.id} value={daerah.id}>
-                        {daerah.kodeDaerah} - {daerah.namaDaerah}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
 
               {parseError && (
@@ -523,6 +535,7 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">NIK</th>
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">ID Izin</th>
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">Nomor KTA</th>
+                        <th className="px-2 py-2 text-left font-semibold text-slate-700">Daerah</th>
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">Jenjang</th>
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">Jabatan</th>
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">Email</th>
@@ -549,6 +562,22 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
                           <td className="px-2 py-2 font-mono">{row.nik}</td>
                           <td className="px-2 py-2 font-mono">{row.idIzin || '-'}</td>
                           <td className="px-2 py-2 font-mono">{row.nomorKTA || '-'}</td>
+                          <td className="px-2 py-2">
+                            {row.nomorKTA ? (
+                              (() => {
+                                const match = row.nomorKTA.match(/^(\d{2})\./)
+                                const kodeDaerah = match ? match[1] : null
+                                const matchedDaerah = kodeDaerah ? daerahList.find(d => d.kodeDaerah === kodeDaerah) : null
+                                return matchedDaerah ? (
+                                  <span className="text-green-600">{matchedDaerah.kodeDaerah} - {matchedDaerah.namaDaerah}</span>
+                                ) : (
+                                  <span className="text-red-600">{kodeDaerah || '?'}</span>
+                                )
+                              })()
+                            ) : (
+                              <span className="text-red-500">No KTA kosong</span>
+                            )}
+                          </td>
                           <td className="px-2 py-2">{row.jenjang}</td>
                           <td className="px-2 py-2">{row.jabatanKerja}</td>
                           <td className="px-2 py-2">{row.email}</td>
