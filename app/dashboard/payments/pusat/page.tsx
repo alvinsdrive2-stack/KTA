@@ -62,6 +62,10 @@ export default function PusatPaymentPage() {
 
   // Track if we've already shown the toast
   const hasShownToast = useRef(false)
+  // Track if we've done initial fetch
+  const hasInitialFetch = useRef(false)
+  // Store all KTA data for client-side filtering
+  const [allKtaRequests, setAllKtaRequests] = useState<KTARequest[]>([])
 
   // Check for payment success params and show toast (only once)
   useEffect(() => {
@@ -102,10 +106,32 @@ export default function PusatPaymentPage() {
     return () => clearTimeout(handler)
   }, [searchTerm])
 
+  // Initial fetch - only run once on mount
   useEffect(() => {
-    fetchUnpaidKTAs()
-    fetchBulkPayments()
-  }, [debouncedSearchTerm])
+    if (!hasInitialFetch.current) {
+      fetchUnpaidKTAs()
+      fetchBulkPayments()
+      hasInitialFetch.current = true
+    }
+  }, [])
+
+  // Client-side filter when search changes
+  useEffect(() => {
+    if (hasInitialFetch.current) {
+      // Filter KTA requests client-side
+      if (!debouncedSearchTerm) {
+        setKtaRequests(allKtaRequests)
+      } else {
+        const searchLower = debouncedSearchTerm.toLowerCase()
+        const filtered = allKtaRequests.filter(kta =>
+          kta.nama.toLowerCase().includes(searchLower) ||
+          kta.idIzin.toLowerCase().includes(searchLower) ||
+          kta.nik.toLowerCase().includes(searchLower)
+        )
+        setKtaRequests(filtered)
+      }
+    }
+  }, [debouncedSearchTerm, allKtaRequests])
 
   const fetchUnpaidKTAs = async () => {
     try {
@@ -113,9 +139,8 @@ export default function PusatPaymentPage() {
 
       // Only fetch KTAs that need payment (DRAFT, FETCHED_FROM_SIKI, EDITED, WAITING_PAYMENT, UPGRADE_PENDING)
       const params = new URLSearchParams()
-      const payableStatuses = ['DRAFT', 'FETCHED_FROM_SIKI', 'EDITED', 'WAITING_PAYMENT', 'UPGRADE_PENDING']
+      const payableStatuses = ['DRAFT']
       payableStatuses.forEach(status => params.append('status', status))
-      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
 
       const response = await fetch(`/api/kta/list?${params}`)
       const data = await response.json()
@@ -125,6 +150,7 @@ export default function PusatPaymentPage() {
         const payable = data.data.filter((kta: KTARequest) =>
           !['APPROVED_BY_PUSAT', 'READY_TO_PRINT', 'PRINTED', 'READY_FOR_PUSAT'].includes(kta.status)
         )
+        setAllKtaRequests(payable)
         setKtaRequests(payable)
       }
     } catch (error) {
@@ -233,6 +259,16 @@ export default function PusatPaymentPage() {
 
   const selectedCount = selectedRequests.length
 
+  // Filter bulk payments by search term (search names in invoice)
+  const filteredBulkPayments = bulkPayments.filter(payment => {
+    if (!debouncedSearchTerm) return true
+    const searchLower = debouncedSearchTerm.toLowerCase()
+    return payment.payments.some(p =>
+      p.ktaRequest.nama.toLowerCase().includes(searchLower) ||
+      p.ktaRequest.idIzin.toLowerCase().includes(searchLower)
+    )
+  })
+
   return (
     <>
       <div className="space-y-5">
@@ -242,8 +278,27 @@ export default function PusatPaymentPage() {
           <p className="text-slate-500 text-sm">Pilih KTA yang ingin Anda bayar</p>
         </div>
 
+      {/* Info Guide */}
+      <Card className="bg-blue-50 border-blue-200 animate-slide-up-stagger stagger-2">
+        <CardContent className="pt-5">
+          <div className="flex gap-3">
+            <div className="text-blue-600 mt-0.5">
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-900 mb-2">Informasi</h3>
+              <p className="text-sm text-blue-800 leading-relaxed">
+                Pilih KTA yang akan dibayar dengan mencentang data, kemudian klik <strong>"Lanjut Pembayaran"</strong> dan <strong>"Buat Invoice"</strong>. Invoice yang telah dibuat akan muncul pada tabel <strong>"Invoice Menunggu Pembayaran"</strong> klik baris tabel tersebut untuk melanjutkan proses pembayaran. Setelah pembayaran selesai, KTA akan tersedia di halaman <strong>"Data KTA"</strong>.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Search */}
-      <Card className="card-3d animate-slide-up-stagger stagger-2">
+      <Card className="card-3d animate-slide-up-stagger stagger-3">
         <CardContent className="pt-5">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
@@ -258,7 +313,7 @@ export default function PusatPaymentPage() {
       </Card>
 
       {/* KTA List */}
-      <Card className="card-3d animate-slide-up-stagger stagger-3">
+      <Card className="card-3d animate-slide-up-stagger stagger-4">
         <CardHeader className="border-b border-slate-200 bg-slate-50/50">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold text-slate-900">
@@ -353,7 +408,7 @@ export default function PusatPaymentPage() {
       </Card>
 
       {/* Bulk Payments / Invoice Table */}
-      <Card className="card-3d animate-slide-up-stagger stagger-4">
+      <Card className="card-3d animate-slide-up-stagger stagger-5">
         <CardHeader className="border-b border-slate-200">
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileText className="h-5 w-5 text-slate-700" />
@@ -361,10 +416,12 @@ export default function PusatPaymentPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {bulkPayments.length === 0 ? (
+          {filteredBulkPayments.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">Belum ada invoice pembayaran</p>
+              <p className="text-slate-500">
+                {debouncedSearchTerm ? 'Tidak ada invoice yang cocok dengan pencarian' : 'Belum ada invoice pembayaran'}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -379,7 +436,7 @@ export default function PusatPaymentPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {bulkPayments.map((payment) => {
+                  {filteredBulkPayments.map((payment) => {
                     const statusBadge = getBulkPaymentStatusBadge(payment.status)
                     return (
                       <tr
@@ -389,7 +446,9 @@ export default function PusatPaymentPage() {
                       >
                         <td className="py-3 px-4">
                           <p className="font-medium text-slate-900">{payment.invoiceNumber}</p>
-                          <p className="text-xs text-slate-500">ID: {payment.id.slice(0, 8)}</p>
+                          <p className="text-xs text-slate-500">
+                            {payment.payments.map(p => p.ktaRequest.nama).join(', ')}
+                          </p>
                         </td>
                         <td className="py-3 px-4">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
