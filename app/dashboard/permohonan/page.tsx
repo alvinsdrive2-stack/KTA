@@ -255,8 +255,27 @@ export default function PermohonanPage() {
         </div>
       </div>
 
+      {/* Info Guide */}
+      <Card className="bg-blue-50 border-blue-200 animate-slide-up-stagger stagger-2">
+        <CardContent className="pt-5">
+          <div className="flex gap-3">
+            <div className="text-blue-600 mt-0.5">
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-900 mb-2">Informasi</h3>
+              <p className="text-sm text-blue-800 leading-relaxed">
+                Tambah permohonan KTA baru dengan menekan tombol <strong>"Tambah KTA"</strong>. Setelah data selesai diisi, lanjutkan ke halaman pembayaran melalui tombol <strong>"Bayar KTA"</strong>. Gunakan fitur pencarian dan filter untuk menemukan data yang diperlukan, kemudian klik baris tabel untuk melihat atau mengedit detail.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Search and Filter Bar */}
-      <Card className="card-3d animate-slide-up-stagger stagger-2">
+      <Card className="card-3d animate-slide-up-stagger stagger-3">
         <CardContent className="pt-5">
           <div className="flex gap-3">
             <div className="relative flex-1">
@@ -310,7 +329,7 @@ export default function PermohonanPage() {
       </Card>
 
       {/* KTA Requests Table */}
-      <Card className="card-3d animate-slide-up-stagger stagger-3">
+      <Card className="card-3d animate-slide-up-stagger stagger-4">
         <CardHeader className="border-b border-slate-200 bg-slate-50/50">
           <CardTitle className="text-base font-semibold text-slate-900">Daftar Permohonan KTA</CardTitle>
         </CardHeader>
@@ -390,7 +409,7 @@ export default function PermohonanPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <Card className="card-3d animate-slide-up-stagger stagger-4">
+        <Card className="card-3d animate-slide-up-stagger stagger-5">
           <CardContent className="pt-5">
             <div className="flex items-center justify-between">
               <div className="text-sm text-slate-500">

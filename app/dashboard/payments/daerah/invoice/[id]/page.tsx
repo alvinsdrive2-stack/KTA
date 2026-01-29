@@ -327,7 +327,7 @@ export default function InvoiceDetailPage() {
           ) : (
             <>
               <Download className="h-4 w-4" />
-              Download PDF
+              Download Invoice
             </>
           )}
         </Button>
