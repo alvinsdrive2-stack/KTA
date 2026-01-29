@@ -465,7 +465,7 @@ export default function KTADetailPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-700 text-sm font-medium mb-1">Nomor KTA</p>
-                <p className="text-slate-800 text-3xl font-bold font-mono tracking-wider">{kta.nomorKTA}</p>
+                <p className="text-slate-800 text-3xl font-bold font-mono tracking-wider">{kta.nomorKTA || 'Belum Dibuat'}</p>
               </div>
               <IdCard className="h-12 w-12 text-blue-200" />
             </div>
@@ -645,7 +645,7 @@ export default function KTADetailPage() {
 
               <div className="space-y-1">
                 <p className="text-sm text-slate-500">ID Izin</p>
-                <p className="text-base font-mono text-slate-900">{kta.idIzin}</p>
+                <p className="text-base font-mono text-slate-900">{kta.idIzin || 'Belum ada ID Izin'}</p>
               </div>
 
               <div className="space-y-1">
@@ -782,7 +782,7 @@ export default function KTADetailPage() {
           )}
 
           {/* Payment Card - Show if no payment exists */}
-          {(!kta.payments || kta.payments.length === 0) && (
+          {(!kta.nomorKTA ) && (
             <Card className="card-3d">
               <CardHeader className="border-b border-slate-200 bg-slate-50/50">
                 <CardTitle className="flex items-center gap-2 text-lg">
