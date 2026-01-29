@@ -271,59 +271,28 @@ export default function KTAPage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-up-stagger stagger-2 over">
-          <Card className="card-3d overflow-hidden">
-            <CardContent className="pt-5">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {ktaRequests.filter(k => k.status === 'APPROVED_BY_PUSAT').length}
-                  </p>
-                  <p className="text-xs text-slate-500">Terverifikasi</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card className="card-3d">
-            <CardContent className="pt-5">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-cyan-100 rounded-xl flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-cyan-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {ktaRequests.filter(k => k.status === 'READY_TO_PRINT').length}
-                  </p>
-                  <p className="text-xs text-slate-500">Siap Cetak</p>
-                </div>
+        {/* Info Guide */}
+        <Card className="bg-blue-50 border-blue-200 animate-slide-up-stagger stagger-3">
+          <CardContent className="pt-5">
+            <div className="flex gap-3">
+              <div className="text-blue-600 mt-0.5">
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-3d">
-            <CardContent className="pt-5">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                  <Download className="h-6 w-6 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {ktaRequests.filter(k => k.status === 'PRINTED').length}
-                  </p>
-                  <p className="text-xs text-slate-500">Sudah Cetak</p>
-                </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-900 mb-2">Informasi</h3>
+                <p className="text-sm text-blue-800 leading-relaxed">
+                  Klik baris tabel untuk melihat detail KTA yang telah diterbitkan. Gunakan tombol <strong>"Download Excel"</strong> untuk mengunduh laporan data KTA dalam format Excel — data dapat difilter berdasarkan rentang tanggal di sebelah kiri tombol. Untuk mengunduh file KTA secara bersamaan, klik tombol <strong>"Pilih untuk Download"</strong> lalu pilih KTA yang diinginkan.
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Search and Filter Bar */}
-        <Card className="card-3d animate-slide-up-stagger stagger-3">
+        <Card className="card-3d animate-slide-up-stagger stagger-4">
           <CardContent className="pt-5">
             <div className="space-y-4">
               {/* Top row: Search and Date Filters */}
@@ -405,7 +374,7 @@ export default function KTAPage() {
         </Card>
 
         {/* KTA Table */}
-        <Card className="card-3d animate-slide-up-stagger stagger-4">
+        <Card className="card-3d animate-slide-up-stagger stagger-5">
           <CardHeader className="border-b border-slate-200 bg-slate-50/50">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-semibold text-slate-900">
@@ -562,7 +531,7 @@ export default function KTAPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <Card className="card-3d animate-slide-up-stagger stagger-5">
+          <Card className="card-3d animate-slide-up-stagger stagger-6">
             <CardContent className="pt-5">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-slate-500">
