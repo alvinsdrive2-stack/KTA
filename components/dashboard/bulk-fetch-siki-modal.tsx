@@ -204,7 +204,7 @@ export function BulkFetchSikiModal({ open, onOpenChange, onSuccess }: BulkFetchS
                   <li>• Untuk record tanpa ID Izin: Fetch dari SIKI index, lalu ambil data lengkap</li>
                   <li>• Untuk record dengan ID Izin tapi kurang lengkap: Langsung fetch data lengkap</li>
                   <li>• Data yang di-update: Nama, Jabatan, Jenjang, Subklasifikasi, Telp, Email, Alamat, Foto, KTP</li>
-                  <li>• Setelah fetch → status langsung READY_TO_PRINT</li>
+                  <li>• Setelah fetch → KTA langsung bisa di print</li>
                   <li>• Record dengan ID Izin duplikat akan dilewati</li>
                   <li>• Cache SIKI index selama 10 menit</li>
                 </ul>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { FileText, CreditCard, CheckCircle, Clock, Eye, UserCheck, RefreshCw } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { StatsCard, TotalAnggotaCard, PertumbuhanAnggotaCard } from '@/components/dashboard/stats-card'
 import { TableCard, TableRow, StatusBadge } from '@/components/dashboard/table-card'
 import { PulseLogo } from '@/components/ui/loading-spinner'
@@ -67,10 +68,10 @@ interface DashboardCache {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const { data: session, status: sessionStatus } = useSession()
   const userRole = session?.user?.role as string
   const sessionLoading = sessionStatus === 'loading'
-
   const [ktaRequests, setKtaRequests] = useState<KTARequest[]>([])
   const [stats, setStats] = useState({
     totalKTA: 0,
@@ -94,11 +95,21 @@ export default function DashboardPage() {
   const [dailySubmissions, setDailySubmissions] = useState<DailyData[]>([])
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('week')
   const [loadingDailyChart, setLoadingDailyChart] = useState(true)
+  const [dailyCurrentCount, setDailyCurrentCount] = useState<number>(0)
+  const [dailyRightLabel, setDailyRightLabel] = useState<{
+    value: number
+    prevValue: number
+    growthPercentage: number
+  } | null>(null)
 
   const [regionSubmissions, setRegionSubmissions] = useState<RegionTimeData[]>([])
   const [regionList, setRegionList] = useState<string[]>([])
   const [regionTimePeriod, setRegionTimePeriod] = useState<TimePeriod>('week')
   const [loadingRegionChart, setLoadingRegionChart] = useState(true)
+  const [regionRightLabel, setRegionRightLabel] = useState<{
+    value: number
+    text: string
+  } | null>(null)
 
   // DAERAH charts
   const [daerahPrintedData, setDaerahPrintedData] = useState<DailyData[]>([])
@@ -110,6 +121,12 @@ export default function DashboardPage() {
     growthPercentage: 0,
     totalPrinted: 0,
   })
+  const [daerahCurrentCount, setDaerahCurrentCount] = useState<number>(0)
+  const [daerahRightLabel, setDaerahRightLabel] = useState<{
+    value: number
+    prevValue: number
+    growthPercentage: number
+  } | null>(null)
 
   const hasFetchedRef = useRef(false)
   const [hasFetchedDashboard, setHasFetchedDashboard] = useState(false)
@@ -291,6 +308,8 @@ export default function DashboardPage() {
 
       if (data.success) {
         setDailySubmissions(data.data)
+        setDailyCurrentCount(data.currentCount ?? 0)
+        setDailyRightLabel(data.rightLabel || null)
       }
     } catch (error) {
       console.error('Error fetching daily submissions:', error)
@@ -308,6 +327,7 @@ export default function DashboardPage() {
       if (data.success) {
         setRegionSubmissions(data.data)
         setRegionList(data.regions || [])
+        setRegionRightLabel(data.rightLabel || null)
       }
     } catch (error) {
       console.error('Error fetching region submissions:', error)
@@ -325,7 +345,8 @@ export default function DashboardPage() {
 
       if (data.success) {
         setDaerahPrintedData(data.data)
-        setDaerahComparison(data.comparison)
+        setDaerahCurrentCount(data.currentCount ?? 0)
+        setDaerahRightLabel(data.rightLabel || null)
       }
     } catch (error) {
       console.error('Error fetching daerah stats:', error)
@@ -517,49 +538,61 @@ export default function DashboardPage() {
       {isPusatOrAdmin && (
         <div className="grid lg:grid-cols-2 gap-5 animate-slide-up-stagger stagger-3">
           {/* Daily Submission Chart */}
-          {loadingDailyChart ? (
-            <div className="bg-white rounded-xl border border-slate-200 p-8 flex items-center justify-center min-h-[350px]">
-              <PulseLogo text="Memuat chart..." />
+          <div className="relative min-h-[350px]">
+            {loadingDailyChart ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-8 flex items-center justify-center min-h-[350px] absolute inset-0 z-10">
+                <PulseLogo text="Memuat chart..." />
+              </div>
+            ) : null}
+            <div className={`transition-opacity duration-500 ${loadingDailyChart ? 'opacity-0' : 'opacity-100'}`}>
+              <DailySubmissionChart
+                data={dailySubmissions}
+                currentPeriod={timePeriod}
+                onPeriodChange={setTimePeriod}
+                currentCount={dailyCurrentCount}
+                rightLabel={dailyRightLabel ?? undefined}
+              />
             </div>
-          ) : (
-            <DailySubmissionChart
-              data={dailySubmissions}
-              currentPeriod={timePeriod}
-              onPeriodChange={setTimePeriod}
-            />
-          )}
+          </div>
 
           {/* Region Submission Chart */}
-          {loadingRegionChart ? (
-            <div className="bg-white rounded-xl border border-slate-200 p-8 flex items-center justify-center min-h-[350px]">
-              <PulseLogo text="Memuat chart..." />
+          <div className="relative min-h-[350px]">
+            {loadingRegionChart ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-8 flex items-center justify-center min-h-[350px] absolute inset-0 z-10">
+                <PulseLogo text="Memuat chart..." />
+              </div>
+            ) : null}
+            <div className={`transition-opacity duration-500 ${loadingRegionChart ? 'opacity-0' : 'opacity-100'}`}>
+              <RegionSubmissionChart
+                data={regionSubmissions}
+                regions={regionList}
+                currentPeriod={regionTimePeriod}
+                onPeriodChange={setRegionTimePeriod}
+                rightLabel={regionRightLabel ?? undefined}
+              />
             </div>
-          ) : (
-            <RegionSubmissionChart
-              data={regionSubmissions}
-              regions={regionList}
-              currentPeriod={regionTimePeriod}
-              onPeriodChange={setRegionTimePeriod}
-            />
-          )}
+          </div>
         </div>
       )}
 
       {isDaerah && (
         <div className="grid lg:grid-cols-3 gap-5 animate-slide-up-stagger stagger-3">
-          {loadingDaerahChart ? (
-            <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-8 flex items-center justify-center min-h-[350px]">
-              <PulseLogo text="Memuat chart..." />
-            </div>
-          ) : (
-            <div className="lg:col-span-2">
+          <div className="lg:col-span-2 relative min-h-[350px]">
+            {loadingDaerahChart ? (
+              <div className="bg-white rounded-xl border border-slate-200 p-8 flex items-center justify-center min-h-[350px] absolute inset-0 z-10">
+                <PulseLogo text="Memuat chart..." />
+              </div>
+            ) : null}
+            <div className={`transition-opacity duration-500 ${loadingDaerahChart ? 'opacity-0' : 'opacity-100'}`}>
               <DaerahPrintedChart
                 data={daerahPrintedData}
                 currentPeriod={daerahPeriod}
                 onPeriodChange={setDaerahPeriod}
+                currentCount={daerahCurrentCount}
+                rightLabel={daerahRightLabel ?? undefined}
               />
             </div>
-          )}
+          </div>
           <div>
             <DaerahComparisonCard data={daerahComparison} />
           </div>
@@ -599,12 +632,14 @@ export default function DashboardPage() {
                   <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">NIK</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Jabatan</th>
                   <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Status</th>
-                  <th className="text-right py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {displayRequests.map((request, index) => (
-                  <TableRow key={request.id} hover className="opacity-0 animate-fade-in" style={{ animationDelay: (450 + index * 50) + 'ms' }}>
+                  <TableRow key={request.id} 
+                  hover className="opacity-0 animate-fade-in" 
+                  style={{ animationDelay: (450 + index * 50) + 'ms' }} 
+                  onClick={() => router.push(`/dashboard/kta/${request.id}`)}>
                     <td>
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-Gatensi-blue flex items-center justify-center text-white font-medium text-xs shadow-md mt-1 mb-1 ml-1">
@@ -622,13 +657,6 @@ export default function DashboardPage() {
                     <td>
                       <StatusBadge status={getStatusBadge(request.status)} label={getStatusLabel(request.status)} />
                     </td>
-                    <td className="text-right">
-                      <Link href={'/dashboard/kta/' + request.id}>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-slate-100 hover:text-slate-700">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    </td>
                   </TableRow>
                 ))}
               </tbody>
@@ -637,33 +665,7 @@ export default function DashboardPage() {
         )}
       </TableCard>
       </div>
-
-      {/* Quick Links */}
-      <div className="grid md:grid-cols-3 gap-4 animate-slide-up-stagger stagger-5">
-        <Link href="/dashboard/kta/apply" className="card-3d bg-white p-5 group">
-          <div className="w-11 h-11 rounded-lg bg-Gatensi-blueLight flex items-center justify-center mb-3 group-hover:bg-Gatensi-blueLight/80 transition-colors">
-            <FileText className="h-5 w-5 text-Gatensi-blue" />
-          </div>
-          <h3 className="font-semibold text-slate-900 mb-1 text-sm">Ambil Data SIKI</h3>
-          <p className="text-xs text-slate-500">Verifikasi data anggota melalui SIKI PU</p>
-        </Link>
-
-        <Link href="/dashboard/permohonan" className="card-3d bg-white p-5 group">
-          <div className="w-11 h-11 rounded-lg bg-Gatensi-redLight flex items-center justify-center mb-3 group-hover:bg-Gatensi-redLight/80 transition-colors">
-            <CreditCard className="h-5 w-5 text-Gatensi-red" />
-          </div>
-          <h3 className="font-semibold text-slate-900 mb-1 text-sm">Kelola KTA</h3>
-          <p className="text-xs text-slate-500">Kelola permohonan KTA</p>
-        </Link>
-
-        <Link href="/dashboard/payments" className="card-3d bg-white p-5 group">
-          <div className="w-11 h-11 rounded-lg bg-green-100 flex items-center justify-center mb-3 group-hover:bg-green-200 transition-colors">
-            <CheckCircle className="h-5 w-5 text-green-700" />
-          </div>
-          <h3 className="font-semibold text-slate-900 mb-1 text-sm">Konfirmasi Pembayaran</h3>
-          <p className="text-xs text-slate-500">Verifikasi pembayaran masuk</p>
-        </Link>
-      </div>
+      
     </div>
   )
 }

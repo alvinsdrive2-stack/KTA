@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Search, Download, Filter, FileText, CheckCircle, Package, CheckSquare, X, Calendar, FileSpreadsheet, Loader2, Upload, Database } from 'lucide-react'
+import { Search, Download, Filter, FileText, CheckCircle, Package, CheckSquare, X, Calendar, FileSpreadsheet, Loader2, Upload, Database, Import, DownloadCloudIcon } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useKTASelection } from '@/contexts/KTASelectionContext'
 import { JenjangBadge } from '@/components/ui/jenjang-badge'
@@ -355,18 +355,6 @@ export default function KTAPage() {
                   />
                 </div>
 
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-48 bg-white">
-                    <SelectValue placeholder="Filter Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="APPROVED_BY_PUSAT">Terverifikasi</SelectItem>
-                    <SelectItem value="READY_TO_PRINT">Siap Cetak</SelectItem>
-                    <SelectItem value="PRINTED">Sudah Cetak</SelectItem>
-                  </SelectContent>
-                </Select>
-
                 <Button
                   onClick={handleDownloadExcel}
                   disabled={downloading}
@@ -391,14 +379,13 @@ export default function KTAPage() {
                       onClick={() => setImportLegacyModalOpen(true)}
                       className="bg-blue-600 hover:bg-blue-700"
                     >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Import Data Lama
+                      <DownloadCloudIcon className="h-4 w-4 mr-2" />
+                      Import Data
                     </Button>
 
                     <Button
                       onClick={() => router.push('/dashboard/kta/legacy')}
-                      variant="outline"
-                      className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                      className="border-purple-300 bg-purple-800 text-white hover:bg-purple-950 hover:text-purple-100 "
                     >
                       <Database className="h-4 w-4 mr-2" />
                       Lihat Data Legacy

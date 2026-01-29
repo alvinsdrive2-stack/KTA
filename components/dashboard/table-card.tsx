@@ -70,17 +70,18 @@ export function TableCard({
 }
 
 // Table Row Component - 3D style
-interface TableRowProps {
+interface TableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
   cells?: React.ReactNode[]
   hover?: boolean
   className?: string
   children?: React.ReactNode
 }
 
-export function TableRow({ cells, hover = true, className, children }: TableRowProps) {
+export function TableRow({ cells, hover = true, className, children, ...rest }: TableRowProps) {
   if (children) {
     return (
       <tr
+        {...rest}
         className={cn(
           'border-b border-slate-100 transition-colors duration-150',
           hover && 'hover:bg-slate-50 cursor-pointer',
@@ -95,6 +96,7 @@ export function TableRow({ cells, hover = true, className, children }: TableRowP
   if (cells && cells.length > 0) {
     return (
       <tr
+        {...rest}
         className={cn(
           'border-b border-slate-100 transition-colors duration-150',
           hover && 'hover:bg-slate-50 cursor-pointer',

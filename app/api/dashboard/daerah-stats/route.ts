@@ -23,35 +23,39 @@ export async function GET(request: NextRequest) {
     const period = searchParams.get('period') || 'month'
 
     const now = new Date()
-    // Create a new date object to avoid reference issues
-    let startDate = new Date(now.getTime())
-
-    // Set the start date based on the period
-    switch (period) {
-      case 'week':
-        startDate.setDate(now.getDate() - 7)
-        break
-      case 'month':
-        startDate.setDate(now.getDate() - 30)
-        break
-      case 'year':
-        startDate.setFullYear(now.getFullYear() - 1)
-        break
-      default:
-        startDate.setDate(now.getDate() - 30)
-    }
-
-    // Reset time to start of day for accurate date comparison
-    startDate.setHours(0, 0, 0, 0)
     now.setHours(23, 59, 59, 999)
 
-    // Fetch printed KTA for this daerah
-    const printedKTA = await prisma.kTARequest.findMany({
+    // Calculate current period dates
+    let currentStartDate = new Date(now.getTime())
+
+    switch (period) {
+      case 'week':
+        currentStartDate.setDate(now.getDate() - 7)
+        break
+      case 'month':
+        currentStartDate.setDate(now.getDate() - 30)
+        break
+      case 'year':
+        currentStartDate.setFullYear(now.getFullYear() - 1)
+        break
+      default:
+        currentStartDate.setDate(now.getDate() - 30)
+    }
+
+    currentStartDate.setHours(0, 0, 0, 0)
+
+    // Build base where clause
+    const baseWhereClause: any = {
+      daerahId: userDaerahId,
+      status: 'READY_TO_PRINT',
+    }
+
+    // Fetch current period printed KTA
+    const currentKTA = await prisma.kTARequest.findMany({
       where: {
-        daerahId: userDaerahId,
-        status: 'READY_TO_PRINT',
+        ...baseWhereClause,
         createdAt: {
-          gte: startDate,
+          gte: currentStartDate,
           lte: now,
         },
       },
@@ -63,23 +67,106 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Calculate right side label data based on period
+    let rightLabelValue = 0
+    let rightLabelPrevValue = 0
+
+    if (period === 'week') {
+      // Today's count
+      const todayStart = new Date(now)
+      todayStart.setHours(0, 0, 0, 0)
+      rightLabelValue = await prisma.kTARequest.count({
+        where: {
+          ...baseWhereClause,
+          createdAt: {
+            gte: todayStart,
+            lte: now,
+          },
+        },
+      })
+      // Yesterday's count for comparison
+      const yesterdayStart = new Date(todayStart)
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1)
+      const yesterdayEnd = new Date(todayStart)
+      yesterdayEnd.setMilliseconds(yesterdayEnd.getMilliseconds() - 1)
+      rightLabelPrevValue = await prisma.kTARequest.count({
+        where: {
+          ...baseWhereClause,
+          createdAt: {
+            gte: yesterdayStart,
+            lte: yesterdayEnd,
+          },
+        },
+      })
+    } else if (period === 'month') {
+      // Last 5 days count
+      const fiveDaysAgo = new Date(now)
+      fiveDaysAgo.setDate(now.getDate() - 5)
+      fiveDaysAgo.setHours(0, 0, 0, 0)
+      rightLabelValue = await prisma.kTARequest.count({
+        where: {
+          ...baseWhereClause,
+          createdAt: {
+            gte: fiveDaysAgo,
+            lte: now,
+          },
+        },
+      })
+      // Previous 5 days for comparison
+      const tenDaysAgo = new Date(fiveDaysAgo)
+      tenDaysAgo.setDate(tenDaysAgo.getDate() - 5)
+      const sixDaysAgo = new Date(fiveDaysAgo)
+      sixDaysAgo.setMilliseconds(sixDaysAgo.getMilliseconds() - 1)
+      rightLabelPrevValue = await prisma.kTARequest.count({
+        where: {
+          ...baseWhereClause,
+          createdAt: {
+            gte: tenDaysAgo,
+            lte: sixDaysAgo,
+          },
+        },
+      })
+    } else {
+      // This month count
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      rightLabelValue = await prisma.kTARequest.count({
+        where: {
+          ...baseWhereClause,
+          createdAt: {
+            gte: monthStart,
+            lte: now,
+          },
+        },
+      })
+      // Last month count for comparison
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const lastMonthEnd = new Date(monthStart)
+      lastMonthEnd.setMilliseconds(lastMonthEnd.getMilliseconds() - 1)
+      rightLabelPrevValue = await prisma.kTARequest.count({
+        where: {
+          ...baseWhereClause,
+          createdAt: {
+            gte: lastMonthStart,
+            lte: lastMonthEnd,
+          },
+        },
+      })
+    }
+
     // Initialize date labels based on period
     const groupedData: Record<string, number> = {}
 
     if (period === 'week') {
-      // Week: every day
-      const currentDate = new Date(startDate)
+      const currentDate = new Date(currentStartDate)
       while (currentDate <= now) {
         const dateKey = formatDateKey(currentDate)
         groupedData[dateKey] = 0
         currentDate.setDate(currentDate.getDate() + 1)
       }
     } else if (period === 'month') {
-      // Month: every 5 days (1-5, 6-10, etc.)
-      const currentDate = new Date(startDate)
+      const currentDate = new Date(currentStartDate)
       let dayCounter = 1
       while (currentDate <= now) {
-        // Group every 5 days
         const groupDay = Math.floor((dayCounter - 1) / 5) * 5 + 1
         const groupDate = new Date(currentDate)
         groupDate.setDate(groupDay)
@@ -93,8 +180,7 @@ export async function GET(request: NextRequest) {
         dayCounter++
       }
     } else if (period === 'year') {
-      // Year: by month
-      const currentDate = new Date(startDate)
+      const currentDate = new Date(currentStartDate)
       while (currentDate <= now) {
         const dateKey = formatDateKeyMonth(currentDate)
         if (!groupedData[dateKey]) {
@@ -105,20 +191,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Count printed KTA per date group
-    printedKTA.forEach((kta) => {
+    currentKTA.forEach((kta) => {
       let dateKey: string
 
       if (period === 'week') {
         dateKey = formatDateKey(kta.createdAt)
       } else if (period === 'month') {
-        // Group by 5-day periods
         const dayOfMonth = kta.createdAt.getDate()
         const groupDay = Math.floor((dayOfMonth - 1) / 5) * 5 + 1
         const groupDate = new Date(kta.createdAt)
         groupDate.setDate(groupDay)
         dateKey = formatDateKey(groupDate)
       } else {
-        // year: group by month
         dateKey = formatDateKeyMonth(kta.createdAt)
       }
 
@@ -133,56 +217,22 @@ export async function GET(request: NextRequest) {
       count,
     }))
 
-    // Calculate comparison: current month vs previous month
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
+    // Calculate current period total
+    const currentCount = currentKTA.length
 
-    // Current month printed KTA
-    const thisMonthCount = await prisma.kTARequest.count({
-      where: {
-        daerahId: userDaerahId,
-        status: 'READY_TO_PRINT',
-        createdAt: {
-          gte: thisMonthStart,
-          lte: now,
-        },
-      },
-    })
-
-    // Previous month printed KTA
-    const lastMonthCount = await prisma.kTARequest.count({
-      where: {
-        daerahId: userDaerahId,
-        status: 'READY_TO_PRINT',
-        createdAt: {
-          gte: lastMonthStart,
-          lte: lastMonthEnd,
-        },
-      },
-    })
-
-    // Total printed KTA for this daerah
-    const totalPrinted = await prisma.kTARequest.count({
-      where: {
-        daerahId: userDaerahId,
-        status: 'READY_TO_PRINT',
-      },
-    })
-
-    // Calculate growth percentage
-    const growthPercentage = lastMonthCount > 0
-      ? ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100
-      : (thisMonthCount > 0 ? 100 : 0)
+    // Calculate right side growth percentage
+    const rightGrowthPercentage = rightLabelPrevValue > 0
+      ? ((rightLabelValue - rightLabelPrevValue) / rightLabelPrevValue) * 100
+      : (rightLabelValue > 0 ? 100 : 0)
 
     return NextResponse.json({
       success: true,
       data: chartData,
-      comparison: {
-        thisMonthCount,
-        lastMonthCount,
-        growthPercentage: Math.round(growthPercentage * 10) / 10,
-        totalPrinted,
+      currentCount,
+      rightLabel: {
+        value: rightLabelValue,
+        prevValue: rightLabelPrevValue,
+        growthPercentage: Math.round(rightGrowthPercentage * 10) / 10,
       },
     })
   } catch (error) {
@@ -216,9 +266,7 @@ function formatDate(dateString: string, period: string): string {
     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
     return days[date.getDay()]
   } else if (period === 'month') {
-    // Show date range (e.g., "1-5 Jan", "26-31 Jan")
     const startDay = date.getDate()
-    // Get the last day of the month dynamically
     const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
     const endDay = Math.min(startDay + 4, lastDayOfMonth)
     return `${startDay}-${endDay} ${date.toLocaleDateString('id-ID', { month: 'short' })}`

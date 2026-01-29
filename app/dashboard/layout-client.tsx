@@ -582,7 +582,7 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
   }, [sidebarOpen])
 
   return (
-    <div className="min-h-screen bg-white/80">
+    <div className="flex flex-col min-h-screen bg-white/80">
       {/* Mobile overlay - closes sidebar when clicked outside */}
       {sidebarOpen && (
         <div
@@ -674,7 +674,7 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
 
       {/* Main Content */}
       <main className={`
-        transition-all duration-300 relative
+        flex-1 transition-all duration-300 relative
         ${sidebarCollapsed ? 'lg:pl-0' : 'lg:pl-64'}
       `}>
         {/* Background Image - Indonesia Map */}
@@ -764,8 +764,22 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
         </header>
 
         {/* Page Content */}
-        <div className="p-6 lg:p-8 animate-slide-up">
-          {children}
+        <div className="flex flex-col p-6 lg:p-8 animate-slide-up gap-y-8">
+          <div className="flex-1 min-h-[630px]">
+            {children}
+          </div>
+
+          {/* Footer */}
+          <footer className="py-6 border-t border-slate-200">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-slate-600">
+                © {new Date().getFullYear()} LSP Gatensi. All rights reserved.
+              </p>
+              <p className="text-sm text-slate-500">
+                Sistem Informasi Kartu Tanda Anggota
+              </p>
+            </div>
+          </footer>
         </div>
       </main>
     </div>
