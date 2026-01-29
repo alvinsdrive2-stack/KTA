@@ -207,6 +207,7 @@ export default function PusatInvoicesHistoryPage() {
               </table>
             </div>
           )}
+          
         </CardContent>
       </Card>
     </div>

@@ -17,7 +17,59 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+
+// CountUp Component - animates numbers from 0 to target
+function CountUp({ end, duration = 1000, className }: { end: number; duration?: number; className?: string }) {
+  const [count, setCount] = useState(0)
+  const [isVisible, setIsVisible] = useState(false)
+  const ref = useRef<HTMLSpanElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (ref.current) {
+      observer.observe(ref.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!isVisible) return
+
+    let startTime: number
+    let animationFrame: number
+
+    const animate = (currentTime: number) => {
+      if (!startTime) startTime = currentTime
+      const progress = Math.min((currentTime - startTime) / duration, 1)
+
+      // Easing function for smooth animation
+      const easeOutQuart = 1 - Math.pow(1 - progress, 4)
+      setCount(Math.floor(easeOutQuart * end))
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate)
+      } else {
+        setCount(end)
+      }
+    }
+
+    animationFrame = requestAnimationFrame(animate)
+
+    return () => cancelAnimationFrame(animationFrame)
+  }, [isVisible, end, duration])
+
+  return <span ref={ref} className={className}>{count}</span>
+}
 
 interface StatusData {
   name: string
@@ -101,52 +153,73 @@ export function DailySubmissionChart({
   data,
   onPeriodChange,
   currentPeriod = 'week',
+  currentCount,
+  rightLabel,
   className
 }: {
   data: DailyData[]
   onPeriodChange?: (period: TimePeriod) => void
   currentPeriod?: TimePeriod
+  currentCount?: number
+  rightLabel?: {
+    value: number
+    prevValue: number
+    growthPercentage: number
+  }
   className?: string
 } & ChartProps) {
-  // Calculate totals
-  const totalCount = data.reduce((sum, item) => sum + item.count, 0)
+  const leftCount = currentCount ?? data.reduce((sum, item) => sum + item.count, 0)
+  const rightCount = rightLabel?.value ?? 0
+  const growthPercentage = rightLabel?.growthPercentage ?? 0
 
-  // Calculate growth (compare first half vs second half)
-  const midpoint = Math.floor(data.length / 2)
-  const firstHalf = data.slice(0, midpoint).reduce((sum, item) => sum + item.count, 0)
-  const secondHalf = data.slice(midpoint).reduce((sum, item) => sum + item.count, 0)
-  const growth = firstHalf > 0 ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100) : 0
+  const getPeriodLabel = (period: TimePeriod) => {
+    switch (period) {
+      case 'week': return 'Minggu Ini'
+      case 'month': return 'Bulan Ini'
+      case 'year': return 'Tahun Ini'
+    }
+  }
+
+  const getRightLabel = (period: TimePeriod) => {
+    switch (period) {
+      case 'week': return 'Hari Ini'
+      case 'month': return '5 Hari Terakhir'
+      case 'year': return 'Bulan Ini'
+    }
+  }
 
   return (
     <div className={'bg-white rounded-2xl p-6 shadow-sm border border-slate-200 ' + (className || '')}>
       {/* Title */}
-      <h3 className="text-lg font-semibold text-brand-blue-900 mb-6">Pengajuan KTA Per Hari</h3>
+      <h3 className="text-lg font-semibold text-brand-blue-900 mb-6">Cetak KTA</h3>
 
       {/* Header Section */}
       <div className="flex justify-between items-start mb-6">
         {/* Metrics */}
         <div className="flex gap-8">
           <div>
-            <p className="text-3xl font-bold text-brand-blue-900">{totalCount}</p>
-            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">Total Pengajuan</p>
+            <p className="text-3xl font-bold text-brand-blue-900">
+              <CountUp end={leftCount} duration={800} />
+            </p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">{getPeriodLabel(currentPeriod)}</p>
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <p className="text-3xl font-bold text-brand-blue-900">{data.length > 0 ? data[data.length - 1].count : 0}</p>
-            </div>
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-xs text-slate-500 uppercase tracking-wider">Hari Ini</p>
-              {growth > 0 && (
-                <span className="text-xs text-emerald-600 font-medium">
-                  ↑{growth}% dari periode lalu
+            <p className="text-3xl font-bold text-brand-blue-900 relative inline-block pr-16">
+              <CountUp end={rightCount} duration={800} />
+              {growthPercentage > 0 && (
+                <span className="absolute -top-2 -right-2 text-xs text-emerald-600 font-medium whitespace-nowrap">
+                  ↑{growthPercentage.toFixed(1)}%
                 </span>
               )}
-              {growth < 0 && (
-                <span className="text-xs text-red-600 font-medium">
-                  ↓{Math.abs(growth)}% dari periode lalu
+              {growthPercentage < 0 && (
+                <span className="absolute -top-2 -right-2 text-xs text-red-600 font-medium whitespace-nowrap">
+                  ↓{Math.abs(growthPercentage).toFixed(1)}%
                 </span>
               )}
-            </div>
+            </p>
+            <br />
+            <br />
+            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">{getRightLabel(currentPeriod)}</p>
           </div>
         </div>
 
@@ -199,7 +272,7 @@ export function DailySubmissionChart({
               strokeWidth={2.5}
               dot={{ fill: '#1e40af', r: 4, strokeWidth: 2 }}
               activeDot={{ r: 6, fill: '#1e3a8a', stroke: '#1e40af', strokeWidth: 2 }}
-              name="Pengajuan"
+              name="Cetak KTA"
               animationBegin={0}
               animationDuration={800}
               animationEasing="ease-out"
@@ -225,12 +298,17 @@ export function RegionSubmissionChart({
   regions = [],
   onPeriodChange,
   currentPeriod = 'week',
+  rightLabel,
   className
 }: {
   data: RegionTimeData[]
   regions?: string[]
   onPeriodChange?: (period: TimePeriod) => void
   currentPeriod?: TimePeriod
+  rightLabel?: {
+    value: number
+    text: string
+  }
   className?: string
 } & ChartProps) {
   // Calculate total submissions
@@ -242,6 +320,14 @@ export function RegionSubmissionChart({
     return sum + count
   }, 0)
 
+  const getPeriodLabel = (period: TimePeriod) => {
+    switch (period) {
+      case 'week': return 'Minggu Ini'
+      case 'month': return 'Bulan Ini'
+      case 'year': return 'Tahun Ini'
+    }
+  }
+
   return (
     <div className={'bg-white rounded-2xl p-6 shadow-sm border border-slate-200 ' + (className || '')}>
       {/* Title */}
@@ -252,12 +338,16 @@ export function RegionSubmissionChart({
         {/* Metrics */}
         <div className="flex gap-8">
           <div>
-            <p className="text-3xl font-bold text-brand-blue-900">{totalSubmissions}</p>
-            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">Total Pengajuan</p>
+            <p className="text-3xl font-bold text-brand-blue-900">
+              <CountUp end={totalSubmissions} duration={800} />
+            </p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">{getPeriodLabel(currentPeriod)}</p>
           </div>
           <div>
-            <p className="text-3xl font-bold text-brand-blue-900">{regions.length}</p>
-            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">Daerah Aktif</p>
+            <p className="text-3xl font-bold text-brand-blue-900">
+              <CountUp end={rightLabel?.value ?? regions.length} duration={800} />
+            </p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">{rightLabel?.text ?? 'Daerah Aktif'}</p>
           </div>
         </div>
 
@@ -283,6 +373,7 @@ export function RegionSubmissionChart({
       
 
       {/* Chart Section */}
+      
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
@@ -325,7 +416,7 @@ export function RegionSubmissionChart({
         </ResponsiveContainer>
       </div>
       {regions.length > 0 && (
-        <div className="flex flex-wrap gap-3 mb-4">
+        <div className="flex flex-wrap gap-3 mb-4 ml-[20%]">
           {regions.map((region, index) => (
             <div key={region} className="flex items-center gap-2">
               <div
@@ -372,11 +463,15 @@ export function DaerahComparisonCard({ data, className }: { data: DaerahComparis
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 shadow-sm">
               <div className="text-xs text-slate-600 mb-1">Bulan Ini</div>
-              <div className="text-3xl font-bold text-brand-blue-900 count-up">{data.thisMonthCount}</div>
+              <div className="text-3xl font-bold text-brand-blue-900">
+                <CountUp end={data.thisMonthCount} duration={800} />
+              </div>
             </div>
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 shadow-sm">
               <div className="text-xs text-slate-600 mb-1">Bulan Lalu</div>
-              <div className="text-3xl font-bold text-brand-blue-900 count-up">{data.lastMonthCount}</div>
+              <div className="text-3xl font-bold text-brand-blue-900">
+                <CountUp end={data.lastMonthCount} duration={800} />
+              </div>
             </div>
           </div>
 
@@ -407,7 +502,9 @@ export function DaerahComparisonCard({ data, className }: { data: DaerahComparis
 
           <div className="bg-gradient-to-br from-brand-blue-800 to-brand-blue-900 rounded-xl p-5 text-white shadow-lg">
             <div className="text-xs text-blue-200 mb-1">Total KTA Dicetak</div>
-            <div className="text-4xl font-bold text-white count-up">{data.totalPrinted}</div>
+            <div className="text-4xl font-bold text-white">
+              <CountUp end={data.totalPrinted} duration={800} />
+            </div>
           </div>
         </div>
       </CardContent>
@@ -420,50 +517,71 @@ export function DaerahPrintedChart({
   data,
   onPeriodChange,
   currentPeriod = 'month',
+  currentCount,
+  rightLabel,
   className
 }: {
   data: DailyData[]
   onPeriodChange?: (period: TimePeriod) => void
   currentPeriod?: TimePeriod
+  currentCount?: number
+  rightLabel?: {
+    value: number
+    prevValue: number
+    growthPercentage: number
+  }
   className?: string
 } & ChartProps) {
-  // Calculate totals
-  const totalPrinted = data.reduce((sum, item) => sum + item.count, 0)
+  const leftCount = currentCount ?? data.reduce((sum, item) => sum + item.count, 0)
+  const rightCount = rightLabel?.value ?? 0
+  const growthPercentage = rightLabel?.growthPercentage ?? 0
 
-  // Calculate growth
-  const midpoint = Math.floor(data.length / 2)
-  const firstHalf = data.slice(0, midpoint).reduce((sum, item) => sum + item.count, 0)
-  const secondHalf = data.slice(midpoint).reduce((sum, item) => sum + item.count, 0)
-  const growth = firstHalf > 0 ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100) : 0
+  const getPeriodLabel = (period: TimePeriod) => {
+    switch (period) {
+      case 'week': return 'Minggu Ini'
+      case 'month': return 'Bulan Ini'
+      case 'year': return 'Tahun Ini'
+    }
+  }
+
+  const getRightLabel = (period: TimePeriod) => {
+    switch (period) {
+      case 'week': return 'Hari Ini'
+      case 'month': return '5 Hari Terakhir'
+      case 'year': return 'Bulan Ini'
+    }
+  }
 
   return (
     <div className={'bg-white rounded-2xl p-6 shadow-sm border border-slate-200 ' + (className || '')}>
       {/* Title */}
-      <h3 className="text-lg font-semibold text-brand-blue-900 mb-6">KTA Dicetak Per Periode</h3>
+      <h3 className="text-lg font-semibold text-brand-blue-900 mb-6">Cetak KTA</h3>
 
       {/* Header Section */}
       <div className="flex justify-between items-start mb-6">
         {/* Metrics */}
         <div className="flex gap-8">
           <div>
-            <p className="text-3xl font-bold text-brand-blue-900">{totalPrinted}</p>
-            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">Total Dicetak</p>
+            <p className="text-3xl font-bold text-brand-blue-900">
+              <CountUp end={leftCount} duration={800} />
+            </p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">{getPeriodLabel(currentPeriod)}</p>
           </div>
           <div>
-            <p className="text-3xl font-bold text-brand-blue-900">{data.length > 0 ? data[data.length - 1].count : 0}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-xs text-slate-500 uppercase tracking-wider">Terakhir</p>
-              {growth > 0 && (
-                <span className="text-xs text-emerald-600 font-medium">
-                  ↑{growth}% MOM
+            <p className="text-3xl font-bold text-brand-blue-900 relative inline-block pr-16">
+              <CountUp end={rightCount} duration={800} />
+              {growthPercentage > 0 && (
+                <span className="absolute -top-2 -right-2 text-xs text-emerald-600 font-medium whitespace-nowrap">
+                  ↑{growthPercentage.toFixed(1)}%
                 </span>
               )}
-              {growth < 0 && (
-                <span className="text-xs text-red-600 font-medium">
-                  ↓{Math.abs(growth)}% MOM
+              {growthPercentage < 0 && (
+                <span className="absolute -top-2 -right-2 text-xs text-red-600 font-medium whitespace-nowrap">
+                  ↓{Math.abs(growthPercentage).toFixed(1)}%
                 </span>
               )}
-            </div>
+            </p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">{getRightLabel(currentPeriod)}</p>
           </div>
         </div>
 
@@ -517,7 +635,7 @@ export function DaerahPrintedChart({
                 padding: '12px 16px',
               }}
               labelFormatter={(label) => `Tanggal: ${label}`}
-              formatter={(value) => [value, 'KTA Dicetak']}
+              formatter={(value) => [value, 'Cetak KTA']}
             />
             <Line
               type="monotone"
@@ -526,7 +644,7 @@ export function DaerahPrintedChart({
               strokeWidth={2.5}
               dot={{ fill: '#dc2626', r: 4, strokeWidth: 2 }}
               activeDot={{ r: 6, fill: '#b91c1c', stroke: '#dc2626', strokeWidth: 2 }}
-              name="KTA Dicetak"
+              name="Cetak KTA"
               animationBegin={0}
               animationDuration={800}
               animationEasing="ease-out"

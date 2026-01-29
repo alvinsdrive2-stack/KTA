@@ -18,43 +18,78 @@ export async function GET(request: NextRequest) {
     const userDaerahId = session.user?.daerahId
 
     const now = new Date()
-    // Create a new date object to avoid reference issues
-    let startDate = new Date(now.getTime())
+    now.setHours(23, 59, 59, 999)
 
-    // Set the start date based on the period
+    // Calculate current period dates
+    let currentStartDate = new Date(now.getTime())
+    let prevStartDate: Date
+    let prevEndDate: Date
+
     switch (period) {
       case 'week':
-        startDate.setDate(now.getDate() - 7)
+        currentStartDate.setDate(now.getDate() - 7)
+        // Previous week: 7-14 days ago
+        prevStartDate = new Date(now.getTime())
+        prevStartDate.setDate(now.getDate() - 14)
+        prevEndDate = new Date(now.getTime())
+        prevEndDate.setDate(now.getDate() - 8)
         break
       case 'month':
-        startDate.setDate(now.getDate() - 30)
+        currentStartDate.setDate(now.getDate() - 30)
+        // Previous month: 30-60 days ago
+        prevStartDate = new Date(now.getTime())
+        prevStartDate.setDate(now.getDate() - 60)
+        prevEndDate = new Date(now.getTime())
+        prevEndDate.setDate(now.getDate() - 31)
         break
       case 'year':
-        startDate.setFullYear(now.getFullYear() - 1)
+        currentStartDate.setFullYear(now.getFullYear() - 1)
+        // Previous year: 1-2 years ago
+        prevStartDate = new Date(now.getTime())
+        prevStartDate.setFullYear(now.getFullYear() - 2)
+        prevEndDate = new Date(now.getTime())
+        prevEndDate.setFullYear(now.getFullYear() - 1)
+        prevEndDate.setHours(23, 59, 59, 999)
         break
       default:
-        startDate.setDate(now.getDate() - 7)
+        currentStartDate.setDate(now.getDate() - 7)
+        prevStartDate = new Date(now.getTime())
+        prevStartDate.setDate(now.getDate() - 14)
+        prevEndDate = new Date(now.getTime())
+        prevEndDate.setDate(now.getDate() - 8)
     }
 
-    // Reset time to start of day for accurate date comparison
-    startDate.setHours(0, 0, 0, 0)
-    now.setHours(23, 59, 59, 999) // Include today
+    currentStartDate.setHours(0, 0, 0, 0)
+    prevStartDate.setHours(0, 0, 0, 0)
+    prevEndDate.setHours(23, 59, 59, 999)
 
-    // Build where clause based on user role
-    const whereClause: any = {
+    // Build where clause for current period
+    const currentWhereClause: any = {
       createdAt: {
-        gte: startDate,
+        gte: currentStartDate,
+        lte: now,
       },
+      status: 'READY_TO_PRINT', // Only count ready to print
+    }
+
+    // Build where clause for previous period (for comparison)
+    const prevWhereClause: any = {
+      createdAt: {
+        gte: prevStartDate,
+        lte: prevEndDate,
+      },
+      status: 'READY_TO_PRINT',
     }
 
     // Filter by daerahId for DAERAH role
     if (userRole === 'DAERAH' && userDaerahId) {
-      whereClause.daerahId = userDaerahId
+      currentWhereClause.daerahId = userDaerahId
+      prevWhereClause.daerahId = userDaerahId
     }
 
-    // Fetch KTA requests grouped by date
-    const ktaRequests = await prisma.kTARequest.findMany({
-      where: whereClause,
+    // Fetch current period KTA
+    const currentKTA = await prisma.kTARequest.findMany({
+      where: currentWhereClause,
       select: {
         createdAt: true,
       },
@@ -63,23 +98,111 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Fetch previous period total count (for percentage comparison)
+    const prevCount = await prisma.kTARequest.count({
+      where: prevWhereClause,
+    })
+
+    // Calculate right side label data based on period
+    let rightLabelValue = 0
+    let rightLabelPrevValue = 0
+
+    if (period === 'week') {
+      // Today's count
+      const todayStart = new Date(now)
+      todayStart.setHours(0, 0, 0, 0)
+      rightLabelValue = await prisma.kTARequest.count({
+        where: {
+          ...currentWhereClause,
+          createdAt: {
+            gte: todayStart,
+            lte: now,
+          },
+        },
+      })
+      // Yesterday's count for comparison
+      const yesterdayStart = new Date(todayStart)
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1)
+      const yesterdayEnd = new Date(todayStart)
+      yesterdayEnd.setMilliseconds(yesterdayEnd.getMilliseconds() - 1)
+      rightLabelPrevValue = await prisma.kTARequest.count({
+        where: {
+          ...currentWhereClause,
+          createdAt: {
+            gte: yesterdayStart,
+            lte: yesterdayEnd,
+          },
+        },
+      })
+    } else if (period === 'month') {
+      // Last 5 days count
+      const fiveDaysAgo = new Date(now)
+      fiveDaysAgo.setDate(now.getDate() - 5)
+      fiveDaysAgo.setHours(0, 0, 0, 0)
+      rightLabelValue = await prisma.kTARequest.count({
+        where: {
+          ...currentWhereClause,
+          createdAt: {
+            gte: fiveDaysAgo,
+            lte: now,
+          },
+        },
+      })
+      // Previous 5 days for comparison
+      const tenDaysAgo = new Date(fiveDaysAgo)
+      tenDaysAgo.setDate(tenDaysAgo.getDate() - 5)
+      const sixDaysAgo = new Date(fiveDaysAgo)
+      sixDaysAgo.setMilliseconds(sixDaysAgo.getMilliseconds() - 1)
+      rightLabelPrevValue = await prisma.kTARequest.count({
+        where: {
+          ...currentWhereClause,
+          createdAt: {
+            gte: tenDaysAgo,
+            lte: sixDaysAgo,
+          },
+        },
+      })
+    } else {
+      // This month count
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      rightLabelValue = await prisma.kTARequest.count({
+        where: {
+          ...currentWhereClause,
+          createdAt: {
+            gte: monthStart,
+            lte: now,
+          },
+        },
+      })
+      // Last month count for comparison
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const lastMonthEnd = new Date(monthStart)
+      lastMonthEnd.setMilliseconds(lastMonthEnd.getMilliseconds() - 1)
+      rightLabelPrevValue = await prisma.kTARequest.count({
+        where: {
+          ...currentWhereClause,
+          createdAt: {
+            gte: lastMonthStart,
+            lte: lastMonthEnd,
+          },
+        },
+      })
+    }
+
     // Group by date based on period
     const groupedData: Record<string, number> = {}
 
     if (period === 'week') {
-      // Week: show every day
-      const currentDate = new Date(startDate)
+      const currentDate = new Date(currentStartDate)
       while (currentDate <= now) {
         const dateKey = formatDateKey(currentDate)
         groupedData[dateKey] = 0
         currentDate.setDate(currentDate.getDate() + 1)
       }
     } else if (period === 'month') {
-      // Month: show every 5 days (1-5, 6-10, etc.)
-      const currentDate = new Date(startDate)
+      const currentDate = new Date(currentStartDate)
       let dayCounter = 1
       while (currentDate <= now) {
-        // Group every 5 days
         const groupDay = Math.floor((dayCounter - 1) / 5) * 5 + 1
         const groupDate = new Date(currentDate)
         groupDate.setDate(groupDay)
@@ -93,8 +216,7 @@ export async function GET(request: NextRequest) {
         dayCounter++
       }
     } else if (period === 'year') {
-      // Year: show by month
-      const currentDate = new Date(startDate)
+      const currentDate = new Date(currentStartDate)
       while (currentDate <= now) {
         const dateKey = formatDateKeyMonth(currentDate)
         if (!groupedData[dateKey]) {
@@ -105,20 +227,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Count submissions per date group
-    ktaRequests.forEach((request) => {
+    currentKTA.forEach((request) => {
       let dateKey: string
 
       if (period === 'week') {
         dateKey = formatDateKey(request.createdAt)
       } else if (period === 'month') {
-        // Group by 5-day periods
         const dayOfMonth = request.createdAt.getDate()
         const groupDay = Math.floor((dayOfMonth - 1) / 5) * 5 + 1
         const groupDate = new Date(request.createdAt)
         groupDate.setDate(groupDay)
         dateKey = formatDateKey(groupDate)
       } else {
-        // year: group by month
         dateKey = formatDateKeyMonth(request.createdAt)
       }
 
@@ -133,9 +253,23 @@ export async function GET(request: NextRequest) {
       count,
     }))
 
+    // Calculate current period total
+    const currentCount = currentKTA.length
+
+    // Calculate right side growth percentage
+    const rightGrowthPercentage = rightLabelPrevValue > 0
+      ? ((rightLabelValue - rightLabelPrevValue) / rightLabelPrevValue) * 100
+      : (rightLabelValue > 0 ? 100 : 0)
+
     return NextResponse.json({
       success: true,
       data: chartData,
+      currentCount,
+      rightLabel: {
+        value: rightLabelValue,
+        prevValue: rightLabelPrevValue,
+        growthPercentage: Math.round(rightGrowthPercentage * 10) / 10,
+      },
     })
   } catch (error) {
     console.error('Error fetching daily submissions:', error)
@@ -165,18 +299,14 @@ function formatDate(dateString: string, period: string): string {
   const date = new Date(dateString)
 
   if (period === 'week') {
-    // For week, show day name (e.g., "Sen", "Sel")
     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
     return days[date.getDay()]
   } else if (period === 'month') {
-    // For month, show date range (e.g., "1-5 Jan", "26-31 Jan")
     const startDay = date.getDate()
-    // Get the last day of the month dynamically
     const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
     const endDay = Math.min(startDay + 4, lastDayOfMonth)
     return `${startDay}-${endDay} ${date.toLocaleDateString('id-ID', { month: 'short' })}`
   } else {
-    // For year, show month name (e.g., "Jan", "Feb")
     return date.toLocaleDateString('id-ID', { month: 'short' })
   }
 }
