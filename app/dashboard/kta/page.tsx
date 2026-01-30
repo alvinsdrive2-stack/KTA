@@ -284,7 +284,7 @@ export default function KTAPage() {
               <div className="flex-1">
                 <h3 className="font-semibold text-blue-900 mb-2">Informasi</h3>
                 <p className="text-sm text-blue-800 leading-relaxed">
-                  Klik baris tabel untuk melihat detail KTA yang telah diterbitkan. Gunakan tombol <strong>"Download Excel"</strong> untuk mengunduh laporan data KTA dalam format Excel — data dapat difilter berdasarkan rentang tanggal di sebelah kiri tombol. Untuk mengunduh file KTA secara bersamaan, klik tombol <strong>"Pilih untuk Download"</strong> lalu pilih KTA yang diinginkan.
+                  Klik baris tabel untuk melihat detail KTA yang telah diterbitkan. Gunakan tombol <strong>"Download Excel"</strong> untuk mengunduh laporan data KTA dalam format Excel data dapat difilter berdasarkan rentang tanggal di sebelah kiri tombol. Untuk mengunduh file KTA secara bersamaan, klik tombol <strong>"Pilih untuk Download"</strong> lalu pilih KTA yang diinginkan.
                 </p>
               </div>
             </div>
