@@ -148,7 +148,7 @@ export default function DaerahPaymentPage() {
       if (data.success) {
         // Filter out already paid ones and show only those needing payment
         const payable = data.data.filter((kta: KTARequest) =>
-          !['APPROVED_BY_PUSAT', 'READY_TO_PRINT', 'PRINTED', 'READY_FOR_PUSAT'].includes(kta.status)
+          !["WAITING_PAYMENT", "APPROVED_BY_PUSAT", "READY_TO_PRINT", "PRINTED", "READY_FOR_PUSAT"].includes(kta.status)
         )
         setAllKtaRequests(payable)
         setKtaRequests(payable)
