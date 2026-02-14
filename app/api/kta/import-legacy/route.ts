@@ -215,8 +215,8 @@ export async function POST(request: NextRequest) {
       normalizedHeaders: normalized
     })
 
-    // Check if required columns are present (idIzin is optional for legacy data)
-    const requiredColumns = ['nama', 'nik', 'jabatanKerja', 'subklasifikasi', 'jenjang', 'noTelp', 'email', 'alamat']
+    // Check if required columns are present (idIzin, nomorKTA, alamat are optional for legacy data)
+    const requiredColumns = ['nama', 'nik', 'jabatanKerja', 'subklasifikasi', 'jenjang', 'noTelp', 'email']
     const missingColumns = requiredColumns.filter(col => !columnMapping[col])
 
     if (missingColumns.length > 0) {
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
         expectedColumns: requiredColumns,
         columnMapping,
         normalizedHeaders: normalized,
-        suggestion: `Pastikan file memiliki kolom: Nama Lengkap, NIK, Jenjang, Jabatan Kerja, Subklasifikasi, No. Telepon, Email, Alamat. ID Izin opsional.`
+        suggestion: `Pastikan file memiliki kolom: Nama Lengkap, NIK, Jenjang, Jabatan Kerja, Subklasifikasi, No. Telepon, Email. ID Izin, Nomor KTA, dan Alamat opsional.`
       }, { status: 400 })
     }
 
@@ -282,12 +282,12 @@ export async function POST(request: NextRequest) {
         const tanggalDaftar = row[columnMapping.tanggalDaftar] ? parseDateValue(row[columnMapping.tanggalDaftar]) : new Date()
         const daerahKode = row[columnMapping.daerahKode]?.toString().trim()
 
-        // Validate required fields
-        if (!nama || !nik || !jabatanKerja || !subklasifikasi || !jenjang || !noTelp || !email || !alamat) {
+        // Validate required fields (alamat is optional)
+        if (!nama || !nik || !jabatanKerja || !subklasifikasi || !jenjang || !noTelp || !email) {
           errors.push({
             row: i + 1,
             error: 'Field wajib tidak boleh kosong',
-            data: { nama, nik, jabatanKerja, subklasifikasi, jenjang, noTelp, email, alamat }
+            data: { nama, nik, jabatanKerja, subklasifikasi, jenjang, noTelp, email }
           })
           continue
         }
