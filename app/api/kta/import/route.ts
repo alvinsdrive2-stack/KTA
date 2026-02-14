@@ -454,8 +454,9 @@ export async function PUT(request: NextRequest) {
     for (const row of rows) {
       try {
         const jenjangNum = parseInt(row.jenjang, 10)
-        const hargaBase = jenjangNum >= 7 ? 300000 : 100000
-        const hargaFinal = Math.floor(hargaBase - (hargaBase * diskonPersen / 100))
+        // Import data: harga selalu 0 (gratis)
+        const hargaBase = 0
+        const hargaFinal = 0
 
         // Check for upgrade scenario
         const upgradeCheck = await checkUpgradeScenario(
@@ -474,19 +475,11 @@ export async function PUT(request: NextRequest) {
           continue
         }
 
-        // Calculate final price
-        let finalHargaBase = hargaBase
-        let finalHargaFinal = hargaFinal
-        let finalHargaUpgrade: number | undefined
-        let finalHargaLama: number | undefined
-
-        if (upgradeCheck.isUpgrade) {
-          finalHargaBase = upgradeCheck.hargaBaru
-          // Upgrade fee = hargaBaru - hargaLama, then apply discount to the upgrade fee
-          finalHargaFinal = upgradeCheck.hargaUpgrade - (upgradeCheck.hargaUpgrade * diskonPersen / 100)
-          finalHargaUpgrade = upgradeCheck.hargaUpgrade
-          finalHargaLama = upgradeCheck.hargaLama
-        }
+        // Import data: harga selalu 0 (gratis)
+        const finalHargaBase = 0
+        const finalHargaFinal = 0
+        const finalHargaUpgrade: number | undefined = undefined
+        const finalHargaLama: number | undefined = undefined
 
         // Create KTA Request (without KTP and Foto - will be uploaded later)
         const ktaRequest = await prisma.kTARequest.create({
@@ -505,15 +498,15 @@ export async function PUT(request: NextRequest) {
             daerahId: finalDaerahId,
             requestedBy: session.user.id,
             status: 'IMPORTED_PENDING_DOCS', // Special status for imported records
-            hargaRegion: finalHargaFinal,
-            diskonPersen,
-            hargaBase: finalHargaBase,
-            hargaFinal: finalHargaFinal,
+            hargaRegion: 0,
+            diskonPersen: 0,
+            hargaBase: 0,
+            hargaFinal: 0,
             tanggalDaftar: new Date(row.tanggalDaftar),
-            isUpgrade: upgradeCheck.isUpgrade,
-            upgradeFromKtaId: upgradeCheck.existingKta?.id,
-            hargaLama: finalHargaLama,
-            hargaUpgrade: finalHargaUpgrade,
+            isUpgrade: false,
+            upgradeFromKtaId: undefined,
+            hargaLama: undefined,
+            hargaUpgrade: undefined,
           }
         })
 

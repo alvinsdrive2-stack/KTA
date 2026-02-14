@@ -115,11 +115,11 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
       return
     }
 
-    if (selectedFile.size > 5 * 1024 * 1024) {
+    if (selectedFile.size > 50 * 1024 * 1024) {
       toast({
         variant: 'destructive',
         title: 'File terlalu besar',
-        description: 'Ukuran file maksimal 5MB',
+        description: 'Ukuran file maksimal 50MB',
       })
       return
     }
@@ -432,7 +432,7 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
                     >
                       Pilih File
                     </Button>
-                    <p className="text-xs text-slate-500">Format: .xlsx, .xls, .csv (Maks 5MB)</p>
+                    <p className="text-xs text-slate-500">Format: .xlsx, .xls, .csv (Maks 50MB)</p>
                   </div>
                 )}
               </div>

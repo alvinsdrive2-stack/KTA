@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import { ArrowLeft, Download, FileText, User, IdCard, Calendar, MapPin, Phone, Mail, Building, Eye, Upload, AlertCircle, Loader2, RefreshCw, Info, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Download, FileText, User, IdCard, Calendar, MapPin, Phone, Mail, Building, Eye, Upload, AlertCircle, Loader2, RefreshCw, Info, CheckCircle, Pencil, Save, X } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useSession } from '@/hooks/useSession'
 import { useToast } from '@/components/ui/use-toast'
@@ -69,6 +69,11 @@ export default function KTADetailPage() {
   // Document upload states
   const [uploadingKtp, setUploadingKtp] = useState(false)
   const [uploadingFoto, setUploadingFoto] = useState(false)
+
+  // Inline edit states
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState<string>('')
+  const [saving, setSaving] = useState(false)
 
   // Refresh states
   const [refreshing, setRefreshing] = useState(false)
@@ -348,13 +353,12 @@ export default function KTADetailPage() {
         throw new Error(uploadData.error || 'Gagal mengupload file')
       }
 
-      // Update KTA with document URL
+      // Update KTA with document URL (don't change status)
       const updateResponse = await fetch(`/api/kta/${kta.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           [type === 'ktp' ? 'ktpUrl' : 'fotoUrl']: uploadData.url,
-          status: 'DRAFT',
         }),
       })
 
@@ -379,6 +383,114 @@ export default function KTADetailPage() {
     } finally {
       setUploading(false)
     }
+  }
+
+  // Inline edit functions
+  const startEdit = (field: string, currentValue: string) => {
+    setEditingField(field)
+    setEditValue(currentValue || '')
+  }
+
+  const cancelEdit = () => {
+    setEditingField(null)
+    setEditValue('')
+  }
+
+  const saveEdit = async (field: string) => {
+    if (!kta || !editValue.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Nilai tidak boleh kosong',
+        description: 'Silakan isi nilai yang valid',
+      })
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/kta/${kta.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: editValue.trim() }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Gagal menyimpan perubahan')
+      }
+
+      toast({
+        variant: 'success',
+        title: 'Berhasil',
+        description: 'Data berhasil diperbarui',
+      })
+
+      // Update local state
+      setKta({ ...kta, [field]: editValue.trim() })
+      setEditingField(null)
+      setEditValue('')
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Gagal menyimpan',
+        description: error instanceof Error ? error.message : 'Terjadi kesalahan',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Check if field is empty and can be edited
+  const isEmpty = (value: string | null | undefined) => {
+    if (value === null || value === undefined) return true
+    if (typeof value === 'string' && value.trim() === '') return true
+    return false
+  }
+
+  // Render editable field
+  const renderEditableField = (
+    field: string,
+    value: string | null | undefined,
+    displayValue?: React.ReactNode,
+    type: 'text' | 'email' | 'number' = 'text',
+    maxLength?: number
+  ) => {
+    const isEditing = editingField === field
+    const isFieldEmpty = isEmpty(value)
+
+    if (isEditing) {
+      return (
+        <div className="flex gap-2">
+          <Input
+            type={type}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="flex-1"
+            maxLength={maxLength}
+          />
+          <Button size="sm" onClick={() => saveEdit(field)} disabled={saving}>
+            <Save className="h-3 w-3" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={cancelEdit}>
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      )
+    }
+
+    return (
+      <div
+        className={`flex items-center gap-2 ${isFieldEmpty ? 'cursor-pointer hover:bg-amber-50 p-1 rounded -mx-1' : ''}`}
+        onClick={() => isFieldEmpty && startEdit(field, value || '')}
+      >
+        {displayValue || (
+          <span className="text-amber-600 italic flex items-center gap-1">
+            {isFieldEmpty && <Pencil className="h-3 w-3" />}
+            Kosong - klik untuk isi
+          </span>
+        )}
+      </div>
+    )
   }
 
   const getStatusBadge = (status: string) => {
@@ -633,60 +745,161 @@ export default function KTADetailPage() {
                 </div>
               )}
 
+              {/* Nama Lengkap - Editable if empty */}
               <div className="space-y-1">
                 <p className="text-sm text-slate-500">Nama Lengkap</p>
-                <p className="text-base font-semibold text-slate-900">{kta.nama}</p>
+                {!isEmpty(kta.nama) && editingField !== 'nama' ? (
+                  <p className="text-base font-semibold text-slate-900">{kta.nama}</p>
+                ) : (
+                  renderEditableField('nama', kta.nama)
+                )}
               </div>
 
+              {/* NIK - Editable if empty */}
               <div className="space-y-1">
                 <p className="text-sm text-slate-500">NIK</p>
-                <p className="text-base font-mono text-slate-900">{kta.nik}</p>
+                {!isEmpty(kta.nik) && editingField !== 'nik' ? (
+                  <p className="text-base font-mono text-slate-900">{kta.nik}</p>
+                ) : (
+                  renderEditableField('nik', kta.nik, undefined, 'text', 16)
+                )}
               </div>
 
+              {/* ID Izin - Editable if empty */}
               <div className="space-y-1">
                 <p className="text-sm text-slate-500">ID Izin</p>
-                <p className="text-base font-mono text-slate-900">{kta.idIzin || 'Belum ada ID Izin'}</p>
+                {!isEmpty(kta.idIzin) && editingField !== 'idIzin' ? (
+                  <p className="text-base font-mono text-slate-900">{kta.idIzin}</p>
+                ) : (
+                  renderEditableField('idIzin', kta.idIzin)
+                )}
               </div>
 
+              {/* Jabatan Kerja - Editable if empty */}
               <div className="space-y-1">
                 <p className="text-sm text-slate-500">Jabatan Kerja</p>
-                <p className="text-base text-slate-900">{kta.jabatanKerja}</p>
+                {!isEmpty(kta.jabatanKerja) && editingField !== 'jabatanKerja' ? (
+                  <p className="text-base text-slate-900">{kta.jabatanKerja}</p>
+                ) : (
+                  renderEditableField('jabatanKerja', kta.jabatanKerja)
+                )}
               </div>
 
+              {/* Subklasifikasi - Editable if empty */}
               <div className="space-y-1">
                 <p className="text-sm text-slate-500">Subklasifikasi</p>
-                <p className="text-base text-slate-900">{kta.subklasifikasi || '-'}</p>
+                {!isEmpty(kta.subklasifikasi) && editingField !== 'subklasifikasi' ? (
+                  <p className="text-base text-slate-900">{kta.subklasifikasi}</p>
+                ) : (
+                  renderEditableField('subklasifikasi', kta.subklasifikasi)
+                )}
               </div>
 
+              {/* Jenjang - Editable if empty */}
               <div className="space-y-1">
                 <p className="text-sm text-slate-500">Jenjang</p>
-                <Badge variant="outline" className="border-blue-200 text-blue-700">
-                  {kta.jenjang}
-                </Badge>
+                {!isEmpty(kta.jenjang) && editingField !== 'jenjang' ? (
+                  <Badge variant="outline" className="border-blue-200 text-blue-700">
+                    {kta.jenjang}
+                  </Badge>
+                ) : (
+                  <div>
+                    {editingField === 'jenjang' ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="10"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="flex-1 w-20"
+                        />
+                        <Button size="sm" onClick={() => saveEdit('jenjang')} disabled={saving}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div
+                        className={`flex items-center gap-2 cursor-pointer hover:bg-amber-50 p-1 rounded -mx-1`}
+                        onClick={() => isEmpty(kta.jenjang) && startEdit('jenjang', kta.jenjang || '')}
+                      >
+                        <span className="text-amber-600 italic flex items-center gap-1">
+                          <Pencil className="h-3 w-3" />
+                          Kosong - klik untuk isi
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
+              {/* No. Telepon - Editable if empty */}
               <div className="space-y-1">
                 <p className="text-sm text-slate-500">No. Telepon</p>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-slate-400" />
-                  <p className="text-base text-slate-900">{kta.noTelp}</p>
-                </div>
+                {!isEmpty(kta.noTelp) && editingField !== 'noTelp' ? (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-slate-400" />
+                    <p className="text-base text-slate-900">{kta.noTelp}</p>
+                  </div>
+                ) : (
+                  renderEditableField('noTelp', kta.noTelp, undefined, 'text')
+                )}
               </div>
 
+              {/* Email - Editable if empty */}
               <div className="space-y-1">
                 <p className="text-sm text-slate-500">Email</p>
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-slate-400" />
-                  <p className="text-base text-slate-900">{kta.email}</p>
-                </div>
+                {!isEmpty(kta.email) && editingField !== 'email' ? (
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-slate-400" />
+                    <p className="text-base text-slate-900">{kta.email}</p>
+                  </div>
+                ) : (
+                  renderEditableField('email', kta.email, undefined, 'email')
+                )}
               </div>
 
+              {/* Alamat - Editable if empty */}
               <div className="md:col-span-2 space-y-1">
                 <p className="text-sm text-slate-500">Alamat</p>
-                <div className="flex items-start gap-2">
-                  <MapPin className="h-4 w-4 text-slate-400 mt-1" />
-                  <p className="text-base text-slate-900">{kta.alamat}</p>
-                </div>
+                {!isEmpty(kta.alamat) && editingField !== 'alamat' ? (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-slate-400 mt-1" />
+                    <p className="text-base text-slate-900">{kta.alamat}</p>
+                  </div>
+                ) : (
+                  <div>
+                    {editingField === 'alamat' ? (
+                      <div className="flex gap-2">
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button size="sm" onClick={() => saveEdit('alamat')} disabled={saving}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div
+                        className={`flex items-start gap-2 cursor-pointer hover:bg-amber-50 p-1 rounded -mx-1`}
+                        onClick={() => isEmpty(kta.alamat) && startEdit('alamat', kta.alamat || '')}
+                      >
+                        <MapPin className="h-4 w-4 text-slate-400 mt-1" />
+                        <span className="text-amber-600 italic flex items-center gap-1">
+                          <Pencil className="h-3 w-3" />
+                          Kosong - klik untuk isi
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">
