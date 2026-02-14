@@ -280,7 +280,7 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
   }
 
   const downloadTemplate = () => {
-    const headers = ['Nama Lengkap', 'NIK', 'ID Izin (Opsional)', 'Nomor KTA (Opsional)', 'Jenjang', 'Jabatan Kerja', 'Subklasifikasi', 'NoTelp', 'Email', 'Alamat', 'Tanggal Daftar (YYYY-MM-DD)']
+    const headers = ['Nama Lengkap', 'NIK', 'ID Izin (Opsional)', 'Nomor KTA (Opsional)', 'Jenjang', 'Jabatan Kerja', 'Subklasifikasi', 'NoTelp', 'Email', 'Alamat (Opsional)', 'Tanggal Daftar (YYYY-MM-DD)']
     const sampleData = [
       ['Ahmad Fauzi', '1234567890123456', '', '12.34.123456', '3', 'Pelaksana Lapangan', 'BL003', '081234567890', 'ahmad@example.com', 'Jl. Contoh No. 123', '2024-01-15'],
       ['Siti Rahayu', '2345678901234567', '', '12.34.123457', '5', 'Pelaksana Lapangan', 'BL003', '082345678901', 'siti@example.com', 'Jl. Contoh No. 456', '2024-01-16'],
