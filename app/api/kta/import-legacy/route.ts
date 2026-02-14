@@ -477,10 +477,11 @@ export async function PUT(request: NextRequest) {
           select: { diskonPersen: true, kodeDaerah: true }
         })
 
-        const diskonPersen = daerah?.diskonPersen || 0
+        // Import data: harga selalu 0 (gratis)
+        const diskonPersen = 0
         const jenjangNum = parseInt(row.jenjang, 10)
-        const hargaBase = jenjangNum >= 7 ? 300000 : 100000
-        const hargaFinal = Math.floor(hargaBase - (hargaBase * diskonPersen / 100))
+        const hargaBase = 0
+        const hargaFinal = 0
 
         // Create KTA Request for legacy data
         const ktaRequest = await prisma.kTARequest.create({
@@ -500,10 +501,10 @@ export async function PUT(request: NextRequest) {
             daerahId: finalDaerahId,
             requestedBy: session.user.id,
             status: 'IMPORTED_PENDING_DOCS', // Draft status for legacy data
-            hargaRegion: hargaFinal,
-            diskonPersen,
-            hargaBase: hargaBase,
-            hargaFinal: hargaFinal,
+            hargaRegion: 0,
+            diskonPersen: 0,
+            hargaBase: 0,
+            hargaFinal: 0,
             tanggalDaftar: new Date(row.tanggalDaftar),
             isUpgrade: false,
           }

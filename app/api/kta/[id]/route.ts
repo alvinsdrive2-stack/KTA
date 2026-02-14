@@ -115,6 +115,7 @@ export async function PATCH(
     // Prepare update data
     const updateData: any = {}
 
+    // Standard updates (ktpUrl, fotoUrl, status)
     if (body.ktpUrl !== undefined) {
       updateData.ktpUrl = body.ktpUrl
     }
@@ -123,6 +124,24 @@ export async function PATCH(
     }
     if (body.status !== undefined) {
       updateData.status = body.status
+    }
+
+    // Allow all roles to edit EMPTY fields
+    const editableFields = ['nama', 'nik', 'idIzin', 'jabatanKerja', 'subklasifikasi', 'jenjang', 'noTelp', 'email', 'alamat']
+
+    for (const field of editableFields) {
+      if (body[field] !== undefined) {
+        // Only allow update if the field is currently empty
+        const currentValue = existingKta[field as keyof typeof existingKta]
+        if (!currentValue || currentValue.toString().trim() === '') {
+          updateData[field] = body[field]
+        } else if (currentValue !== body[field]) {
+          // If field is not empty, only ADMIN/PUSAT can change it
+          if (session.user.role === 'ADMIN' || session.user.role === 'PUSAT') {
+            updateData[field] = body[field]
+          }
+        }
+      }
     }
 
     // Regenerate QR code if requested
@@ -145,6 +164,15 @@ export async function PATCH(
         fotoUrl: true,
         status: true,
         qrCodePath: true,
+        nama: true,
+        nik: true,
+        idIzin: true,
+        jabatanKerja: true,
+        subklasifikasi: true,
+        jenjang: true,
+        noTelp: true,
+        email: true,
+        alamat: true,
       }
     })
 

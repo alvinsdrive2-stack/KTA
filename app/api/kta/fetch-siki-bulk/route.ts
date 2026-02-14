@@ -146,6 +146,11 @@ export async function POST(request: NextRequest) {
           needIdIzinLookup = true
 
           if (!idIzin) {
+            // Not found in SIKI - set status to READY_TO_PRINT so KTA can be downloaded
+            await prisma.kTARequest.update({
+              where: { id: kta.id },
+              data: { status: 'READY_TO_PRINT' }
+            })
             results.push({
               id: kta.id,
               nik: kta.nik,
