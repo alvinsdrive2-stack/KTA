@@ -203,13 +203,33 @@ export async function POST(request: NextRequest) {
 
             console.log(`[Bulk SIKI] Fetched data for ${kta.nik}: foto=${!!fotoUrl}, ktp=${!!ktpUrl}`)
 
+            // Convert jabatan kerja code to name (same logic as refresh-siki)
+            let jabatanKerja = data.jabatan || ''
+            if (data.jabatan) {
+              const jabkerName = await sikiApi.getJabatanKerjaByCode(String(data.jabatan))
+              if (jabkerName) {
+                jabatanKerja = jabkerName
+                console.log(`[Bulk SIKI] Converted jabker: ${data.jabatan} → ${jabkerName}`)
+              }
+            }
+
+            // Convert subklasifikasi code to name (same logic as refresh-siki)
+            let subklasifikasi = data.subklasifikasi || ''
+            if (data.subklasifikasi) {
+              const subklasName = await sikiApi.getSubklasifikasiName(String(data.subklasifikasi))
+              if (subklasName) {
+                subklasifikasi = subklasName
+                console.log(`[Bulk SIKI] Converted subklas: ${data.subklasifikasi} → ${subklasName}`)
+              }
+            }
+
             // Build update data - include idIzin only if we're setting it for the first time
             const updateData: any = {
               nama: data.nama,
               nik: data.nik,
-              jabatanKerja: data.jabatan,
+              jabatanKerja: jabatanKerja,
               jenjang: data.jenjang,
-              subklasifikasi: data.subklasifikasi,
+              subklasifikasi: subklasifikasi,
               noTelp: data.telp,
               email: data.email,
               alamat: data.alamat,
