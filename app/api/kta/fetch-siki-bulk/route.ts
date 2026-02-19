@@ -82,9 +82,11 @@ export async function POST(request: NextRequest) {
     const { daerahId, limit } = body
 
     // Find KTA records that need sync:
+    // Only process IMPORTED_PENDING_DOCS status
     // 1. idIzin is null (need to fetch from SIKI index)
     // 2. idIzin exists but fotoUrl or ktpUrl is null (can directly fetch from SIKI API)
     const baseClause: any = {
+      status: 'IMPORTED_PENDING_DOCS',
       OR: [
         { idIzin: null },
         { AND: [{ idIzin: { not: null } }, { OR: [{ fotoUrl: null }, { ktpUrl: null }] }] }
@@ -318,8 +320,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const daerahId = searchParams.get('daerahId')
 
-    // Count records that need sync: idIzin is null OR (idIzin exists but foto/ktp is null)
+    // Count records that need sync: only IMPORTED_PENDING_DOCS with missing idIzin or docs
     const baseClause: any = {
+      status: 'IMPORTED_PENDING_DOCS',
       OR: [
         { idIzin: null },
         { AND: [{ idIzin: { not: null } }, { OR: [{ fotoUrl: null }, { ktpUrl: null }] }] }
