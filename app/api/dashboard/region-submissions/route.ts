@@ -19,28 +19,37 @@ export async function GET(request: NextRequest) {
 
     // Calculate current period dates
     let currentStartDate = new Date(now.getTime())
+    let chartStartDate = new Date(now.getTime()) // For chart data range
 
     switch (period) {
       case 'week':
-        currentStartDate.setDate(now.getDate() - 7)
+        chartStartDate.setDate(now.getDate() - 7)
+        currentStartDate = new Date(chartStartDate)
         break
       case 'month':
-        currentStartDate.setDate(now.getDate() - 30)
+        // For labels: use calendar month
+        currentStartDate = new Date(now.getFullYear(), now.getMonth(), 1)
+        // For chart: still use 30 days for visualization
+        chartStartDate.setDate(now.getDate() - 30)
         break
       case 'year':
         currentStartDate.setFullYear(now.getFullYear() - 1)
+        chartStartDate = new Date(currentStartDate)
         break
       default:
-        currentStartDate.setDate(now.getDate() - 7)
+        chartStartDate.setDate(now.getDate() - 7)
+        currentStartDate = new Date(chartStartDate)
     }
 
     currentStartDate.setHours(0, 0, 0, 0)
+    chartStartDate.setHours(0, 0, 0, 0)
 
     // Fetch KTA requests with region info - ONLY READY_TO_PRINT
+    // Use chartStartDate for fetching data to have complete chart
     const ktaRequests = await prisma.kTARequest.findMany({
       where: {
         createdAt: {
-          gte: currentStartDate,
+          gte: chartStartDate,
           lte: now,
         },
         status: 'READY_TO_PRINT', // Only count ready to print
@@ -62,14 +71,14 @@ export async function GET(request: NextRequest) {
     const dateLabels: string[] = []
 
     if (period === 'week') {
-      const currentDate = new Date(currentStartDate)
+      const currentDate = new Date(chartStartDate)
       while (currentDate <= now) {
         const dateKey = formatDateKey(currentDate)
         dateLabels.push(dateKey)
         currentDate.setDate(currentDate.getDate() + 1)
       }
     } else if (period === 'month') {
-      const currentDate = new Date(currentStartDate)
+      const currentDate = new Date(chartStartDate)
       let dayCounter = 1
       while (currentDate <= now) {
         const groupDay = Math.floor((dayCounter - 1) / 5) * 5 + 1
@@ -85,7 +94,7 @@ export async function GET(request: NextRequest) {
         dayCounter++
       }
     } else if (period === 'year') {
-      const currentDate = new Date(currentStartDate)
+      const currentDate = new Date(chartStartDate)
       while (currentDate <= now) {
         const dateKey = formatDateKeyMonth(currentDate)
         if (!dateLabels.includes(dateKey)) {
@@ -174,12 +183,14 @@ export async function GET(request: NextRequest) {
       ).length
       rightLabelText = 'Hari Ini'
     } else if (period === 'month') {
-      // Last 5 days count
+      // Last 5 days count - only from current calendar month
       const fiveDaysAgo = new Date(now)
       fiveDaysAgo.setDate(now.getDate() - 5)
       fiveDaysAgo.setHours(0, 0, 0, 0)
+      // Use currentStartDate (beginning of calendar month) as lower bound
+      const effectiveStart = fiveDaysAgo > currentStartDate ? fiveDaysAgo : currentStartDate
       rightLabelValue = ktaRequests.filter(kta =>
-        kta.createdAt >= fiveDaysAgo && kta.createdAt <= now
+        kta.createdAt >= effectiveStart && kta.createdAt <= now
       ).length
       rightLabelText = '5 Hari Terakhir'
     } else {
@@ -191,6 +202,15 @@ export async function GET(request: NextRequest) {
       rightLabelText = 'Bulan Ini'
     }
 
+    // Calculate left label (current period total) - use currentStartDate for "Bulan Ini"
+    let leftLabelValue = 0
+    if (period === 'month') {
+      // For "Bulan Ini", count from beginning of calendar month
+      leftLabelValue = ktaRequests.filter(kta =>
+        kta.createdAt >= currentStartDate && kta.createdAt <= now
+      ).length
+    }
+
     return NextResponse.json({
       success: true,
       data: chartData,
@@ -199,6 +219,8 @@ export async function GET(request: NextRequest) {
         value: rightLabelValue,
         text: rightLabelText,
       },
+      // Pass left label value for month period
+      currentCount: period === 'month' ? leftLabelValue : undefined,
     })
   } catch (error) {
     console.error('Error fetching region submissions:', error)
