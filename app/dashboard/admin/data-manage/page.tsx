@@ -39,6 +39,8 @@ import {
   Database,
   FileText,
   Receipt,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 
 // Types
@@ -174,6 +176,12 @@ export default function DataManagePage() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [submitting, setSubmitting] = useState(false)
 
+  // Pagination states
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+  const pageSize = 10
+
   // Modal states
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -218,6 +226,7 @@ export default function DataManagePage() {
   // Fetch data based on active tab
   useEffect(() => {
     if (initialFetchDone.current && session?.user?.role === 'ADMIN') {
+      setPage(1) // Reset page when tab/filter changes
       fetchAllData()
     }
   }, [activeTab, statusFilter])
@@ -226,12 +235,20 @@ export default function DataManagePage() {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (initialFetchDone.current) {
+        setPage(1) // Reset page when search changes
         fetchAllData()
       }
     }, 500)
 
     return () => clearTimeout(timeoutId)
   }, [search])
+
+  // Fetch data when page changes
+  useEffect(() => {
+    if (initialFetchDone.current && session?.user?.role === 'ADMIN') {
+      fetchAllData()
+    }
+  }, [page])
 
   const fetchAllData = () => {
     switch (activeTab) {
@@ -252,12 +269,16 @@ export default function DataManagePage() {
       const params = new URLSearchParams()
       if (search) params.append('search', search)
       if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+      params.append('page', page.toString())
+      params.append('limit', pageSize.toString())
 
       const response = await fetch(`/api/admin/data-manage/kta-requests?${params}`)
       const data = await response.json()
 
       if (data.success) {
         setKtaRequests(data.data)
+        setTotal(data.pagination.total)
+        setTotalPages(data.pagination.totalPages)
       } else {
         setError(data.error || 'Gagal memuat data KTA Request')
       }
@@ -274,12 +295,16 @@ export default function DataManagePage() {
       const params = new URLSearchParams()
       if (search) params.append('search', search)
       if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+      params.append('page', page.toString())
+      params.append('limit', pageSize.toString())
 
       const response = await fetch(`/api/admin/data-manage/bulk-payments?${params}`)
       const data = await response.json()
 
       if (data.success) {
         setBulkPayments(data.data)
+        setTotal(data.pagination.total)
+        setTotalPages(data.pagination.totalPages)
       } else {
         setError(data.error || 'Gagal memuat data Bulk Payment')
       }
@@ -296,12 +321,16 @@ export default function DataManagePage() {
       const params = new URLSearchParams()
       if (search) params.append('search', search)
       if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+      params.append('page', page.toString())
+      params.append('limit', pageSize.toString())
 
       const response = await fetch(`/api/admin/data-manage/payments?${params}`)
       const data = await response.json()
 
       if (data.success) {
         setPayments(data.data)
+        setTotal(data.pagination.total)
+        setTotalPages(data.pagination.totalPages)
       } else {
         setError(data.error || 'Gagal memuat data Payment')
       }
@@ -802,6 +831,60 @@ export default function DataManagePage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {total > 0 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
+                <p className="text-sm text-slate-500">
+                  Menampilkan {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, total)} dari {total} data
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page - 1)}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Prev
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number
+                      if (totalPages <= 5) {
+                        pageNum = i + 1
+                      } else if (page <= 3) {
+                        pageNum = i + 1
+                      } else if (page >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i
+                      } else {
+                        pageNum = page - 2 + i
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={page === pageNum ? 'default' : 'outline'}
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => setPage(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
