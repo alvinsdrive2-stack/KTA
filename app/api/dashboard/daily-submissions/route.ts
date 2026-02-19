@@ -22,12 +22,14 @@ export async function GET(request: NextRequest) {
 
     // Calculate current period dates
     let currentStartDate = new Date(now.getTime())
+    let chartStartDate = new Date(now.getTime()) // For chart data range
     let prevStartDate: Date
     let prevEndDate: Date
 
     switch (period) {
       case 'week':
-        currentStartDate.setDate(now.getDate() - 7)
+        chartStartDate.setDate(now.getDate() - 7)
+        currentStartDate = new Date(chartStartDate)
         // Previous week: 7-14 days ago
         prevStartDate = new Date(now.getTime())
         prevStartDate.setDate(now.getDate() - 14)
@@ -35,7 +37,10 @@ export async function GET(request: NextRequest) {
         prevEndDate.setDate(now.getDate() - 8)
         break
       case 'month':
-        currentStartDate.setDate(now.getDate() - 30)
+        // For labels: use calendar month
+        currentStartDate = new Date(now.getFullYear(), now.getMonth(), 1)
+        // For chart: still use 30 days for visualization
+        chartStartDate.setDate(now.getDate() - 30)
         // Previous month: 30-60 days ago
         prevStartDate = new Date(now.getTime())
         prevStartDate.setDate(now.getDate() - 60)
@@ -43,7 +48,8 @@ export async function GET(request: NextRequest) {
         prevEndDate.setDate(now.getDate() - 31)
         break
       case 'year':
-        currentStartDate.setFullYear(now.getFullYear() - 1)
+        chartStartDate.setFullYear(now.getFullYear() - 1)
+        currentStartDate = new Date(chartStartDate)
         // Previous year: 1-2 years ago
         prevStartDate = new Date(now.getTime())
         prevStartDate.setFullYear(now.getFullYear() - 2)
@@ -52,7 +58,8 @@ export async function GET(request: NextRequest) {
         prevEndDate.setHours(23, 59, 59, 999)
         break
       default:
-        currentStartDate.setDate(now.getDate() - 7)
+        chartStartDate.setDate(now.getDate() - 7)
+        currentStartDate = new Date(chartStartDate)
         prevStartDate = new Date(now.getTime())
         prevStartDate.setDate(now.getDate() - 14)
         prevEndDate = new Date(now.getTime())
@@ -60,13 +67,14 @@ export async function GET(request: NextRequest) {
     }
 
     currentStartDate.setHours(0, 0, 0, 0)
+    chartStartDate.setHours(0, 0, 0, 0)
     prevStartDate.setHours(0, 0, 0, 0)
     prevEndDate.setHours(23, 59, 59, 999)
 
-    // Build where clause for current period
+    // Build where clause for current period - use chartStartDate for complete chart data
     const currentWhereClause: any = {
       createdAt: {
-        gte: currentStartDate,
+        gte: chartStartDate,
         lte: now,
       },
       status: 'READY_TO_PRINT', // Only count ready to print
@@ -135,29 +143,33 @@ export async function GET(request: NextRequest) {
         },
       })
     } else if (period === 'month') {
-      // Last 5 days count
+      // Last 5 days count - but only from current calendar month
       const fiveDaysAgo = new Date(now)
       fiveDaysAgo.setDate(now.getDate() - 5)
       fiveDaysAgo.setHours(0, 0, 0, 0)
+      // Use currentStartDate (beginning of calendar month) as lower bound
+      const effectiveStart = fiveDaysAgo > currentStartDate ? fiveDaysAgo : currentStartDate
       rightLabelValue = await prisma.kTARequest.count({
         where: {
           ...currentWhereClause,
           createdAt: {
-            gte: fiveDaysAgo,
+            gte: effectiveStart,
             lte: now,
           },
         },
       })
-      // Previous 5 days for comparison
+      // Previous 5 days for comparison (also constrained to current month)
       const tenDaysAgo = new Date(fiveDaysAgo)
       tenDaysAgo.setDate(tenDaysAgo.getDate() - 5)
       const sixDaysAgo = new Date(fiveDaysAgo)
       sixDaysAgo.setMilliseconds(sixDaysAgo.getMilliseconds() - 1)
+      // Only count if within current month
+      const prevStart = tenDaysAgo > currentStartDate ? tenDaysAgo : currentStartDate
       rightLabelPrevValue = await prisma.kTARequest.count({
         where: {
           ...currentWhereClause,
           createdAt: {
-            gte: tenDaysAgo,
+            gte: prevStart,
             lte: sixDaysAgo,
           },
         },
@@ -189,18 +201,18 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Group by date based on period
+    // Group by date based on period - use chartStartDate for full chart range
     const groupedData: Record<string, number> = {}
 
     if (period === 'week') {
-      const currentDate = new Date(currentStartDate)
+      const currentDate = new Date(chartStartDate)
       while (currentDate <= now) {
         const dateKey = formatDateKey(currentDate)
         groupedData[dateKey] = 0
         currentDate.setDate(currentDate.getDate() + 1)
       }
     } else if (period === 'month') {
-      const currentDate = new Date(currentStartDate)
+      const currentDate = new Date(chartStartDate)
       let dayCounter = 1
       while (currentDate <= now) {
         const groupDay = Math.floor((dayCounter - 1) / 5) * 5 + 1
@@ -216,7 +228,7 @@ export async function GET(request: NextRequest) {
         dayCounter++
       }
     } else if (period === 'year') {
-      const currentDate = new Date(currentStartDate)
+      const currentDate = new Date(chartStartDate)
       while (currentDate <= now) {
         const dateKey = formatDateKeyMonth(currentDate)
         if (!groupedData[dateKey]) {
@@ -253,8 +265,10 @@ export async function GET(request: NextRequest) {
       count,
     }))
 
-    // Calculate current period total
-    const currentCount = currentKTA.length
+    // Calculate current period total - use currentStartDate for correct "Bulan Ini" count
+    const currentCount = currentKTA.filter(kta =>
+      kta.createdAt >= currentStartDate && kta.createdAt <= now
+    ).length
 
     // Calculate right side growth percentage
     const rightGrowthPercentage = rightLabelPrevValue > 0

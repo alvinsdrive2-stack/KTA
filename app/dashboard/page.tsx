@@ -270,15 +270,22 @@ export default function DashboardPage() {
 
     try {
       setRefreshing(true)
-      const ktaResponse = await fetch('/api/kta/list', { cache: 'no-store' })
+
+      // Fetch KTA list (for display table) and stats (for cards) in parallel
+      const [ktaResponse, statsResponse] = await Promise.all([
+        fetch('/api/kta/list', { cache: 'no-store' }),
+        fetch('/api/dashboard/stats', { cache: 'no-store' })
+      ])
+
       const ktaData = await ktaResponse.json()
+      const statsData = await statsResponse.json()
 
       if (ktaData.success) {
-        const filteredKTA = ktaData.data
-        const newStats = calculateStats(filteredKTA)
-        setKtaRequests(filteredKTA)
-        setStats(newStats)
-        // Cache saving is now handled in a separate useEffect
+        setKtaRequests(ktaData.data)
+      }
+
+      if (statsData.success) {
+        setStats(statsData.stats)
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -362,18 +369,17 @@ export default function DashboardPage() {
 
   // Save data to cache when it changes (client-only operation)
   useEffect(() => {
-    if (ktaRequests.length > 0) {
-      const newStats = calculateStats(ktaRequests)
+    if (ktaRequests.length > 0 && stats.totalKTA > 0) {
       try {
         if (typeof window !== 'undefined') {
-          const cache: DashboardCache = { data: ktaRequests, stats: newStats, timestamp: Date.now() }
+          const cache: DashboardCache = { data: ktaRequests, stats: stats, timestamp: Date.now() }
           localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
         }
       } catch {
         // Ignore storage errors (quota exceeded, private mode, etc.)
       }
     }
-  }, [ktaRequests])
+  }, [ktaRequests, stats])
 
   // Fetch charts when both session and dashboard data are ready
   // Use hasFetchedDashboard state instead of ref to trigger re-render
