@@ -449,6 +449,10 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { rows } = body
 
+    // DEBUG: Log received data
+    console.log('[API import-legacy] Received rows:', rows?.length)
+    console.log('[API import-legacy] Sample rows:', rows?.slice(0, 3)?.map((r: any) => ({ no: r.no, nama: r.nama, daerahId: r.daerahId, nomorKTA: r.nomorKTA })))
+
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json({ error: 'No data to import' }, { status: 400 })
     }
@@ -461,7 +465,9 @@ export async function PUT(request: NextRequest) {
       try {
         // daerahId is required per row (extracted from nomorKTA)
         const finalDaerahId = row.daerahId
+        console.log(`[API import-legacy] Row ${row.no}: daerahId=${finalDaerahId}, type=${typeof finalDaerahId}`)
         if (!finalDaerahId) {
+          console.log(`[API import-legacy] Row ${row.no} FAILED: daerahId is falsy`)
           errors.push({
             row: row.no,
             nik: row.nik,
