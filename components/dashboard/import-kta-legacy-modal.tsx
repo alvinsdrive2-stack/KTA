@@ -179,27 +179,24 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
       return
     }
 
+    // DEBUG: Log daerahList state
+    console.log('[DEBUG] daerahList length:', daerahList.length)
+    console.log('[DEBUG] daerahList sample:', daerahList.slice(0, 3))
+
     // Extract kodeDaerah from nomorKTA and match with daerah table
     const dataWithDaerahId = selectedData.map(row => {
       let daerahId: string | undefined
-
-      console.log(`[DEBUG] Processing row ${row.no}:`, {
-        nomorKTA: row.nomorKTA,
-        hasNomorKTA: !!row.nomorKTA
-      })
 
       if (row.nomorKTA) {
         // Extract kodeDaerah from nomorKTA (2 digits before the first dot)
         // Format: XX.YY.ZZZZZZ where XX is kodeDaerah
         const match = row.nomorKTA.match(/^(\d{2})\./)
-        console.log(`[DEBUG] Row ${row.no} match result:`, match)
         if (match) {
           const kodeDaerah = match[1]
-          console.log(`[DEBUG] Row ${row.no} kodeDaerah extracted:`, kodeDaerah)
           // Find matching daerah
           const matchedDaerah = daerahList.find(d => d.kodeDaerah === kodeDaerah)
-          console.log(`[DEBUG] Row ${row.no} matchedDaerah:`, matchedDaerah)
           daerahId = matchedDaerah?.id
+          console.log(`[DEBUG] Row ${row.no}: kodeDaerah=${kodeDaerah}, matched=${!!matchedDaerah}, daerahId=${daerahId}`)
         }
       }
 
@@ -209,9 +206,13 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
       }
     })
 
+    // DEBUG: Log sample of data being sent
+    console.log('[DEBUG] Sample data to send:', dataWithDaerahId.slice(0, 3).map(d => ({ no: d.no, nama: d.nama, daerahId: d.daerahId })))
+
     // Check if all rows have valid daerahId
     const rowsWithoutDaerah = dataWithDaerahId.filter(r => !r.daerahId)
     if (rowsWithoutDaerah.length > 0) {
+      console.log('[DEBUG] Rows without daerah:', rowsWithoutDaerah.length)
       toast({
         variant: 'destructive',
         title: 'Daerah tidak ditemukan',
