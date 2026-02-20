@@ -71,7 +71,9 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
     duplicates: Array<{
       nik: string
       nama: string
-      existingRecord: { nik: string; id: string; nama: string }
+      nomorKTA?: string
+      duplicateType?: string
+      existingRecord: { nik: string; id: string; nama: string; nomorKTA?: string | null }
     }>
     totalRows: number
     validRows: number
@@ -503,11 +505,12 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
 
               {previewData.duplicates.length > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <h4 className="font-medium text-amber-900 mb-2">Data Duplikat (NIK):</h4>
+                  <h4 className="font-medium text-amber-900 mb-2">Data Duplikat:</h4>
                   <div className="space-y-1 max-h-32 overflow-y-auto">
                     {previewData.duplicates.map((dup, idx) => (
                       <p key={idx} className="text-sm text-amber-700">
-                        {dup.nama} (NIK: {dup.nik}) - sudah terdaftar
+                        {dup.nama} - <span className="font-medium">Duplikat {(dup as any).duplicateType || 'NIK'}</span>
+                        {(dup as any).nomorKTA && ` (${(dup as any).nomorKTA})`}
                       </p>
                     ))}
                   </div>

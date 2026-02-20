@@ -383,23 +383,60 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check for existing NIKs (only check NIK for legacy data, idIzin can be duplicate/null)
+    // Check for existing NIKs AND nomorKTA (both are unique constraints)
     const nikList = parsedRows.map(r => r.nik)
+    const nomorKTAList = parsedRows.filter(r => r.nomorKTA).map(r => r.nomorKTA as string)
 
     const existingRecords = await prisma.kTARequest.findMany({
       where: {
-        nik: { in: nikList }
+        OR: [
+          { nik: { in: nikList } },
+          { nomorKTA: { in: nomorKTAList } },
+        ]
       },
       select: {
         nik: true,
         id: true,
         nama: true,
+        nomorKTA: true,
       }
     })
 
-    const duplicates = parsedRows.filter(row =>
-      existingRecords.some(e => e.nik === row.nik)
-    )
+    // Create lookup maps for faster checking
+    const existingByNik = new Map(existingRecords.map(e => [e.nik, e]))
+    const existingByNomorKTA = new Map(existingRecords.filter(e => e.nomorKTA).map(e => [e.nomorKTA, e]))
+
+    const duplicates = parsedRows.map(row => {
+      const dupType: string[] = []
+      let existingRecord: { nik: string; id: string; nama: string; nomorKTA: string | null } | null = null
+
+      // Check NIK duplicate
+      if (existingByNik.has(row.nik)) {
+        dupType.push('NIK')
+        existingRecord = existingByNik.get(row.nik)!
+      }
+
+      // Check nomorKTA duplicate
+      if (row.nomorKTA && existingByNomorKTA.has(row.nomorKTA)) {
+        dupType.push('Nomor KTA')
+        if (!existingRecord) {
+          existingRecord = existingByNomorKTA.get(row.nomorKTA)!
+        }
+      }
+
+      return {
+        row,
+        duplicateType: dupType,
+        existingRecord
+      }
+    }).filter(d => d.duplicateType.length > 0)
+    .map(d => ({
+      nik: d.row.nik,
+      nama: d.row.nama,
+      nomorKTA: d.row.nomorKTA,
+      duplicateType: d.duplicateType.join(' & '),
+      existingRecord: d.existingRecord
+    }))
 
     // Return parsed data for preview (not saving yet)
     return NextResponse.json({
@@ -411,7 +448,9 @@ export async function POST(request: NextRequest) {
         duplicates: duplicates.map(d => ({
           nik: d.nik,
           nama: d.nama,
-          existingRecord: existingRecords.find(e => e.nik === d.nik)
+          nomorKTA: d.nomorKTA,
+          duplicateType: d.duplicateType,
+          existingRecord: d.existingRecord
         })),
         totalRows: rawData.length,
         validRows: parsedRows.length,
@@ -461,18 +500,39 @@ export async function PUT(request: NextRequest) {
     const results = []
     const errors = []
 
+    // Check for existing nomorKTA to prevent duplicate errors
+    const nomorKTAList = rows.filter((r: any) => r.nomorKTA).map((r: any) => r.nomorKTA)
+    const existingNomorKTA = await prisma.kTARequest.findMany({
+      where: {
+        nomorKTA: { in: nomorKTAList }
+      },
+      select: { nomorKTA: true, nik: true, nama: true }
+    })
+    const existingNomorKTAMap = new Map(existingNomorKTA.map(e => [e.nomorKTA, e]))
+    console.log('[API import-legacy] Existing nomorKTA count:', existingNomorKTA.length)
+
     for (const row of rows) {
       try {
         // daerahId is required per row (extracted from nomorKTA)
         const finalDaerahId = row.daerahId
-        console.log(`[API import-legacy] Row ${row.no}: daerahId=${finalDaerahId}, type=${typeof finalDaerahId}`)
         if (!finalDaerahId) {
-          console.log(`[API import-legacy] Row ${row.no} FAILED: daerahId is falsy`)
           errors.push({
             row: row.no,
             nik: row.nik,
             nama: row.nama,
             error: 'Daerah ID tidak ditemukan. Pastikan Nomor KTA diisi dengan format yang benar (XX.YY.ZZZZZZ)'
+          })
+          continue
+        }
+
+        // Check if nomorKTA already exists
+        if (row.nomorKTA && existingNomorKTAMap.has(row.nomorKTA)) {
+          const existing = existingNomorKTAMap.get(row.nomorKTA)
+          errors.push({
+            row: row.no,
+            nik: row.nik,
+            nama: row.nama,
+            error: `Nomor KTA ${row.nomorKTA} sudah terdaftar atas nama ${existing?.nama}`
           })
           continue
         }
