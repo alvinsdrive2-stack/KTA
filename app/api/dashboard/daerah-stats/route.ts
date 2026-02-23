@@ -52,10 +52,10 @@ export async function GET(request: NextRequest) {
     currentStartDate.setHours(0, 0, 0, 0)
     chartStartDate.setHours(0, 0, 0, 0)
 
-    // Build base where clause
+    // Build base where clause - include both READY_TO_PRINT and PRINTED
     const baseWhereClause: any = {
       daerahId: userDaerahId,
-      status: 'READY_TO_PRINT',
+      status: { in: ['READY_TO_PRINT', 'PRINTED'] }, // Include both statuses
     }
 
     // Fetch current period printed KTA - use chartStartDate for complete chart data

@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Add limit if provided
-    const take = limit && limit > 0 ? Math.min(limit, 100) : 50 // Max 100 records per request
+    const take = limit && limit > 0 ? Math.min(limit, 1000) : 50 // Max 1000 records per request
 
     const ktaRecords = await prisma.kTARequest.findMany({
       where: baseClause,

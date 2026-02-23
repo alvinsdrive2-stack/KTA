@@ -225,6 +225,11 @@ export async function POST(request: NextRequest) {
 
       for (const ktaId of ktaRequestIds) {
         try {
+          // Update tanggalDaftar to today when payment is verified via Midtrans
+          await prisma.kTARequest.update({
+            where: { id: ktaId },
+            data: { tanggalDaftar: new Date() }
+          })
           await prepareKTAForPrint(ktaId)
           succeeded++
         } catch (error) {

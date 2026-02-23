@@ -15,6 +15,7 @@ interface KTAData {
   alamat: string
   nomorKTA: string
   createdAt: Date
+  tanggalDaftar: Date
   qrCodePath: string
   fotoUrl?: string
   fotoData?: string  // base64 image data (client-side fetch)
@@ -464,11 +465,11 @@ export class KTAPDFGenerator {
     const alamatLines = formatAlamat(ktaData.alamat).map(line => formatAlamatWithRW(line))
     const nomorKTA = ktaData.nomorKTA.toUpperCase()
 
-    // Hitung expired date (createdAt + 5 years)
-    const expiredDate = new Date(ktaData.createdAt)
+    // Hitung expired date (tanggalDaftar + 5 years)
+    const expiredDate = new Date(ktaData.tanggalDaftar)
     expiredDate.setFullYear(expiredDate.getFullYear() + 5)
 
-    const issuedDateStr = formatDate(ktaData.createdAt)
+    const issuedDateStr = formatDate(ktaData.tanggalDaftar)
     const expiredDateStr = formatDate(expiredDate)
 
     const colorWhite = rgb(1, 1, 1)

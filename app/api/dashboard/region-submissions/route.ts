@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     currentStartDate.setHours(0, 0, 0, 0)
     chartStartDate.setHours(0, 0, 0, 0)
 
-    // Fetch KTA requests with region info - ONLY READY_TO_PRINT
+    // Fetch KTA requests with region info - include both READY_TO_PRINT and PRINTED
     // Use chartStartDate for fetching data to have complete chart
     const ktaRequests = await prisma.kTARequest.findMany({
       where: {
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
           gte: chartStartDate,
           lte: now,
         },
-        status: 'READY_TO_PRINT', // Only count ready to print
+        status: { in: ['READY_TO_PRINT', 'PRINTED'] }, // Include both statuses
       },
       select: {
         createdAt: true,
@@ -136,8 +136,11 @@ export async function GET(request: NextRequest) {
           const groupDate = new Date(request.createdAt)
           groupDate.setDate(groupDay)
           dateKey = formatDateKey(groupDate)
-        } else {
+        } else if (period === 'year') {
           dateKey = formatDateKeyMonth(request.createdAt)
+        } else {
+          // Fallback - should not reach here
+          dateKey = formatDateKey(request.createdAt)
         }
 
         if (regionDataMap[regionName][dateKey] !== undefined) {
@@ -146,15 +149,24 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Debug logging
+    console.log(`[Region Submissions] Period: ${period}, KTA Requests: ${ktaRequests.length}, Date Labels: ${dateLabels.length}`)
+
     // Get top regions by total count
     const regionTotals: Record<string, number> = {}
     Object.entries(regionDataMap).forEach(([region, dates]) => {
       regionTotals[region] = Object.values(dates).reduce((sum, count) => sum + count, 0)
     })
 
+    // Debug: log region totals
+    const topRegionsWithCounts = Object.entries(regionTotals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+    console.log(`[Region Submissions] Top regions with counts:`, topRegionsWithCounts.map(([r, c]) => `${r}: ${c}`).join(', '))
+
     const topRegions = Object.entries(regionTotals)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
+      .slice(0, 8)  // Top 8 regions
       .map(([region]) => region)
 
     // Build chart data
@@ -169,6 +181,12 @@ export async function GET(request: NextRequest) {
 
       return dataPoint
     })
+
+    // Debug: log sample data
+    if (chartData.length > 0) {
+      console.log(`[Region Submissions] Sample chart data (first):`, JSON.stringify(chartData[0]))
+      console.log(`[Region Submissions] Top regions:`, topRegions.slice(0, 3))
+    }
 
     // Calculate right side label data based on period
     let rightLabelValue = 0
@@ -202,14 +220,10 @@ export async function GET(request: NextRequest) {
       rightLabelText = 'Bulan Ini'
     }
 
-    // Calculate left label (current period total) - use currentStartDate for "Bulan Ini"
-    let leftLabelValue = 0
-    if (period === 'month') {
-      // For "Bulan Ini", count from beginning of calendar month
-      leftLabelValue = ktaRequests.filter(kta =>
-        kta.createdAt >= currentStartDate && kta.createdAt <= now
-      ).length
-    }
+    // Calculate left label (current period total) - counts ALL regions
+    const leftLabelValue = ktaRequests.filter(kta =>
+      kta.createdAt >= currentStartDate && kta.createdAt <= now
+    ).length
 
     return NextResponse.json({
       success: true,
@@ -219,8 +233,8 @@ export async function GET(request: NextRequest) {
         value: rightLabelValue,
         text: rightLabelText,
       },
-      // Pass left label value for month period
-      currentCount: period === 'month' ? leftLabelValue : undefined,
+      // Pass left label value for ALL periods - this counts ALL regions
+      currentCount: leftLabelValue,
     })
   } catch (error) {
     console.error('Error fetching region submissions:', error)

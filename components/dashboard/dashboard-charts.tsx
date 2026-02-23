@@ -121,14 +121,18 @@ const LSP_COLORS = {
 
 // Color palette for regions - using Gatensi brand colors as base
 const REGION_COLORS = [
-  LSP_COLORS.blue,
-  LSP_COLORS.red,
-  LSP_COLORS.green,
-  LSP_COLORS.orange,
-  LSP_COLORS.purple,
-  LSP_COLORS.cyan,
-  LSP_COLORS.indigo,
-  LSP_COLORS.yellow,
+  LSP_COLORS.blue,      // 1
+  LSP_COLORS.red,       // 2
+  LSP_COLORS.green,     // 3
+  LSP_COLORS.orange,    // 4
+  LSP_COLORS.purple,    // 5
+  LSP_COLORS.cyan,      // 6
+  LSP_COLORS.indigo,    // 7
+  LSP_COLORS.yellow,    // 8
+  '#0ea5e9',            // 9 - Sky blue
+  '#f97316',            // 10 - Orange
+  '#8b5cf6',            // 11 - Violet
+  '#14b8a6',            // 12 - Teal
 ]
 
 // Custom tooltip styling following the new design
@@ -217,8 +221,6 @@ export function DailySubmissionChart({
                 </span>
               )}
             </p>
-            <br />
-            <br />
             <p className="text-xs text-slate-500 uppercase tracking-wider mt-1">{getRightLabel(currentPeriod)}</p>
           </div>
         </div>
@@ -298,6 +300,7 @@ export function RegionSubmissionChart({
   regions = [],
   onPeriodChange,
   currentPeriod = 'week',
+  currentCount,
   rightLabel,
   className
 }: {
@@ -305,14 +308,15 @@ export function RegionSubmissionChart({
   regions?: string[]
   onPeriodChange?: (period: TimePeriod) => void
   currentPeriod?: TimePeriod
+  currentCount?: number
   rightLabel?: {
     value: number
     text: string
   }
   className?: string
 } & ChartProps) {
-  // Calculate total submissions
-  const totalSubmissions = data.reduce((sum, item) => {
+  // Use currentCount from API (counts ALL regions), fallback to chart data sum (top 8 only)
+  const totalSubmissions = currentCount ?? data.reduce((sum, item) => {
     let count = 0
     regions.forEach(region => {
       count += typeof item[region] === 'number' ? item[region] : 0
@@ -331,7 +335,7 @@ export function RegionSubmissionChart({
   return (
     <div className={'bg-white rounded-2xl p-6 shadow-sm border border-slate-200 ' + (className || '')}>
       {/* Title */}
-      <h3 className="text-lg font-semibold text-brand-blue-900 mb-6">Pengajuan KTA Per Daerah</h3>
+      <h3 className="text-lg font-semibold text-brand-blue-900 mb-6">Pengajuan KTA Per Daerah (Top 8)</h3>
 
       {/* Header Section */}
       <div className="flex justify-between items-start mb-6">
