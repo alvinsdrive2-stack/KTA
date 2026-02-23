@@ -106,6 +106,7 @@ export default function DashboardPage() {
   const [regionList, setRegionList] = useState<string[]>([])
   const [regionTimePeriod, setRegionTimePeriod] = useState<TimePeriod>('week')
   const [loadingRegionChart, setLoadingRegionChart] = useState(true)
+  const [regionCurrentCount, setRegionCurrentCount] = useState<number>(0)
   const [regionRightLabel, setRegionRightLabel] = useState<{
     value: number
     text: string
@@ -334,6 +335,7 @@ export default function DashboardPage() {
       if (data.success) {
         setRegionSubmissions(data.data)
         setRegionList(data.regions || [])
+        setRegionCurrentCount(data.currentCount ?? 0)
         setRegionRightLabel(data.rightLabel || null)
       }
     } catch (error) {
@@ -574,6 +576,7 @@ export default function DashboardPage() {
                 regions={regionList}
                 currentPeriod={regionTimePeriod}
                 onPeriodChange={setRegionTimePeriod}
+                currentCount={regionCurrentCount}
                 rightLabel={regionRightLabel ?? undefined}
               />
             </div>

@@ -241,7 +241,10 @@ export function BulkFetchSikiModal({ open, onOpenChange, onSuccess }: BulkFetchS
                   <SelectItem value="10">10 record</SelectItem>
                   <SelectItem value="25">25 record</SelectItem>
                   <SelectItem value="50">50 record</SelectItem>
-                  <SelectItem value="100">100 record (maks)</SelectItem>
+                  <SelectItem value="100">100 record</SelectItem>
+                  <SelectItem value="250">250 record</SelectItem>
+                  <SelectItem value="500">500 record</SelectItem>
+                  <SelectItem value="1000">1000 record (maks)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

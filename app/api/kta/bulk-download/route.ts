@@ -221,6 +221,7 @@ export async function POST(request: NextRequest) {
             alamat: kta.alamat,
             nomorKTA: nomorKTA || kta.id,
             createdAt: kta.createdAt,
+            tanggalDaftar: kta.tanggalDaftar || kta.createdAt,
             qrCodePath: qrCodePath,
             ...(fotoData ? { fotoData } : {}),
             ...(!fotoData && kta.fotoUrl && !kta.fotoUrl.startsWith('http') ? { fotoUrl: kta.fotoUrl } : {})

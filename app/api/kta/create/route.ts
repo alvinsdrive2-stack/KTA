@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
           noTelp: sikiData.telp || '',
           email: sikiData.email || '',
           alamat: sikiData.alamat || '',
-          tanggalDaftar: sikiData.tgl_daftar ? new Date(sikiData.tgl_daftar) : new Date(),
+          tanggalDaftar: new Date(),
           ktpUrl: ktpUrl,
           fotoUrl: fotoUrl,
           fotoData: fotoData, // Store base64 data for geo-blocked URLs
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
           noTelp: sikiData.telp || '',
           email: sikiData.email || '',
           alamat: sikiData.alamat || '',
-          tanggalDaftar: sikiData.tgl_daftar ? new Date(sikiData.tgl_daftar) : new Date(),
+          tanggalDaftar: new Date(),
           status: upgradeCheck.isUpgrade ? 'UPGRADE_PENDING' : 'DRAFT',
           hargaRegion: finalHargaFinal,
           hargaBase: finalHargaBase,

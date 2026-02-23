@@ -155,6 +155,7 @@ export async function GET(
         nama: true,
         alamat: true,
         createdAt: true,
+        tanggalDaftar: true,
         qrCodePath: true,
         nomorKTA: true,
         jenjang: true,
@@ -242,6 +243,7 @@ export async function GET(
       alamat: ktaRequest.alamat,
       nomorKTA: nomorKTA || '',
       createdAt: ktaRequest.createdAt || new Date(),
+      tanggalDaftar: ktaRequest.tanggalDaftar || ktaRequest.createdAt || new Date(),
       qrCodePath: qrCodePath,
       ...(fotoData ? { fotoData } : {}),
       ...(!fotoData && ktaRequest.fotoUrl && !ktaRequest.fotoUrl.startsWith('http') ? { fotoUrl: ktaRequest.fotoUrl } : {})
