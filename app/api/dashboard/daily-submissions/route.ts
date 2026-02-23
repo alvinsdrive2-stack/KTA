@@ -71,13 +71,13 @@ export async function GET(request: NextRequest) {
     prevStartDate.setHours(0, 0, 0, 0)
     prevEndDate.setHours(23, 59, 59, 999)
 
-    // Build where clause for current period - use chartStartDate for complete chart data
+    // Build where clause for current period - include both READY_TO_PRINT and PRINTED
     const currentWhereClause: any = {
       createdAt: {
         gte: chartStartDate,
         lte: now,
       },
-      status: 'READY_TO_PRINT', // Only count ready to print
+      status: { in: ['READY_TO_PRINT', 'PRINTED'] }, // Include both statuses
     }
 
     // Build where clause for previous period (for comparison)
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
         gte: prevStartDate,
         lte: prevEndDate,
       },
-      status: 'READY_TO_PRINT',
+      status: { in: ['READY_TO_PRINT', 'PRINTED'] },
     }
 
     // Filter by daerahId for DAERAH role
@@ -250,14 +250,22 @@ export async function GET(request: NextRequest) {
         const groupDate = new Date(request.createdAt)
         groupDate.setDate(groupDay)
         dateKey = formatDateKey(groupDate)
-      } else {
+      } else if (period === 'year') {
         dateKey = formatDateKeyMonth(request.createdAt)
+      } else {
+        // Fallback
+        dateKey = formatDateKey(request.createdAt)
       }
 
       if (groupedData.hasOwnProperty(dateKey)) {
         groupedData[dateKey]++
       }
     })
+
+    // Debug logging
+    console.log(`[Daily Submissions] Period: ${period}, KTA count: ${currentKTA.length}, Date groups: ${Object.keys(groupedData).length}`)
+    const sampleData = Object.entries(groupedData).slice(0, 3)
+    console.log(`[Daily Submissions] Sample data:`, sampleData.map(([d, c]) => `${d}: ${c}`).join(', '))
 
     // Convert to array format for chart
     const chartData = Object.entries(groupedData).map(([date, count]) => ({

@@ -80,7 +80,7 @@ function mapColumns(headers: string[]): { mapping: Record<string, string>; norma
     noTelp: ['NO_TELP', 'NOTELEPON', 'NOTELP', 'TELP', 'TELEPON', 'TELEPHONE', 'PHONE', 'HP', 'NO_HP', 'WHATSAPP', 'WA'],
     email: ['EMAIL', 'E_MAIL', 'E-MAIL', 'EMAIL_ADDRESS'],
     alamat: ['ALAMAT', 'ADDRESS'],
-    tanggalDaftar: ['TANGGAL_DAFTAR', 'TANGGALDAFTAR', 'TGL_DAFTAR', 'TGLDAFTAR', 'TANGGAL', 'DATE', 'REGISTRATION_DATE'],
+    tanggalDaftar: ['TANGGAL_DAFTAR', 'TANGGALDAFTAR', 'TGL_DAFTAR', 'TGLDAFTAR', 'TANGGAL', 'DATE', 'REGISTRATION_DATE', 'TANGGALDAFTARYYYYMMDD'],
     daerahKode: ['DAERAH', 'KODE_DAERAH', 'KODEDAERAH', 'WILAYAH', 'REGION', 'REGION_CODE', 'PROVINSI', 'PROVINCE'],
   }
 
