@@ -54,16 +54,41 @@ async function getSikiIndex(): Promise<Map<string, string>> {
         headers['token'] = SIKI_API_TOKEN
       }
 
-      const res = await fetch('https://siki.pu.go.id/siki-api/v1/permohonan-skk', {
-        headers,
-        next: { revalidate: 3600 }, // Cache 1 hour
-      })
+      // Fetch from all 3 index endpoints in parallel
+      const endpoints = [
+        'https://siki.pu.go.id/siki-api/v1/permohonan-skk',
+        'https://siki.pu.go.id/siki-api/v1/permohonan-skk-fg',
+        'https://siki.pu.go.id/siki-api/v1/permohonan-skk-balai',
+      ]
 
-      if (!res.ok) {
-        throw new Error(`SIKI API error: ${res.status}`)
+      const responses = await Promise.allSettled(
+        endpoints.map(url => fetch(url, { headers, next: { revalidate: 3600 } }))
+      )
+
+      // Merge all successful responses
+      const allData: SIKIListItem[] = []
+      let hasError = false
+
+      for (const result of responses) {
+        if (result.status === 'fulfilled') {
+          const res = result.value
+          if (res.ok) {
+            const { data: endpointData }: { data: SIKIListItem[] } = await res.json()
+            allData.push(...endpointData)
+          } else {
+            hasError = true
+          }
+        } else {
+          hasError = true
+        }
       }
 
-      const { data }: { data: SIKIListItem[] } = await res.json()
+      // If all failed, throw error
+      if (allData.length === 0 && hasError) {
+        throw new Error('SIKI API error: All index endpoints failed')
+      }
+
+      const { data } = { data: allData }
 
       // Build Map for O(1) lookup
       const index = new Map<string, string>()
@@ -137,23 +162,38 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          const detailRes = await fetch(
+          const endpoints = [
             `https://siki.pu.go.id/siki-api/v1/permohonan-skk/${idIzin}`,
-            {
-              headers: detailHeaders,
-              next: { revalidate: 300 },
-            }
+            `https://siki.pu.go.id/siki-api/v1/permohonan-skk-fg/${idIzin}`,
+            `https://siki.pu.go.id/siki-api/v1/permohonan-skk-balai/${idIzin}`,
+          ]
+
+          const responses = await Promise.allSettled(
+            endpoints.map(url => fetch(url, { headers: detailHeaders, next: { revalidate: 300 } }))
           )
 
-          if (!detailRes.ok) {
-            return {
-              nik,
-              error: `SIKI API error: ${detailRes.status}`,
-              timing: Date.now() - reqStart,
+          // Find the first successful response
+          let detail: SIKIDetail | null = null
+          for (const result of responses) {
+            if (result.status === 'fulfilled') {
+              const res = result.value
+              if (res.ok) {
+                const data = await res.json()
+                if (data.status === 'success' && data.personal?.length > 0) {
+                  detail = data
+                  break
+                }
+              }
             }
           }
 
-          const detail: SIKIDetail = await detailRes.json()
+          if (!detail) {
+            return {
+              nik,
+              error: 'SIKI API: No data found in any endpoint',
+              timing: Date.now() - reqStart,
+            }
+          }
 
           const jenjangList = detail.klasifikasi_kualifikasi
             ?.map((k) => parseInt(k.jenjang) || 0)

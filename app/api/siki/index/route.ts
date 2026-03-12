@@ -48,16 +48,41 @@ async function getSikiData(): Promise<{ data: SIKIListItem[]; cached: boolean }>
         headers['token'] = SIKI_API_TOKEN
       }
 
-      const res = await fetch('https://siki.pu.go.id/siki-api/v1/permohonan-skk', {
-        headers,
-        next: { revalidate: 3600 },
-      })
+      // Fetch from all 3 index endpoints in parallel
+      const endpoints = [
+        'https://siki.pu.go.id/siki-api/v1/permohonan-skk',
+        'https://siki.pu.go.id/siki-api/v1/permohonan-skk-fg',
+        'https://siki.pu.go.id/siki-api/v1/permohonan-skk-balai',
+      ]
 
-      if (!res.ok) {
-        throw new Error(`SIKI API error: ${res.status}`)
+      const responses = await Promise.allSettled(
+        endpoints.map(url => fetch(url, { headers, next: { revalidate: 3600 } }))
+      )
+
+      // Merge all successful responses
+      const allData: SIKIListItem[] = []
+      let hasError = false
+
+      for (const result of responses) {
+        if (result.status === 'fulfilled') {
+          const res = result.value
+          if (res.ok) {
+            const { data: endpointData }: { data: SIKIListItem[] } = await res.json()
+            allData.push(...endpointData)
+          } else {
+            hasError = true
+          }
+        } else {
+          hasError = true
+        }
       }
 
-      const { data }: { data: SIKIListItem[] } = await res.json()
+      // If all failed, throw error
+      if (allData.length === 0 && hasError) {
+        throw new Error('SIKI API error: All index endpoints failed')
+      }
+
+      const { data } = { data: allData }
 
       // Build Map for O(1) lookup
       const index = new Map<string, string>()
