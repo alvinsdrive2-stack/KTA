@@ -159,111 +159,120 @@ export class SIKIApiClient {
         }
       }
 
-      const url = `${this.baseUrl}/permohonan-skk/${idIzin}`
+      // Fetch from all 3 endpoints in parallel
+      const urls = {
+        skk: `${this.baseUrl}/permohonan-skk/${idIzin}`,
+        fg: `${this.baseUrl}/permohonan-skk-fg/${idIzin}`,
+        balai: `${this.baseUrl}/permohonan-skk-balai/${idIzin}`,
+      }
 
-      console.log('Fetching SIKI data from:', url)
-      console.log('Token (first 10 chars):', this.getToken().substring(0, 10) + '...')
+      console.log('Fetching SIKI data from multiple endpoints:', Object.keys(urls))
 
-      // Use fetch API (more compatible with Vercel)
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
 
       try {
-        const response = await fetch(url, {
-          headers: {
-            'token': this.getToken(),
-            'Content-Type': 'application/json',
-          },
-          signal: controller.signal,
-        })
+        // Fetch all endpoints in parallel
+        const responses = await Promise.allSettled([
+          fetch(urls.skk, {
+            headers: { 'token': this.getToken(), 'Content-Type': 'application/json' },
+            signal: controller.signal,
+          }),
+          fetch(urls.fg, {
+            headers: { 'token': this.getToken(), 'Content-Type': 'application/json' },
+            signal: controller.signal,
+          }),
+          fetch(urls.balai, {
+            headers: { 'token': this.getToken(), 'Content-Type': 'application/json' },
+            signal: controller.signal,
+          }),
+        ])
 
         clearTimeout(timeoutId)
 
-        console.log('SIKI API Response status:', response.status)
-        console.log('SIKI API Response headers:', Object.fromEntries(response.headers.entries()))
+        // Parse all responses
+        const results = await Promise.all(
+          responses.map(async (result, index) => {
+            const endpointName = Object.keys(urls)[index]
+            if (result.status === 'fulfilled') {
+              try {
+                const response = result.value
+                const rawText = await response.text()
 
-        // Get raw text first for debugging
-        const rawText = await response.text()
-        console.log('SIKI API Response length:', rawText.length)
-        console.log('SIKI API Response preview:', rawText.substring(0, 200))
+                if (response.status === 401 || rawText.includes('Unauthorized')) {
+                  return { endpoint: endpointName, error: 'Unauthorized' }
+                }
 
-        // Check for Unauthorized response
-        if (response.status === 401 || rawText.includes('Unauthorized')) {
-          console.error('SIKI API returned Unauthorized - token may be invalid or expired')
-          return {
-            success: false,
-            message: 'SIKI API authentication failed. The API token may be invalid or expired. Please check SIKI_API_TOKEN environment variable.'
-          }
-        }
+                if (rawText.trim().startsWith('<!DOCTYPE') || rawText.trim().startsWith('<html')) {
+                  return { endpoint: endpointName, error: 'HTML response' }
+                }
 
-        // Check if response is HTML (likely a block page)
-        if (rawText.trim().startsWith('<!DOCTYPE') || rawText.trim().startsWith('<html')) {
-          console.error('SIKI API returned HTML instead of JSON')
-          return {
-            success: false,
-            message: 'Access to SIKI API is blocked. The server returned an HTML response instead of JSON. This may be due to firewall or IP restrictions.'
-          }
-        }
+                let jsonData
+                try {
+                  jsonData = JSON.parse(rawText)
+                } catch {
+                  return { endpoint: endpointName, error: 'Invalid JSON' }
+                }
 
-        // Parse JSON
-        let jsonData
-        try {
-          jsonData = JSON.parse(rawText)
-        } catch (parseError) {
-          console.error('Failed to parse SIKI API response as JSON:', rawText.substring(0, 500))
-          return {
-            success: false,
-            message: 'Failed to parse SIKI API response. Server returned non-JSON data.'
-          }
-        }
+                if (response.status === 200 && jsonData?.status === 'success' && jsonData?.personal?.length > 0) {
+                  return { endpoint: endpointName, data: jsonData }
+                }
 
-        if (response.status !== 200) {
-          return {
-            success: false,
-            message: jsonData.message || `HTTP error! status: ${response.status}`
-          }
-        }
-
-        // Transform response data to match our schema
-        if (jsonData && jsonData.status === 'success' && jsonData.personal && jsonData.personal.length > 0) {
-          const personal = jsonData.personal[0]
-          const klasifikasi = jsonData.klasifikasi_kualifikasi && jsonData.klasifikasi_kualifikasi.length > 0
-            ? jsonData.klasifikasi_kualifikasi[0]
-            : {}
-
-          // Extract province from address
-          const alamat = personal.alamat || ''
-          const kodePropinsi = extractProvinceFromAddress(alamat)
-          const namaProvinsi = kodePropinsi ? getProvinceNameByKode(kodePropinsi) : null
-
-          console.log(`Province extraction for ${personal.nama}:`, {
-            alamat,
-            kodePropinsi,
-            namaProvinsi
-          })
-
-          return {
-            success: true,
-            data: {
-              nik: personal.nik || '',
-              nama: personal.nama || '',
-              jabatan: klasifikasi.jabatan_kerja || '',
-              subklasifikasi: klasifikasi.subklasifikasi || '',
-              jenjang: klasifikasi.jenjang || '',
-              telp: personal.telepon || '',
-              email: personal.email || '',
-              alamat: alamat,
-              tgl_daftar: personal.created || new Date().toISOString(),
-              ktpUrl: personal.ktp || null,
-              fotoUrl: personal.pas_foto || null,
-              kodePropinsi: kodePropinsi || undefined,
-              namaProvinsi: namaProvinsi || undefined,
+                return { endpoint: endpointName, error: 'No data' }
+              } catch (e) {
+                return { endpoint: endpointName, error: String(e) }
+              }
             }
-          }
-        } else {
+            return { endpoint: endpointName, error: result.reason }
+          })
+        )
+
+        console.log('SIKI API results:', results.map(r => ({ endpoint: r.endpoint, hasData: !!r.data })))
+
+        // Find the first successful response
+        const successfulResult = results.find(r => r.data)
+
+        if (!successfulResult) {
+          console.log('No successful responses from any endpoint')
           return {
             success: false,
-            message: 'Data not found in SIKI'
+            message: 'Data not found in SIKI (tried all endpoints)'
+          }
+        }
+
+        const jsonData = successfulResult.data
+        const personal = jsonData.personal[0]
+        const klasifikasi = jsonData.klasifikasi_kualifikasi && jsonData.klasifikasi_kualifikasi.length > 0
+          ? jsonData.klasifikasi_kualifikasi[0]
+          : {}
+
+        // Extract province from address
+        const alamat = personal.alamat || ''
+        const kodePropinsi = extractProvinceFromAddress(alamat)
+        const namaProvinsi = kodePropinsi ? getProvinceNameByKode(kodePropinsi) : null
+
+        console.log(`Using data from ${successfulResult.endpoint} for ${personal.nama}:`, {
+          alamat,
+          kodePropinsi,
+          namaProvinsi
+        })
+
+        return {
+          success: true,
+          data: {
+            nik: personal.nik || '',
+            nama: personal.nama || '',
+            jabatan: klasifikasi.jabatan_kerja || '',
+            subklasifikasi: klasifikasi.subklasifikasi || '',
+            jenjang: klasifikasi.jenjang || '',
+            telp: personal.telepon || '',
+            email: personal.email || '',
+            alamat: alamat,
+            tgl_daftar: personal.created || new Date().toISOString(),
+            ktpUrl: personal.ktp || null,
+            fotoUrl: personal.pas_foto || null,
+            kodePropinsi: kodePropinsi || undefined,
+            namaProvinsi: namaProvinsi || undefined,
           }
         }
       } catch (fetchError: any) {
