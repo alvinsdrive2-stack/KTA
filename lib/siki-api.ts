@@ -26,37 +26,60 @@ interface SIKIResponse {
 export class SIKIApiClient {
   private baseUrl = 'https://siki.pu.go.id/siki-api/v1'
   private baseUrlV2 = 'https://siki.pu.go.id/siki-api/v2'
-  private overrideToken: string | null = null
+  private overrideTokens: string[] | null = null
   private testMode: boolean
 
   constructor(token?: string, testMode: boolean = false) {
-    // Store override token if provided, but read process.env lazily
-    this.overrideToken = token || null
-    // Allow test mode override
+    if (token) {
+      this.overrideTokens = [token]
+    }
     this.testMode = testMode
   }
 
-  // Lazy getter for token - reads from process.env at runtime, not at module load
-  private getToken(): string {
-    return this.overrideToken || process.env.SIKI_API_TOKEN || ''
+  // Lazy getter for token list - reads from process.env at runtime
+  private getTokens(): string[] {
+    if (this.overrideTokens) return this.overrideTokens
+    return [
+      process.env.SIKI_TOKEN_GKK || '',
+      process.env.SIKI_TOKEN_GATAKSINDO || '',
+      process.env.SIKI_TOKEN_MIK || '',
+    ].filter(Boolean) as string[]
+  }
+
+  // Fetch with token fallback: try each token, stop on non-401
+  private async fetchWithFallback(url: string, options: RequestInit = {}): Promise<{ response: Response; token: string } | null> {
+    const tokens = this.getTokens()
+    const baseHeaders = { 'Content-Type': 'application/json', ...options.headers }
+
+    for (const token of tokens) {
+      try {
+        const response = await fetch(url, {
+          ...options,
+          headers: { ...baseHeaders, 'token': token },
+        })
+
+        if (response.status !== 401) {
+          return { response, token }
+        }
+
+        console.warn(`Token failed with 401, trying next token...`)
+      } catch (error) {
+        console.warn(`Request failed with token, trying next...`, error)
+      }
+    }
+
+    console.error('All SIKI tokens exhausted (all returned 401 or failed)')
+    return null
   }
 
   async getJabatanKerjaList(): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrlV2}/jabatan-kerja`, {
-        headers: {
-          'token': this.getToken(),
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        console.error('Failed to fetch jabatan-kerja list:', response.status)
+      const result = await this.fetchWithFallback(`${this.baseUrlV2}/jabatan-kerja`)
+      if (!result || !result.response.ok) {
+        console.error('Failed to fetch jabatan-kerja list:', result?.response.status || 'no response')
         return null
       }
-
-      const data = await response.json()
-      return data
+      return await result.response.json()
     } catch (error) {
       console.error('Error fetching jabatan-kerja list:', error)
       return null
@@ -65,20 +88,12 @@ export class SIKIApiClient {
 
   async getSubklasifikasiList(): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrlV2}/subklasifikasi`, {
-        headers: {
-          'token': this.getToken(),
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        console.error('Failed to fetch subklasifikasi list:', response.status)
+      const result = await this.fetchWithFallback(`${this.baseUrlV2}/subklasifikasi`)
+      if (!result || !result.response.ok) {
+        console.error('Failed to fetch subklasifikasi list:', result?.response.status || 'no response')
         return null
       }
-
-      const data = await response.json()
-      return data
+      return await result.response.json()
     } catch (error) {
       console.error('Error fetching subklasifikasi list:', error)
       return null
@@ -127,11 +142,34 @@ export class SIKIApiClient {
     return this.subklasifikasiCache.get(String(kodeSubklasifikasi)) || null
   }
 
+  // Fetch single URL with token fallback, returns null on total failure
+  private async fetchSingleWithFallback(url: string, signal?: AbortSignal): Promise<Response | null> {
+    const tokens = this.getTokens()
+
+    for (const token of tokens) {
+      try {
+        const response = await fetch(url, {
+          headers: { 'token': token, 'Content-Type': 'application/json' },
+          signal,
+        })
+        if (response.status !== 401) {
+          return response
+        }
+        console.warn(`Token failed with 401 for ${url}, trying next...`)
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') throw error
+        console.warn(`Request failed for ${url}, trying next token...`, error)
+      }
+    }
+    return null
+  }
+
   async getPermohonanSKK(idIzin: string): Promise<SIKIResponse> {
     try {
       // Check if token is available
-      if (!this.getToken() || this.getToken().trim() === '') {
-        console.error('SIKI_API_TOKEN is not set or empty')
+      const tokens = this.getTokens()
+      if (tokens.length === 0) {
+        console.error('No SIKI tokens configured')
         return {
           success: false,
           message: 'Permohonan sudah ada tidak dapat menambahkan permohonan dengan id yang sama'
@@ -159,33 +197,24 @@ export class SIKIApiClient {
         }
       }
 
-      // Fetch from all 3 endpoints in parallel
+      // Fetch from all 3 endpoints in parallel with token fallback
       const urls = {
         skk: `${this.baseUrl}/permohonan-skk/${idIzin}`,
         fg: `${this.baseUrl}/permohonan-skk-fg/${idIzin}`,
         balai: `${this.baseUrl}/permohonan-skk-balai/${idIzin}`,
       }
 
-      console.log('Fetching SIKI data from multiple endpoints:', Object.keys(urls))
+      console.log('Fetching SIKI data from multiple endpoints with token fallback:', Object.keys(urls))
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000)
 
       try {
-        // Fetch all endpoints in parallel
+        // Fetch each endpoint with token fallback, in parallel
         const responses = await Promise.allSettled([
-          fetch(urls.skk, {
-            headers: { 'token': this.getToken(), 'Content-Type': 'application/json' },
-            signal: controller.signal,
-          }),
-          fetch(urls.fg, {
-            headers: { 'token': this.getToken(), 'Content-Type': 'application/json' },
-            signal: controller.signal,
-          }),
-          fetch(urls.balai, {
-            headers: { 'token': this.getToken(), 'Content-Type': 'application/json' },
-            signal: controller.signal,
-          }),
+          this.fetchSingleWithFallback(urls.skk, controller.signal),
+          this.fetchSingleWithFallback(urls.fg, controller.signal),
+          this.fetchSingleWithFallback(urls.balai, controller.signal),
         ])
 
         clearTimeout(timeoutId)
@@ -194,13 +223,13 @@ export class SIKIApiClient {
         const results = await Promise.all(
           responses.map(async (result, index) => {
             const endpointName = Object.keys(urls)[index]
-            if (result.status === 'fulfilled') {
+            if (result.status === 'fulfilled' && result.value) {
               try {
                 const response = result.value
                 const rawText = await response.text()
 
                 if (response.status === 401 || rawText.includes('Unauthorized')) {
-                  return { endpoint: endpointName, error: 'Unauthorized' }
+                  return { endpoint: endpointName, error: 'Unauthorized (all tokens exhausted)' }
                 }
 
                 if (rawText.trim().startsWith('<!DOCTYPE') || rawText.trim().startsWith('<html')) {
@@ -223,7 +252,7 @@ export class SIKIApiClient {
                 return { endpoint: endpointName, error: String(e) }
               }
             }
-            return { endpoint: endpointName, error: result.reason }
+            return { endpoint: endpointName, error: result.status === 'fulfilled' ? 'All tokens failed' : String(result.reason) }
           })
         )
 
@@ -305,3 +334,34 @@ export class SIKIApiClient {
 
 // Create singleton instance
 export const sikiApi = new SIKIApiClient()
+
+// Tokens from env - used by API routes that need direct token access
+export function getSikiTokens(): string[] {
+  return [
+    process.env.SIKI_TOKEN_GKK || '',
+    process.env.SIKI_TOKEN_GATAKSINDO || '',
+    process.env.SIKI_TOKEN_MIK || '',
+  ].filter(Boolean)
+}
+
+// Fetch with token fallback - for API routes that call SIKI directly
+export async function fetchSikiWithFallback(url: string, options: RequestInit = {}): Promise<{ response: Response; token: string } | null> {
+  const tokens = getSikiTokens()
+  const baseHeaders = { 'Content-Type': 'application/json', ...options.headers }
+
+  for (const token of tokens) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: { ...baseHeaders, 'token': token },
+      })
+      if (response.status !== 401) {
+        return { response, token }
+      }
+      console.warn(`SIKI token failed with 401, trying next...`)
+    } catch (error) {
+      console.warn(`SIKI request failed, trying next token...`, error)
+    }
+  }
+  return null
+}

@@ -54,6 +54,13 @@ export default function CreateManualPage() {
   const [upgradeInfo, setUpgradeInfo] = useState<any>(null)
 
   // Reference data states
+  const [allJabkerData, setAllJabkerData] = useState<Array<{
+    id: string
+    subklasifikasi: string
+    jabatanKerja: string
+    jenjangId: string
+    idJabatanKerja: string
+  }>>([])
   const [subklasifikasiList, setSubklasifikasiList] = useState<string[]>([])
   const [jabatanKerjaList, setJabatanKerjaList] = useState<Array<{
     id: string
@@ -62,8 +69,7 @@ export default function CreateManualPage() {
     jenjangId: string
     idJabatanKerja: string
   }>>([])
-  const [loadingSubklasifikasi, setLoadingSubklasifikasi] = useState(false)
-  const [loadingJabatanKerja, setLoadingJabatanKerja] = useState(false)
+  const [loadingReferensi, setLoadingReferensi] = useState(false)
 
   // File states
   const [ktpFile, setKtpFile] = useState<File | null>(null)
@@ -95,51 +101,35 @@ export default function CreateManualPage() {
   const jenjang = form.watch('jenjang')
   const subklasifikasi = form.watch('subklasifikasi')
 
-  // Fetch subklasifikasi list on mount
+  // Fetch all jabker data from external API on mount
   useEffect(() => {
-    const fetchSubklasifikasi = async () => {
-      setLoadingSubklasifikasi(true)
+    const fetchData = async () => {
+      setLoadingReferensi(true)
       try {
-        const response = await fetch('/api/referensi/subklasifikasi')
-        const data = await response.json()
-        if (data.success) {
-          setSubklasifikasiList(data.data.map((d: any) => d.subklasifikasi))
+        const response = await fetch('/api/referensi/jabker')
+        const result = await response.json()
+        if (result.success) {
+          setAllJabkerData(result.data)
+          const unique = [...new Set(result.data.map((d: any) => d.subklasifikasi).filter(Boolean))].sort()
+          setSubklasifikasiList(unique)
         }
       } catch (error) {
-        console.error('Failed to fetch subklasifikasi:', error)
+        console.error('Failed to fetch jabker data:', error)
       } finally {
-        setLoadingSubklasifikasi(false)
+        setLoadingReferensi(false)
       }
     }
-
-    fetchSubklasifikasi()
+    fetchData()
   }, [])
 
-  // Fetch jabatan kerja when subklasifikasi changes (jenjang doesn't filter)
+  // Filter jabatan kerja client-side when subklasifikasi changes
   useEffect(() => {
-    const fetchJabatanKerja = async () => {
-      if (!subklasifikasi) {
-        setJabatanKerjaList([])
-        return
-      }
-
-      setLoadingJabatanKerja(true)
-      try {
-        const params = new URLSearchParams({ subklasifikasi })
-        const response = await fetch(`/api/referensi/jabatan-kerja?${params}`)
-        const data = await response.json()
-        if (data.success) {
-          setJabatanKerjaList(data.data)
-        }
-      } catch (error) {
-        console.error('Failed to fetch jabatan kerja:', error)
-      } finally {
-        setLoadingJabatanKerja(false)
-      }
+    if (!subklasifikasi || allJabkerData.length === 0) {
+      setJabatanKerjaList([])
+      return
     }
-
-    fetchJabatanKerja()
-  }, [subklasifikasi])
+    setJabatanKerjaList(allJabkerData.filter(d => d.subklasifikasi === subklasifikasi))
+  }, [subklasifikasi, allJabkerData])
 
   // Fetch daerah diskon on component mount
   useEffect(() => {
@@ -530,7 +520,7 @@ export default function CreateManualPage() {
                   onChange={(value) => form.setValue('subklasifikasi', value)}
                   placeholder="Ketik atau pilih sub klasifikasi..."
                   options={subklasifikasiList}
-                  loading={loadingSubklasifikasi}
+                  loading={loadingReferensi}
                   disabled={isLoading}
                   className="bg-white"
                 />
@@ -561,7 +551,7 @@ export default function CreateManualPage() {
                   }}
                   placeholder={!subklasifikasi ? 'Pilih Sub Klasifikasi dulu' : 'Ketik atau pilih jabatan kerja...'}
                   options={jabatanKerjaList.map(jk => jk.jabatanKerja)}
-                  loading={loadingJabatanKerja}
+                  loading={loadingReferensi}
                   disabled={isLoading || !subklasifikasi}
                   className="bg-white"
                 />
