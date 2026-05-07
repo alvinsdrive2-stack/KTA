@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-const SIKI_API_TOKEN = process.env.SIKI_API_TOKEN || ''
+import { fetchSikiWithFallback } from '@/lib/siki-api'
 
 // Cache SIKI index in memory
 const sikiCache = {
@@ -47,14 +46,7 @@ async function getSikiIndex(): Promise<Map<string, string>> {
 
   const fetchPromise = (async () => {
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
-      if (SIKI_API_TOKEN) {
-        headers['token'] = SIKI_API_TOKEN
-      }
-
-      // Fetch from all 3 index endpoints in parallel
+      // Fetch from all 3 index endpoints in parallel with token fallback
       const endpoints = [
         'https://siki.pu.go.id/siki-api/v1/permohonan-skk',
         'https://siki.pu.go.id/siki-api/v1/permohonan-skk-fg',
@@ -62,7 +54,7 @@ async function getSikiIndex(): Promise<Map<string, string>> {
       ]
 
       const responses = await Promise.allSettled(
-        endpoints.map(url => fetch(url, { headers, next: { revalidate: 3600 } }))
+        endpoints.map(url => fetchSikiWithFallback(url, { next: { revalidate: 3600 } }))
       )
 
       // Merge all successful responses
@@ -70,8 +62,8 @@ async function getSikiIndex(): Promise<Map<string, string>> {
       let hasError = false
 
       for (const result of responses) {
-        if (result.status === 'fulfilled') {
-          const res = result.value
+        if (result.status === 'fulfilled' && result.value) {
+          const res = result.value.response
           if (res.ok) {
             const { data: endpointData }: { data: SIKIListItem[] } = await res.json()
             allData.push(...endpointData)
@@ -138,15 +130,7 @@ export async function POST(req: NextRequest) {
     // Get index
     const index = await getSikiIndex()
 
-    // Build headers
-    const detailHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-    }
-    if (SIKI_API_TOKEN) {
-      detailHeaders['token'] = SIKI_API_TOKEN
-    }
-
-    // Fetch all details in parallel
+    // Fetch all details in parallel with token fallback
     const results = await Promise.all(
       validNiks.map(async (nik: string) => {
         const reqStart = Date.now()
@@ -169,14 +153,14 @@ export async function POST(req: NextRequest) {
           ]
 
           const responses = await Promise.allSettled(
-            endpoints.map(url => fetch(url, { headers: detailHeaders, next: { revalidate: 300 } }))
+            endpoints.map(url => fetchSikiWithFallback(url, { next: { revalidate: 300 } }))
           )
 
           // Find the first successful response
           let detail: SIKIDetail | null = null
           for (const result of responses) {
-            if (result.status === 'fulfilled') {
-              const res = result.value
+            if (result.status === 'fulfilled' && result.value) {
+              const res = result.value.response
               if (res.ok) {
                 const data = await res.json()
                 if (data.status === 'success' && data.personal?.length > 0) {

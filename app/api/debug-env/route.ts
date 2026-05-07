@@ -9,13 +9,21 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET() {
   const envVars = {
+    SIKI_TOKEN_GKK: {
+      exists: !!process.env.SIKI_TOKEN_GKK,
+      length: process.env.SIKI_TOKEN_GKK?.length || 0,
+    },
+    SIKI_TOKEN_GATAKSINDO: {
+      exists: !!process.env.SIKI_TOKEN_GATAKSINDO,
+      length: process.env.SIKI_TOKEN_GATAKSINDO?.length || 0,
+    },
+    SIKI_TOKEN_MIK: {
+      exists: !!process.env.SIKI_TOKEN_MIK,
+      length: process.env.SIKI_TOKEN_MIK?.length || 0,
+    },
     SIKI_API_TOKEN: {
       exists: !!process.env.SIKI_API_TOKEN,
       length: process.env.SIKI_API_TOKEN?.length || 0,
-      firstChar: process.env.SIKI_API_TOKEN?.[0] || '',
-      lastChar: process.env.SIKI_API_TOKEN?.[process.env.SIKI_API_TOKEN?.length - 1] || '',
-      // WARNING: Never log the actual token in production!
-      // preview: process.env.SIKI_API_TOKEN?.substring(0, 10) + '...',
     },
     DATABASE_URL: {
       exists: !!process.env.DATABASE_URL,
