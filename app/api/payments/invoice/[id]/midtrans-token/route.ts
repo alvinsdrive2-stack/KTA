@@ -83,8 +83,13 @@ export async function POST(
     }
 
     // Always generate unique order_id with timestamp to avoid conflicts
+    // Midtrans only allows alphanumeric plus - _ ~ . in order_id, so strip others (e.g. slash in invoice number)
     const timestamp = Date.now()
-    const orderId = `${bulkPayment.invoiceNumber}-${timestamp}`
+    const sanitizedInvoiceNumber = bulkPayment.invoiceNumber.replace(
+      /[^a-zA-Z0-9._~-]/g,
+      '-'
+    )
+    const orderId = `${sanitizedInvoiceNumber}-${timestamp}`
 
     // Build transaction
     const transaction: MidtransTransaction = {
