@@ -27,12 +27,21 @@ export async function GET(request: NextRequest) {
     // Build where clause
     let whereClause: any = {}
 
+    // Map frontend status labels to valid PaymentStatus enum values
+    const statusMap: Record<string, string> = {
+      PENDING: 'PENDING',
+      PAID: 'PAID',
+      VERIFIED: 'VERIFIED',
+      REJECTED: 'REJECTED',
+      WAITING_PAYMENT: 'PENDING'
+    }
+
     if (status && status !== 'all') {
       if (status === 'NEEDS_VERIFICATION') {
-        // Payments that need verification: PAID or WAITING_PAYMENT
-        whereClause.status = { in: ['PAID', 'WAITING_PAYMENT'] }
-      } else {
-        whereClause.status = status
+        // Payments that need verification: already paid but not yet verified
+        whereClause.status = 'PAID'
+      } else if (statusMap[status]) {
+        whereClause.status = statusMap[status]
       }
     }
 

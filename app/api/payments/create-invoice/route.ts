@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
     // Calculate total
     const totalNominal = ktaRequests.reduce((sum, req) => sum + (req.hargaFinal || 0), 0)
 
-    // Generate invoice number: INV/KTA-BPP/[tahun]/[bulan].[sequence]
+    // Generate invoice number: INV-KTA-BPP-[tahun]-[bulan].[sequence]
+    // No slash so it matches Midtrans order_id rules (alphanumeric + - _ ~ .)
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
     const existingInvoices = await prisma.bulkPayment.findMany({
       where: {
         invoiceNumber: {
-          startsWith: `INV/KTA-BPP/${year}/${month}.`
+          startsWith: `INV-KTA-BPP-${year}-${month}.`
         }
       },
       orderBy: {
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     const sequenceStr = String(sequence).padStart(3, '0')
-    const invoiceNumber = `INV/KTA-BPP/${year}/${month}.${sequenceStr}`
+    const invoiceNumber = `INV-KTA-BPP-${year}-${month}.${sequenceStr}`
 
     console.log('Creating bulk payment with data:', {
       invoiceNumber,
