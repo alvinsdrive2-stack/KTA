@@ -8,11 +8,12 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, Download, FileText, Loader2, CreditCard, CheckCircle2, Clock, Upload, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Download, FileText, FileSpreadsheet, Loader2, CreditCard, CheckCircle2, Clock, Upload, AlertCircle } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
 import { useMidtransPayment } from '@/hooks/use-midtrans-payment'
 import { useSession } from '@/hooks/useSession'
+import { safeInvoiceFilename } from '@/lib/utils'
 
 interface Payment {
   id: string
@@ -73,6 +74,7 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<BulkPayment | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const [downloadingExcel, setDownloadingExcel] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [paymentProof, setPaymentProof] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -120,7 +122,7 @@ export default function InvoiceDetailPage() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${invoice.invoiceNumber}.pdf`
+      a.download = `${safeInvoiceFilename(invoice.invoiceNumber)}.pdf`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -129,6 +131,35 @@ export default function InvoiceDetailPage() {
       console.error('Error downloading PDF:', error)
     } finally {
       setDownloading(false)
+    }
+  }
+
+  const handleDownloadExcel = async () => {
+    if (!invoice) return
+
+    try {
+      setDownloadingExcel(true)
+      const response = await fetch(`/api/payments/invoice/${invoice.id}/excel`, {
+        method: 'GET',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate Excel')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${safeInvoiceFilename(invoice.invoiceNumber)}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Error downloading Excel:', error)
+    } finally {
+      setDownloadingExcel(false)
     }
   }
 
@@ -313,24 +344,44 @@ export default function InvoiceDetailPage() {
           </Button>
           <h1 className="text-2xl font-semibold text-slate-900">Detail Invoice</h1>
         </div>
-        <Button
-          onClick={handleDownloadPDF}
-          disabled={downloading}
-          variant="outline"
-          className="gap-2"
-        >
-          {downloading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Memproses...
-            </>
-          ) : (
-            <>
-              <Download className="h-4 w-4" />
-              Download Invoice
-            </>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleDownloadPDF}
+            disabled={downloading}
+            variant="outline"
+            className="gap-2"
+          >
+            {downloading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Memproses...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                PDF
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={handleDownloadExcel}
+            disabled={downloadingExcel}
+            variant="outline"
+            className="gap-2"
+          >
+            {downloadingExcel ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Memproses...
+              </>
+            ) : (
+              <>
+                <FileSpreadsheet className="h-4 w-4" />
+                Excel
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Invoice Card */}
@@ -357,7 +408,11 @@ export default function InvoiceDetailPage() {
           {/* Customer Info */}
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-slate-700 mb-2">Ditagihkan Kepada</h3>
-            <p className="font-medium text-slate-900">{invoice.daerah.namaDaerah}</p>
+            <p className="font-medium text-slate-900">
+              {session?.user.role === 'DAERAH'
+                ? `Badan Pengurus Daerah ${invoice.daerah.namaDaerah}`
+                : 'Badan Pengurus Pusat'}
+            </p>
             <p className="text-sm text-slate-600">Kode: {invoice.daerah.kodeDaerah}</p>
             {invoice.daerah.alamat && <p className="text-sm text-slate-600">{invoice.daerah.alamat}</p>}
           </div>
@@ -414,7 +469,7 @@ export default function InvoiceDetailPage() {
           {/* Payment Summary */}
           <div className="space-y-3 mb-6">
             <div className="flex justify-between text-sm">
-              <span className="text-slate-600">Subtotal ({invoice.totalJumlah} KTA)</span>
+              <span className="text-slate-600">Subtotal</span>
               <span className="font-medium text-slate-900">{formatCurrency(totalHargaBase)}</span>
             </div>
             {diskonAmount > 0 && (

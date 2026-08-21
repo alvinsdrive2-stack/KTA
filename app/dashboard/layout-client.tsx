@@ -19,6 +19,7 @@ import { useSession } from '@/hooks/useSession'
 import { useIdleLogout } from '@/hooks/use-idle-logout'
 import { useToast } from '@/components/ui/use-toast'
 import { getDaerahLogoUrl } from '@/lib/daerah-logo'
+import { safeInvoiceFilename } from '@/lib/utils'
 import { ErrorBoundary } from '@/components/debug/error-boundary'
 
 interface DashboardClientProps {
@@ -239,7 +240,7 @@ function VerificationFloatingBar() {
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `KTA-${payment.invoiceNumber}.zip`
+        a.download = `KTA-${safeInvoiceFilename(payment.invoiceNumber)}.zip`
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)

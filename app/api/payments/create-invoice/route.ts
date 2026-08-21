@@ -37,6 +37,13 @@ export async function POST(request: NextRequest) {
     // Calculate total
     const totalNominal = ktaRequests.reduce((sum, req) => sum + (req.hargaFinal || 0), 0)
 
+    // Diskon >=100% => gratis, auto-marked as PAID (manual payment / tanpa bayar)
+    const daerahInfo = await prisma.daerah.findUnique({
+      where: { id: session.user.daerahId || '' },
+      select: { diskonPersen: true }
+    })
+    const isFree = (daerahInfo?.diskonPersen || 0) >= 100
+
     // Generate invoice number: INV-KTA-BPP-[tahun]-[bulan].[sequence]
     // No slash so it matches Midtrans order_id rules (alphanumeric + - _ ~ .)
     const now = new Date()
@@ -70,7 +77,8 @@ export async function POST(request: NextRequest) {
       invoiceNumber,
       totalJumlah: ktaRequests.length,
       totalNominal,
-      status: 'PENDING',
+      status: isFree ? 'PAID' : 'PENDING',
+      isFree,
       daerahId: session.user.daerahId,
       buktiPembayaranUrl: '',
       submittedBy: session.user.id,
@@ -82,7 +90,7 @@ export async function POST(request: NextRequest) {
         invoiceNumber,
         totalJumlah: ktaRequests.length,
         totalNominal,
-        status: 'PENDING',
+        status: isFree ? 'PAID' : 'PENDING',
         daerahId: session.user.daerahId,
         buktiPembayaranUrl: '', // Empty string for now, will be filled when payment proof uploaded
         submittedBy: session.user.id
@@ -98,7 +106,8 @@ export async function POST(request: NextRequest) {
           invoiceNumber,
           rekeningTujuan: 'BTN KC Jakarta Kuningan - 00001.01.30.000986.9 - a.n. Gabungan Ahli Teknik Nasional Indonesia',
           jumlah: req.hargaFinal || 0,
-          statusPembayaran: 'PENDING'
+          statusPembayaran: isFree ? 'PAID' : 'PENDING',
+          paidAt: isFree ? new Date() : null
         }
       })
     )

@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { CheckCircle, XCircle, Clock, AlertCircle, ArrowLeft, Loader2, Download } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, AlertCircle, ArrowLeft, Loader2, Download, FileSpreadsheet } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
+import { safeInvoiceFilename } from '@/lib/utils'
 
 interface BulkPaymentDetail {
   id: string
@@ -56,6 +57,7 @@ export default function PusatInvoiceDetailPage() {
   const [rejecting, setRejecting] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const [downloading, setDownloading] = useState(false)
+  const [downloadingExcel, setDownloadingExcel] = useState(false)
 
   useEffect(() => {
     if (params.id) {
@@ -99,7 +101,7 @@ export default function PusatInvoiceDetailPage() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${payment.invoiceNumber}.pdf`
+      a.download = `${safeInvoiceFilename(payment.invoiceNumber)}.pdf`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -112,6 +114,39 @@ export default function PusatInvoiceDetailPage() {
       })
     } finally {
       setDownloading(false)
+    }
+  }
+
+  const handleDownloadExcel = async () => {
+    if (!payment) return
+
+    try {
+      setDownloadingExcel(true)
+      const response = await fetch(`/api/payments/invoice/${payment.id}/excel`, {
+        method: 'GET',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate Excel')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${safeInvoiceFilename(payment.invoiceNumber)}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Download Gagal',
+        description: 'Gagal mendownload Excel invoice.',
+      })
+    } finally {
+      setDownloadingExcel(false)
     }
   }
 
@@ -301,7 +336,49 @@ export default function PusatInvoiceDetailPage() {
           {/* Left: Invoice PDF */}
           <Card className="card-3d animate-slide-up-stagger stagger-3">
             <CardHeader>
-              <CardTitle>Invoice</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Invoice</CardTitle>
+                {(payment.status === 'PAID' || payment.status === 'VERIFIED') && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={handleDownloadPDF}
+                      disabled={downloading}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {downloading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Memproses...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4 mr-2" />
+                          PDF
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleDownloadExcel}
+                      disabled={downloadingExcel}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {downloadingExcel ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Memproses...
+                        </>
+                      ) : (
+                        <>
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Excel
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="border rounded-lg overflow-hidden bg-slate-50">
@@ -412,26 +489,6 @@ export default function PusatInvoiceDetailPage() {
           <Card className="rounded-none shadow-2xl animate-slide-up">
             <CardContent className="py-4 px-6 lg:px-8">
               <div className="flex items-center gap-4">
-                {/* Download Button */}
-                <Button
-                  onClick={handleDownloadPDF}
-                  disabled={downloading}
-                  variant="outline"
-                  className="flex-shrink-0"
-                >
-                  {downloading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Memproses...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </>
-                  )}
-                </Button>
-
                 <div className="flex-1">
                   <p className="text-lg font-semibold text-slate-900">Konfirmasi Pembayaran</p>
                   <p className="text-sm text-slate-500">

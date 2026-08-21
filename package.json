@@ -51,6 +51,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
     "fontkit": "^2.0.4",
     "jszip": "^3.10.1",
     "lucide-react": "^0.560.0",
