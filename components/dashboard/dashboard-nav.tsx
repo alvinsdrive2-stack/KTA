@@ -14,7 +14,8 @@ import {
   History,
   CheckCircleIcon as Confirmicon,
   UserCog,
-  Database
+  Database,
+  Smartphone
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useSession } from '@/hooks/useSession'
@@ -158,6 +159,13 @@ const navSections: NavSection[] = [
         title: 'Data Manage',
         href: '/dashboard/admin/data-manage',
         icon: Database,
+        roles: ['ADMIN'],
+        badge: null,
+      },
+      {
+        title: 'Setting Device',
+        href: '/dashboard/admin/role-settings',
+        icon: Smartphone,
         roles: ['ADMIN'],
         badge: null,
       }

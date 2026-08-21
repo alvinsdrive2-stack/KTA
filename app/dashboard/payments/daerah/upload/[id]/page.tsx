@@ -192,7 +192,7 @@ export default function UploadProofPage({ params }: { params: { id: string } }) 
                       <div>
                         <p className="font-medium text-slate-900">{item.ktaRequest.nama}</p>
                         <p className="text-xs text-slate-500">
-                          {item.ktaRequest.idIzin} • Jenjang {item.ktaRequest.jenjang}
+                          {item.ktaRequest.idIzin} • Kualifikasi {item.ktaRequest.jenjang}
                         </p>
                       </div>
                     </div>

@@ -76,7 +76,7 @@ function mapColumns(headers: string[], rawData?: any[]): { mapping: Record<strin
     nik: ['NIK', 'NO_NIK', 'NOMOR_NIK', 'NOIDENTITAS', 'NO_ID'],
     idIzin: ['ID_IZIN', 'IDIZIN', 'REGISTRATION_NUMBER'],
     nomorKTA: ['NOMOR_KTA', 'NOKTA', 'NO_KTA', 'KTA', 'NO_ANGGOTA', 'NOMOR_ANGGOTA', 'NO_KTA_ASLI', 'NOMOR_KTA_ASLI', 'NOMORKTA', 'NOMOR KTA', 'NO KTA','Nomor KTA (Opsional)'],
-    jenjang: ['JENJANG', 'LEVEL', 'TINGKAT', 'GRADE'],
+    jenjang: ['JENJANG', 'KUALIFIKASI', 'LEVEL', 'TINGKAT', 'GRADE'],
     jabatanKerja: ['JABATAN_KERJA', 'JABATANKERJA', 'JABATAN', 'POSITION', 'JOB_TITLE'],
     subklasifikasi: ['SUBKLASIFIKASI', 'SUB_KLASIFIKASI', 'SUBCLASS', 'SUB_CLASSIFICATION', 'KLASIFIKASI'],
     noTelp: ['NO_TELP', 'NOTELEPON', 'NOTELP', 'TELP', 'TELEPON', 'TELEPHONE', 'PHONE', 'HP', 'NO_HP', 'WHATSAPP', 'WA'],

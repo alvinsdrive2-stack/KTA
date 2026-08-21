@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import {
   generateSnapToken,
+  type SnapTokenResponse,
   type MidtransItemDetails,
   type MidtransCustomerDetails,
   type MidtransTransaction
@@ -82,38 +83,69 @@ export async function POST(
       email: bulkPayment.submittedByUser.email
     }
 
-    // Always generate unique order_id with timestamp to avoid conflicts
-    // Midtrans only allows alphanumeric plus - _ ~ . in order_id, so strip others (e.g. slash in invoice number)
-    const timestamp = Date.now()
-    const sanitizedInvoiceNumber = bulkPayment.invoiceNumber.replace(
-      /[^a-zA-Z0-9._~-]/g,
-      '-'
-    )
-    const orderId = `${sanitizedInvoiceNumber}-${timestamp}`
+    // Generate order_id: KTA_GATENSI_yymm_000 (sequential per month)
+    // Midtrans only allows alphanumeric plus - _ ~ . in order_id
+    const now = new Date()
+    const yy = String(now.getFullYear()).slice(-2)
+    const mm = String(now.getMonth() + 1).padStart(2, '0')
+    const orderPrefix = `KTA_GATENSI_${yy}${mm}_`
 
-    // Build transaction
-    const transaction: MidtransTransaction = {
-      transaction_details: {
-        order_id: orderId,
-        gross_amount: totalTagihan
-      },
-      item_details: itemDetails,
-      customer_details: customerDetails
+    let orderId = ''
+    let persisted = false
+    let snapResponse: SnapTokenResponse
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const lastOrder = await prisma.bulkPayment.findMany({
+        where: { midtransOrderId: { startsWith: orderPrefix } },
+        orderBy: { midtransOrderId: 'desc' },
+        take: 1,
+        select: { midtransOrderId: true }
+      })
+
+      let seq = 1
+      if (lastOrder.length > 0 && lastOrder[0].midtransOrderId) {
+        const lastSeq = parseInt(lastOrder[0].midtransOrderId.split('_').pop() || '0', 10)
+        seq = lastSeq + 1
+      }
+
+      orderId = `${orderPrefix}${String(seq).padStart(3, '0')}`
+
+      // Build transaction
+      const transaction: MidtransTransaction = {
+        transaction_details: {
+          order_id: orderId,
+          gross_amount: totalTagihan
+        },
+        item_details: itemDetails,
+        customer_details: customerDetails
+      }
+
+      console.log('Creating new Midtrans transaction:', orderId)
+
+      snapResponse = await generateSnapToken(transaction)
+
+      // Persist midtransOrderId so the sequence is not reused
+      try {
+        await prisma.bulkPayment.update({
+          where: { id: params.id },
+          data: {
+            midtransToken: snapResponse.token,
+            midtransRedirectUrl: snapResponse.redirect_url,
+            midtransOrderId: orderId
+          }
+        })
+        persisted = true
+        break
+      } catch (err: any) {
+        // Unique constraint violation -> retry with next sequence
+        if (err?.code === 'P2002') continue
+        throw err
+      }
     }
 
-    console.log('Creating new Midtrans transaction:', orderId)
-
-    // Generate Snap token
-    const snapResponse = await generateSnapToken(transaction)
-
-    // Update bulk payment with Midtrans token
-    await prisma.bulkPayment.update({
-      where: { id: params.id },
-      data: {
-        midtransToken: snapResponse.token,
-        midtransRedirectUrl: snapResponse.redirect_url
-      }
-    })
+    if (!persisted || !orderId) {
+      throw new Error('Failed to allocate unique Midtrans order_id')
+    }
 
     return NextResponse.json({
       success: true,

@@ -193,7 +193,7 @@ export default function KTAPrintPage() {
                     <p className="font-semibold">{ktaRequest.subKlasifikasi}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Jenjang</p>
+                    <p className="text-sm text-gray-500">Kualifikasi</p>
                     <p className="font-semibold">{ktaRequest.jenjang}</p>
                   </div>
                 </div>

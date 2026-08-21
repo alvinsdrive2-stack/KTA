@@ -373,7 +373,7 @@ export default function InvoiceDetailPage() {
                     <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase">ID Izin</th>
                     <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase">Nama</th>
                     <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase">NIK</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase">Jenjang</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase">Kualifikasi</th>
                     <th className="text-right py-3 px-4 text-xs font-semibold text-slate-700 uppercase">Harga</th>
                   </tr>
                 </thead>

@@ -67,6 +67,8 @@ export default function PaymentsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [error, setError] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState('createdAt')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   // Use ref to track if initial fetch has happened
   const initialFetchDone = useRef(false)
@@ -162,6 +164,8 @@ export default function PaymentsPage() {
         if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
         if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
         if (daerahFilter && daerahFilter !== 'all') params.append('daerahKode', daerahFilter)
+        params.append('sortBy', sortBy)
+        params.append('sortDir', sortDir)
         params.append('page', currentPage.toString())
         params.append('limit', '10')
 
@@ -184,7 +188,7 @@ export default function PaymentsPage() {
     }
 
     fetchFilteredData()
-  }, [debouncedSearchTerm, statusFilter, daerahFilter, currentPage, sessionLoading, isPusatOrAdmin])
+  }, [debouncedSearchTerm, statusFilter, daerahFilter, currentPage, sortBy, sortDir, sessionLoading, isPusatOrAdmin])
 
   const fetchPayments = async () => {
     // This function is now only used for manual refresh after verify
@@ -198,6 +202,8 @@ export default function PaymentsPage() {
       if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
       if (daerahFilter && daerahFilter !== 'all') params.append('daerahKode', daerahFilter)
+      params.append('sortBy', sortBy)
+      params.append('sortDir', sortDir)
       params.append('page', currentPage.toString())
       params.append('limit', '10')
 
@@ -395,6 +401,25 @@ export default function PaymentsPage() {
               <option value="33">33 - Jawa Tengah</option>
               <option value="34">34 - DI Yogyakarta</option>
               <option value="35">35 - Jawa Timur</option>
+            </select>
+
+            <select
+              value={`${sortBy}:${sortDir}`}
+              onChange={(e) => {
+                const [key, dir] = e.target.value.split(':')
+                setSortBy(key)
+                setSortDir((dir as 'asc' | 'desc'))
+                setCurrentPage(1)
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-md w-48"
+            >
+              <option value="createdAt:desc">Terbaru</option>
+              <option value="createdAt:asc">Terlama</option>
+              <option value="invoiceNumber:asc">Invoice A-Z</option>
+              <option value="invoiceNumber:desc">Invoice Z-A</option>
+              <option value="daerah:asc">Daerah A-Z</option>
+              <option value="totalJumlah:desc">Jumlah KTA Terbanyak</option>
+              <option value="totalNominal:desc">Nominal Terbesar</option>
             </select>
           </div>
         </CardContent>

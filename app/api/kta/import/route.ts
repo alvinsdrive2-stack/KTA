@@ -74,7 +74,7 @@ function mapColumns(headers: string[]): { mapping: Record<string, string>; norma
     nama: ['NAMA_LENGKAP', 'NAMALENGKAP', 'NAMA', 'FULLNAME', 'FULL_NAME', 'NAMALAHIR', 'NAMA_LAHIR'],
     nik: ['NIK', 'NO_NIK', 'NOMOR_NIK', 'NOIDENTITAS', 'NO_ID'],
     idIzin: ['ID_IZIN', 'IDIZIN', 'NOMOR_KTA', 'NOKTA', 'NO_KTA', 'KTA', 'REGISTRATION_NUMBER'],
-    jenjang: ['JENJANG', 'LEVEL', 'TINGKAT', 'GRADE'],
+    jenjang: ['JENJANG', 'KUALIFIKASI', 'LEVEL', 'TINGKAT', 'GRADE'],
     jabatanKerja: ['JABATAN_KERJA', 'JABATANKERJA', 'JABATAN', 'POSITION', 'JOB_TITLE'],
     subklasifikasi: ['SUBKLASIFIKASI', 'SUB_KLASIFIKASI', 'SUBCLASS', 'SUB_CLASSIFICATION', 'KLASIFIKASI'],
     noTelp: ['NO_TELP', 'NOTELEPON', 'NOTELP', 'TELP', 'TELEPON', 'TELEPHONE', 'PHONE', 'HP', 'NO_HP', 'WHATSAPP', 'WA'],

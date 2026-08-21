@@ -131,7 +131,7 @@ export default function PusatCreateInvoicePage() {
                       <div>
                         <p className="font-medium text-slate-900">{req.nama}</p>
                         <p className="text-xs text-slate-500">
-                          {req.idIzin} • Jenjang {req.jenjang}
+                          {req.idIzin} • Kualifikasi {req.jenjang}
                         </p>
                       </div>
                     </div>

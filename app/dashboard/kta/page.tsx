@@ -12,6 +12,8 @@ import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useKTASelection } from '@/contexts/KTASelectionContext'
 import { JenjangBadge } from '@/components/ui/jenjang-badge'
 import { ImportKtaLegacyModal } from '@/components/dashboard/import-kta-legacy-modal'
+import { useTableSort } from '@/hooks/use-table-sort'
+import { SortableHeader } from '@/components/ui/sortable-header'
 import {
   Select,
   SelectContent,
@@ -67,6 +69,8 @@ export default function KTAPage() {
   const [endDate, setEndDate] = useState('')
   const [downloading, setDownloading] = useState(false)
 
+  const { sort, toggleSort, sortQuery } = useTableSort()
+
   // Import modal state (ADMIN only)
   const [importLegacyModalOpen, setImportLegacyModalOpen] = useState(false)
 
@@ -85,7 +89,12 @@ export default function KTAPage() {
 
   useEffect(() => {
     fetchKTARequests()
-  }, [statusFilter, debouncedSearchTerm, currentPage])
+  }, [statusFilter, debouncedSearchTerm, currentPage, startDate, endDate, sort.key, sort.dir])
+
+  const handleSort = (key: string) => {
+    if (sort.key !== key) setCurrentPage(1)
+    toggleSort(key)
+  }
 
   const fetchKTARequests = async () => {
     try {
@@ -107,6 +116,10 @@ export default function KTAPage() {
       }
 
       if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
+      if (startDate) params.append('startDate', startDate)
+      if (endDate) params.append('endDate', endDate)
+      if (sortQuery) params.append('sortBy', sort.key)
+      if (sortQuery) params.append('sortDir', sort.dir)
       params.append('page', currentPage.toString())
       params.append('limit', '10')
 
@@ -312,14 +325,14 @@ export default function KTAPage() {
                   <Input
                     type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1) }}
                     className="w-[160px] bg-white"
                   />
                   <span className="text-slate-500">sd</span>
                   <Input
                     type="date"
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1) }}
                     className="w-[160px] bg-white"
                   />
                 </div>
@@ -438,14 +451,14 @@ export default function KTAPage() {
                           />
                         </div>
                       </th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Nama</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">No. KTA</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">ID Izin</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">NIK</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Jenjang</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Jabatan</th>
-                      {isPusatOrAdmin && <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Daerah</th>}
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Status</th>
+                      <SortableHeader label="Nama" sortKey="nama" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="No. KTA" sortKey="nomorKTA" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="ID Izin" sortKey="idIzin" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="NIK" sortKey="nik" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Kualifikasi" sortKey="jenjang" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Jabatan" sortKey="jabatanKerja" sort={sort} onSort={handleSort} />
+                      {isPusatOrAdmin && <SortableHeader label="Daerah" sortKey="daerah" sort={sort} onSort={handleSort} />}
+                      <SortableHeader label="Status" sortKey="status" sort={sort} onSort={handleSort} />
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">No. Invoice</th>
                     </tr>
                   </thead>

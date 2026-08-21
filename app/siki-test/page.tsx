@@ -154,7 +154,7 @@ export default function SIKITestPage() {
                   <tr>
                     <th className="px-4 py-3 text-left">NIK</th>
                     <th className="px-4 py-3 text-left">Nama</th>
-                    <th className="px-4 py-3 text-center">Jenjang</th>
+                    <th className="px-4 py-3 text-center">Kualifikasi</th>
                     <th className="px-4 py-3 text-center">Time</th>
                     <th className="px-4 py-3 text-left">Status</th>
                   </tr>

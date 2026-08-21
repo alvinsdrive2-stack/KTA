@@ -413,7 +413,7 @@ export default function DaerahDetailPage() {
                       >
                         <div>
                           <p className="font-medium text-slate-900">{kta.nama}</p>
-                          <p className="text-xs text-slate-500">{kta.idIzin} • Jenjang {kta.jenjang}</p>
+                          <p className="text-xs text-slate-500">{kta.idIzin} • Kualifikasi {kta.jenjang}</p>
                         </div>
                         {getStatusBadge(kta.status)}
                       </div>

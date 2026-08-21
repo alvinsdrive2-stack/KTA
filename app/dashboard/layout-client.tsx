@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/card'
 import { CardContent } from '@/components/ui/card'
 import { useRouter, usePathname } from 'next/navigation'
 import { useSession } from '@/hooks/useSession'
+import { useIdleLogout } from '@/hooks/use-idle-logout'
 import { useToast } from '@/components/ui/use-toast'
 import { getDaerahLogoUrl } from '@/lib/daerah-logo'
 import { ErrorBoundary } from '@/components/debug/error-boundary'
@@ -544,6 +545,7 @@ function KTAFloatingBar() {
 function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProps) {
   const { session } = useSession()
   usePageTitle() // Auto-set page title based on active nav
+  useIdleLogout() // Auto logout setelah 5 menit idle
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
