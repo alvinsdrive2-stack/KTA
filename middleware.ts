@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
 // Route access configuration
 const routeAccessMap: Record<string, string[]> = {
@@ -47,22 +48,12 @@ function canAccess(role: string, pathname: string): boolean {
 
 async function getUserRole(request: NextRequest): Promise<string | null> {
   try {
-    // Try to get session from API
-    const apiUrl = new URL('/api/auth/session', request.url)
-    const response = await fetch(apiUrl.toString(), {
-      headers: {
-        cookie: request.headers.get('cookie') || '',
-      },
-    })
-
-    if (!response.ok) {
-      return null
-    }
-
-    const session = await response.json()
-    return session?.user?.role || null
+    // Decode JWT langsung dari cookie — tanpa fetch HTTP ke diri sendiri.
+    // Fetch ke domain publik dari dalam server bikin SSL loop (ERR_SSL_WRONG_VERSION_NUMBER).
+    const token = await getToken({ req: request })
+    return (token?.role as string) || null
   } catch (error) {
-    console.error('Error fetching user role:', error)
+    console.error('Error getting user role:', error)
     return null
   }
 }
