@@ -1,7 +1,19 @@
 import { randomUUID } from 'crypto'
 import { prisma } from './prisma'
 
-const SESSION_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
+// Idle timeout: 5 menit tanpa aktivitas -> auto logout (sliding window).
+// Env SESSION_IDLE_MINUTES bisa override (dalam menit).
+const SESSION_IDLE_MS = 5 * 60 * 1000
+const REFRESH_THRESHOLD_MS = 60 * 1000 // perpanjang sesi kalau sisa waktu < 1 menit
+
+export function getIdleTimeoutMs(): number {
+  const raw = process.env.SESSION_IDLE_MINUTES
+  const parsed = parseInt(raw || '', 10)
+  if (Number.isFinite(parsed) && parsed >= 1) {
+    return parsed * 60 * 1000
+  }
+  return SESSION_IDLE_MS
+}
 
 // Maksimal device aktif per user per role. Prioritas:
 // 1. Setting admin di tabel RoleSetting
@@ -25,27 +37,29 @@ export async function getMaxDevices(role: string): Promise<number> {
   return 1
 }
 
-// Daftarkan device baru untuk user. Session lama yang melebihi batas di-evict,
-// sehingga login di device baru otomatis memutus device lama.
+// Daftarkan device baru untuk user. Kebijakan keep-first:
+// kalau masih ada sesi AKTIF (belum expired) yang mencapai batas, login ditolak
+// (lempar ACTIVE_SESSION_EXISTS). Device pertama yang login dipertahankan.
 export async function registerDeviceSession(userId: string, role: string): Promise<string> {
   const maxDevices = await getMaxDevices(role)
   const deviceToken = randomUUID()
-  const expires = BigInt(Date.now() + SESSION_DURATION_MS)
+  const now = BigInt(Date.now())
+  const expires = now + BigInt(getIdleTimeoutMs())
 
   const activeSessions = await prisma.session.findMany({
-    where: { userId },
+    where: { userId, expires: { gt: now } },
     orderBy: { id: 'asc' },
     select: { id: true }
   })
 
-  // Simpan maxDevices - 1 sesi lama (sesi terbaru setelah yang baru dibuat)
-  const keepCount = Math.max(maxDevices - 1, 0)
-  const toDelete = activeSessions.slice(0, activeSessions.length - keepCount)
-  if (toDelete.length > 0) {
-    await prisma.session.deleteMany({
-      where: { id: { in: toDelete.map(s => s.id) } }
-    })
+  if (activeSessions.length >= maxDevices) {
+    throw new Error('ACTIVE_SESSION_EXISTS')
   }
+
+  // Bersihkan sesi yang sudah expired biar tabel gak numpuk
+  await prisma.session.deleteMany({
+    where: { userId, expires: { lte: now } }
+  })
 
   await prisma.session.create({
     data: {
@@ -58,8 +72,9 @@ export async function registerDeviceSession(userId: string, role: string): Promi
   return deviceToken
 }
 
-// Cek apakah device token masih menjadi sesi aktif milik user.
-// Jika user login di device lain (sesi ini di-evict), return false.
+// Cek apakah device token masih sesi aktif milik user + belum idle timeout.
+// Sliding window: tiap request valid memperpanjang waktu kedaluwarsa,
+// jadi logout otomatis kalau diam lebih dari idle timeout.
 export async function isDeviceSessionValid(
   userId: string | undefined | null,
   deviceToken: string | undefined | null
@@ -72,7 +87,30 @@ export async function isDeviceSessionValid(
     where: { sessionToken: deviceToken }
   })
 
-  return !!session && session.userId === userId
+  if (!session || session.userId !== userId) {
+    return false
+  }
+
+  const now = BigInt(Date.now())
+
+  // Sudah lewat idle timeout -> hapus sesi & anggap logout
+  if (session.expires <= now) {
+    await prisma.session.deleteMany({
+      where: { sessionToken: deviceToken }
+    })
+    return false
+  }
+
+  // Sliding window: perpanjang kalau mau habis, biar request gak selalu nulis DB
+  const remainingMs = Number(session.expires - now)
+  if (remainingMs < REFRESH_THRESHOLD_MS) {
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { expires: now + BigInt(getIdleTimeoutMs()) }
+    })
+  }
+
+  return true
 }
 
 // Bersihkan sesi saat logout

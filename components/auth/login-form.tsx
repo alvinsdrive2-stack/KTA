@@ -48,7 +48,11 @@ export function LoginForm() {
 
       if (result?.error) {
         console.error("Login error:", result.error)
-        setError('Email atau password salah')
+        if (result.error === 'ACTIVE_SESSION_EXISTS') {
+          setError('Masih ada sesi aktif di perangkat lain. Silakan logout dari perangkat tersebut dulu, atau tunggu sampai idle 5 menit.')
+        } else {
+          setError('Email atau password salah')
+        }
         setIsLoading(false)
       } else if (result?.ok) {
         console.log("Login successful, redirecting to dashboard...")
