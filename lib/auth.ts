@@ -43,9 +43,18 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Daftarkan device/session aktif. Login baru meng-evict device lama
-        // sesuai batas per role (setting admin / env / default 1).
-        const deviceToken = await registerDeviceSession(user.id, user.role)
+        // Daftarkan device/session aktif. Keep-first: kalau masih ada sesi aktif
+        // yang mencapai batas, login ditolak (ACTIVE_SESSION_EXISTS).
+        let deviceToken: string
+        try {
+          deviceToken = await registerDeviceSession(user.id, user.role)
+        } catch (error) {
+          const msg = (error as Error).message
+          if (msg === 'ACTIVE_SESSION_EXISTS') {
+            throw new Error('ACTIVE_SESSION_EXISTS')
+          }
+          throw new Error('LOGIN_ERROR')
+        }
 
         return {
           id: user.id,
