@@ -4,6 +4,32 @@ import { authMiddleware } from '@/lib/auth-helpers'
 
 export const dynamic = 'force-dynamic'
 
+// Whitelist field yang boleh di-sort (mencegah injection)
+const sortFields: Record<string, string> = {
+  nama: 'nama',
+  nik: 'nik',
+  idIzin: 'idIzin',
+  jenjang: 'jenjang',
+  jabatanKerja: 'jabatanKerja',
+  status: 'status',
+  nomorKTA: 'nomorKTA',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+}
+
+function buildOrderBy(sortBy: string | null, sortDir: 'asc' | 'desc'): any {
+  if (!sortBy) {
+    return { createdAt: 'desc' }
+  }
+  if (sortBy === 'daerah') {
+    return { daerah: { namaDaerah: sortDir } }
+  }
+  if (sortFields[sortBy]) {
+    return { [sortFields[sortBy]]: sortDir }
+  }
+  return { createdAt: 'desc' }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await authMiddleware(request)
@@ -16,6 +42,10 @@ export async function GET(request: NextRequest) {
     const statuses = searchParams.getAll('status') // Get all status values
     const daerahKode = searchParams.get('daerahKode')
     const search = searchParams.get('search')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
+    const sortBy = searchParams.get('sortBy')
+    const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
     const offset = (page - 1) * limit
@@ -90,6 +120,17 @@ export async function GET(request: NextRequest) {
       ]
     }
 
+    // Filter by date range on createdAt
+    if (startDate || endDate) {
+      whereClause.createdAt = {}
+      if (startDate) whereClause.createdAt.gte = new Date(startDate)
+      if (endDate) {
+        const endDateTime = new Date(endDate)
+        endDateTime.setHours(23, 59, 59, 999)
+        whereClause.createdAt.lte = endDateTime
+      }
+    }
+
 
     const [ktaRequests, total] = await Promise.all([
       prisma.kTARequest.findMany({
@@ -147,9 +188,7 @@ export async function GET(request: NextRequest) {
             }
           },
         },
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy: buildOrderBy(sortBy, sortDir),
         skip: offset,
         take: limit,
       }),

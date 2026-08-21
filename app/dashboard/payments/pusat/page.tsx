@@ -13,6 +13,8 @@ import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
 import { usePaymentSelection } from '@/contexts/PaymentSelectionContext'
 import {getJenjangCategory} from '@/components/ui/jenjang-badge'
+import { useTableSort } from '@/hooks/use-table-sort'
+import { SortableHeader } from '@/components/ui/sortable-header'
 
 interface KTARequest {
   id: string
@@ -59,6 +61,8 @@ export default function PusatPaymentPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
+
+  const { sort, toggleSort, applyClientSort } = useTableSort('createdAt', 'desc')
 
   // Track if we've already shown the toast
   const hasShownToast = useRef(false)
@@ -269,6 +273,16 @@ export default function PusatPaymentPage() {
     )
   })
 
+  const sortedBulkPayments = applyClientSort(filteredBulkPayments, (p: BulkPayment) => {
+    switch (sort.key) {
+      case 'invoiceNumber': return p.invoiceNumber
+      case 'totalJumlah': return p.totalJumlah
+      case 'totalNominal': return p.totalNominal
+      case 'status': return p.status
+      default: return p.createdAt
+    }
+  })
+
   return (
     <>
       <div className="space-y-5">
@@ -377,7 +391,7 @@ export default function PusatPaymentPage() {
                           <span>•</span>
                           <span className="font-mono">{request.nik}</span>
                           <span>•</span>
-                          <span>Jenjang {getJenjangCategory(request.jenjang)}</span>
+                          <span>Kualifikasi {getJenjangCategory(request.jenjang)}</span>
                           {request.isUpgrade && request.upgradeFromKtaId && (
                             <>
                               <span>•</span>
@@ -428,15 +442,15 @@ export default function PusatPaymentPage() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">No. Invoice</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Jumlah KTA</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Total Nominal</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Status</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Tanggal</th>
+                    <SortableHeader label="No. Invoice" sortKey="invoiceNumber" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Jumlah KTA" sortKey="totalJumlah" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Total Nominal" sortKey="totalNominal" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Tanggal" sortKey="createdAt" sort={sort} onSort={toggleSort} />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBulkPayments.map((payment) => {
+                  {sortedBulkPayments.map((payment) => {
                     const statusBadge = getBulkPaymentStatusBadge(payment.status)
                     return (
                       <tr

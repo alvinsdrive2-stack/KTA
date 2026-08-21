@@ -949,14 +949,14 @@ export default function KTAApplyPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="jenjang" className="text-slate-700">Jenjang</Label>
+                  <Label htmlFor="jenjang" className="text-slate-700">Kualifikasi</Label>
                   <Input
                     id="jenjang"
                     value={sikiData.jenjang || ''}
                     readOnly
                     className="mt-1 bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
-                  <p className="text-xs text-slate-500 mt-1">Jenjang diambil dari data SIKI</p>
+                  <p className="text-xs text-slate-500 mt-1">Kualifikasi diambil dari data SIKI</p>
                 </div>
                 <div>
                   <Label htmlFor="telp" className="text-slate-700">No. Telepon</Label>
@@ -1048,8 +1048,8 @@ export default function KTAApplyPage() {
                     <Info className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-blue-800">
                       <p className="font-semibold">Upgrade KTA Terdeteksi!</p>
-                      <p className="text-sm mt-1">KTA Lama: Jenjang {upgradeInfo.oldJenjang} - Rp {upgradeInfo.hargaLama.toLocaleString('id-ID')}</p>
-                      <p className="text-sm">KTA Baru: Jenjang {upgradeInfo.newJenjang} - Rp {upgradeInfo.hargaBaru.toLocaleString('id-ID')}</p>
+                      <p className="text-sm mt-1">KTA Lama: Kualifikasi {upgradeInfo.oldJenjang} - Rp {upgradeInfo.hargaLama.toLocaleString('id-ID')}</p>
+                      <p className="text-sm">KTA Baru: Kualifikasi {upgradeInfo.newJenjang} - Rp {upgradeInfo.hargaBaru.toLocaleString('id-ID')}</p>
                       <p className="text-lg font-bold mt-1">Biaya Upgrade: Rp {upgradeInfo.hargaUpgrade.toLocaleString('id-ID')}</p>
                     </AlertDescription>
                   </Alert>
@@ -1067,7 +1067,7 @@ export default function KTAApplyPage() {
 
                 {/* Jenjang Info */}
                 <div>
-                  <Label className="text-sm font-medium text-slate-700">Jenjang</Label>
+                  <Label className="text-sm font-medium text-slate-700">Kualifikasi</Label>
                   <p className="mt-1 text-lg font-semibold text-slate-900">
                     {sikiData.jenjang || '-'}
                   </p>

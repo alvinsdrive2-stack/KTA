@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { prisma } from "./prisma"
+import { registerDeviceSession, isDeviceSessionValid, removeDeviceSession } from "./device-session"
 
 export const authOptions: NextAuthOptions = {
   // Remove adapter when using JWT strategy to avoid conflicts
@@ -42,6 +43,10 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        // Daftarkan device/session aktif. Login baru meng-evict device lama
+        // sesuai batas per role (setting admin / env / default 1).
+        const deviceToken = await registerDeviceSession(user.id, user.role)
+
         return {
           id: user.id,
           email: user.email,
@@ -53,6 +58,7 @@ export const authOptions: NextAuthOptions = {
             kodeDaerah: user.daerah.kodeDaerah,
             namaDaerah: user.daerah.namaDaerah,
           } : null,
+          deviceToken,
         }
       }
     })
@@ -70,6 +76,17 @@ export const authOptions: NextAuthOptions = {
         token.daerah = user.daerah
         token.name = user.name
         token.email = user.email
+        token.deviceToken = (user as any).deviceToken
+      } else {
+        // Request selanjutnya: pastikan session ini masih device aktif.
+        // Jika user login di device lain, session ini sudah di-evict -> logout.
+        const valid = await isDeviceSessionValid(
+          token.sub,
+          token.deviceToken as string | undefined
+        )
+        if (!valid) {
+          return null
+        }
       }
       return token
     },
@@ -86,6 +103,11 @@ export const authOptions: NextAuthOptions = {
         }
       }
       return session
+    }
+  },
+  events: {
+    async signOut({ token }) {
+      await removeDeviceSession(token?.deviceToken as string | undefined)
     }
   },
   pages: {

@@ -144,16 +144,10 @@ export async function POST(request: NextRequest) {
     // Extract data from notification
     const { order_id, transaction_status, payment_type, transaction_id, fraud_status } = notification
 
-    // Extract invoice number from order_id
-    // order_id format: KTA-INV/LSP-GKK/2026/01-0001-1737345678900
-    // Remove timestamp suffix (13 digit milliseconds)
-    const invoiceNumber = order_id.replace(/-\d{13}$/, '')
-    console.log(`Extracted invoice number: "${invoiceNumber}" from order_id: "${order_id}"`)
-
-    // Find the bulk payment by invoice number
-    console.log(`Looking up bulk payment with invoiceNumber: "${invoiceNumber}"`)
-    const bulkPayment = await prisma.bulkPayment.findUnique({
-      where: { invoiceNumber },
+    // Find the bulk payment by midtransOrderId (new format: KTA_GATENSI_yymm_000)
+    console.log(`Looking up bulk payment with midtransOrderId: "${order_id}"`)
+    let bulkPayment = await prisma.bulkPayment.findUnique({
+      where: { midtransOrderId: order_id },
       include: {
         payments: true,
         submittedByUser: {
@@ -164,8 +158,25 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Backward compat: legacy order_id format was {invoiceNumber}-{timestamp}
     if (!bulkPayment) {
-      console.error(`❌ Bulk payment not found for order: ${order_id} (invoice: ${invoiceNumber})`)
+      const invoiceNumber = order_id.replace(/-\d{13}$/, '')
+      console.log(`Not found by order_id, trying legacy invoiceNumber: "${invoiceNumber}"`)
+      bulkPayment = await prisma.bulkPayment.findUnique({
+        where: { invoiceNumber },
+        include: {
+          payments: true,
+          submittedByUser: {
+            select: {
+              role: true
+            }
+          }
+        }
+      })
+    }
+
+    if (!bulkPayment) {
+      console.error(`❌ Bulk payment not found for order: ${order_id}`)
       return NextResponse.json(
         { error: 'Order not found' },
         { status: 404 }
@@ -192,11 +203,11 @@ export async function POST(request: NextRequest) {
       console.log(`Payment status set to: ${newStatus} (Midtrans auto-verified)`)
     }
 
-    console.log(`Updating payment ${invoiceNumber} to status: ${newStatus}`)
+    console.log(`Updating payment ${order_id} to status: ${newStatus}`)
 
     // Update bulk payment status
     await prisma.bulkPayment.update({
-      where: { invoiceNumber },
+      where: { id: bulkPayment.id },
       data: {
         status: newStatus,
         midtransTransactionId: transaction_id,

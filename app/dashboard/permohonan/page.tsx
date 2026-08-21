@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
 import { JenjangBadge } from '@/components/ui/jenjang-badge'
+import { useTableSort } from '@/hooks/use-table-sort'
+import { SortableHeader } from '@/components/ui/sortable-header'
 import {
   Select,
   SelectContent,
@@ -63,6 +65,8 @@ export default function PermohonanPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [daerahList, setDaerahList] = useState<Daerah[]>([])
 
+  const { sort, toggleSort, sortQuery } = useTableSort()
+
   // Track if we've already shown the toast
   const hasShownToast = useRef(false)
 
@@ -104,7 +108,12 @@ export default function PermohonanPage() {
 
   useEffect(() => {
     fetchKTARequests()
-  }, [statusFilter, daerahFilter, debouncedSearchTerm, currentPage])
+  }, [statusFilter, daerahFilter, debouncedSearchTerm, currentPage, sort.key, sort.dir])
+
+  const handleSort = (key: string) => {
+    if (sort.key !== key) setCurrentPage(1)
+    toggleSort(key)
+  }
 
   // Fetch daerah list for filter
   useEffect(() => {
@@ -133,6 +142,8 @@ export default function PermohonanPage() {
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
       if (daerahFilter && daerahFilter !== 'all') params.append('daerahKode', daerahFilter)
       if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
+      if (sortQuery) params.append('sortBy', sort.key)
+      if (sortQuery) params.append('sortDir', sort.dir)
       params.append('page', currentPage.toString())
       params.append('limit', '10')
 
@@ -345,14 +356,14 @@ export default function PermohonanPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/50">
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Nama</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">ID Izin</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">NIK</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Jenjang</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Jabatan</th>
-                    {(isPusatOrAdmin || session?.user.daerahId) && <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Daerah</th>}
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Status</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Tanggal</th>
+                    <SortableHeader label="Nama" sortKey="nama" sort={sort} onSort={handleSort} />
+                    <SortableHeader label="ID Izin" sortKey="idIzin" sort={sort} onSort={handleSort} />
+                    <SortableHeader label="NIK" sortKey="nik" sort={sort} onSort={handleSort} />
+                    <SortableHeader label="Kualifikasi" sortKey="jenjang" sort={sort} onSort={handleSort} />
+                    <SortableHeader label="Jabatan" sortKey="jabatanKerja" sort={sort} onSort={handleSort} />
+                    {(isPusatOrAdmin || session?.user.daerahId) && <SortableHeader label="Daerah" sortKey="daerah" sort={sort} onSort={handleSort} />}
+                    <SortableHeader label="Status" sortKey="status" sort={sort} onSort={handleSort} />
+                    <SortableHeader label="Tanggal" sortKey="createdAt" sort={sort} onSort={handleSort} />
                   </tr>
                 </thead>
                 <tbody>
