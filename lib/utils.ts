@@ -39,6 +39,11 @@ export function generateInvoiceNumber(): string {
   return `INV-${timestamp}-${random}`
 }
 
+// Invoice number pakai slash (INV/KTA-GATENSI/2608/001) — amankan buat nama file download
+export function safeInvoiceFilename(invoiceNumber: string): string {
+  return invoiceNumber.replace(/[^a-zA-Z0-9._~-]/g, '-')
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

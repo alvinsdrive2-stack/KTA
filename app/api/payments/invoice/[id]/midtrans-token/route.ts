@@ -83,12 +83,13 @@ export async function POST(
       email: bulkPayment.submittedByUser.email
     }
 
-    // Generate order_id: KTA_GATENSI_yymm_000 (sequential per month)
+    // Generate order_id: KTA_GATENSI_yymm_000-timestamp (sequential per month)
     // Midtrans only allows alphanumeric plus - _ ~ . in order_id
     const now = new Date()
     const yy = String(now.getFullYear()).slice(-2)
     const mm = String(now.getMonth() + 1).padStart(2, '0')
     const orderPrefix = `KTA_GATENSI_${yy}${mm}_`
+    const ts = Math.floor(Date.now() / 1000)
 
     let orderId = ''
     let persisted = false
@@ -104,11 +105,11 @@ export async function POST(
 
       let seq = 1
       if (lastOrder.length > 0 && lastOrder[0].midtransOrderId) {
-        const lastSeq = parseInt(lastOrder[0].midtransOrderId.split('_').pop() || '0', 10)
+        const lastSeq = parseInt(lastOrder[0].midtransOrderId.split('-')[0].split('_').pop() || '0', 10)
         seq = lastSeq + 1
       }
 
-      orderId = `${orderPrefix}${String(seq).padStart(3, '0')}`
+      orderId = `${orderPrefix}${String(seq).padStart(3, '0')}-${ts}`
 
       // Build transaction
       const transaction: MidtransTransaction = {

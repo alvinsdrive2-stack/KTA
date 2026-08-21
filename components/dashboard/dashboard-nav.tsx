@@ -215,36 +215,23 @@ export function DashboardNav({ isPusat, isKeuangan }: DashboardNavProps) {
     })
   }))
 
-  const filteredItems = navItems.filter(item => {
-    if (userRole === 'KEUANGAN') {
-      return item.roles.includes('KEUANGAN')
-    }
-    if (isPusat) {
-      return item.roles.includes('PUSAT') || item.roles.includes('ADMIN','KEUANGAN')
-    }
-    return item.roles.includes('DAERAH')
-  })
+  // Filter menu berdasarkan role user (bukan isPusat, biar PUSAT vs ADMIN beda)
+  const canSeeRole = (roles: string[]): boolean => {
+    if (userRole === 'KEUANGAN') return roles.includes('KEUANGAN')
+    if (userRole === 'PUSAT') return roles.includes('PUSAT')
+    if (userRole === 'ADMIN') return roles.includes('ADMIN')
+    return roles.includes('DAERAH')
+  }
 
-  const filteredSections = navSectionsWithBadges.filter(section => {
-    if (userRole === 'KEUANGAN') {
-      return section.roles.includes('KEUANGAN')
-    }
-    if (isPusat) {
-      return section.roles.includes('PUSAT') || section.roles.includes('ADMIN','KEUANGAN')
-    }
-    return section.roles.includes('DAERAH')
-  }).map(section => ({
-    ...section,
-    items: section.items.filter(item => {
-      if (userRole === 'KEUANGAN') {
-        return item.roles.includes('KEUANGAN')
-      }
-      if (isPusat) {
-        return item.roles.includes('PUSAT') || item.roles.includes('ADMIN','KEUANGAN')
-      }
-      return item.roles.includes('DAERAH')
-    })
-  })).filter(section => section.items.length > 0)
+  const filteredItems = navItems.filter(item => canSeeRole(item.roles))
+
+  const filteredSections = navSectionsWithBadges
+    .filter(section => canSeeRole(section.roles))
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item => canSeeRole(item.roles))
+    }))
+    .filter(section => section.items.length > 0)
 
   // Combine all nav items for active checking
   const allNavItems = [

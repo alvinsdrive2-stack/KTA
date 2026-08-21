@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { safeInvoiceFilename } from '@/lib/utils'
 
 export async function GET(
   request: NextRequest,
@@ -16,7 +17,8 @@ export async function GET(
         submittedByUser: {
           select: {
             name: true,
-            email: true
+            email: true,
+            role: true
           }
         },
         verifiedByUser: {
@@ -140,6 +142,40 @@ export async function GET(
         month: 'long',
         year: 'numeric'
       })
+    }
+
+    const formatDateTime = (date: Date | string) => {
+      return `${formatDate(date)} ${new Date(date).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`
+    }
+
+    // Word wrap text, return y position after last line
+    const drawWrappedText = (
+      text: string,
+      x: number,
+      y: number,
+      size: number,
+      font: any,
+      color: any,
+      maxWidth: number
+    ): number => {
+      const words = text.split(' ')
+      let line = ''
+      let cy = y
+      words.forEach(word => {
+        const test = line ? line + ' ' + word : word
+        if (test.length * (size * 0.5) < maxWidth) {
+          line = test
+        } else {
+          if (line) page.drawText(line, { x, y: cy, size, font, color })
+          cy -= size + 4
+          line = word
+        }
+      })
+      if (line) page.drawText(line, { x, y: cy, size, font, color })
+      return cy - (size + 4)
     }
 
     // Helper function to convert number to words (terbilang)
@@ -284,15 +320,16 @@ export async function GET(
     yPosition -= lineHeight
 
     // ROW 3 - Daerah & Tanggal (same Y for labels)
-    if (invoice.daerah.namaDaerah) {
-      page.drawText(invoice.daerah.namaDaerah, {
-        x: leftColX,
-        y: yPosition,
-        size: 9,
-        font: font,
-        color: darkGray
-      })
-    }
+    const billTo = invoice.submittedByUser.role === 'DAERAH'
+      ? `Badan Pengurus Daerah ${invoice.daerah.namaDaerah}`
+      : 'Badan Pengurus Pusat'
+    page.drawText(billTo, {
+      x: leftColX,
+      y: yPosition,
+      size: 9,
+      font: font,
+      color: darkGray
+    })
 
     page.drawText('Tanggal Pengajuan:', {
       x: rightColX,
@@ -338,7 +375,7 @@ export async function GET(
     })
 
     // Table headers - White text
-    const headers = ['No', 'ID-Izin', 'Nama Peserta', 'NIK', 'Jenjang', 'Harga']
+    const headers = ['No', 'ID-Izin', 'Nama Peserta', 'NIK', 'Kualifikasi', 'Harga']
     let xPos = margin
     headers.forEach((header, i) => {
       page.drawText(header, {
@@ -368,9 +405,11 @@ export async function GET(
 
       // Draw cell data - No truncation, full text
       xPos = margin
+      const JENJANG_NAME = ['', 'Operator', 'Operator', 'Operator', 'Teknisi/Analis', 'Teknisi/Analis', 'Teknisi/Analis', 'Ahli', 'Ahli', 'Ahli']
+      const jenjangLabel = JENJANG_NAME[Number(payment.ktaRequest.jenjang)] || payment.ktaRequest.jenjang
       const jenjangText = payment.ktaRequest.isUpgrade
-        ? `${payment.ktaRequest.jenjang} (UPG)`
-        : payment.ktaRequest.jenjang
+        ? `${jenjangLabel} (UPG)`
+        : jenjangLabel
       const cells = [
         `${index + 1}`,
         payment.ktaRequest.idIzin,
@@ -430,7 +469,17 @@ export async function GET(
     const diskonAmount = Math.floor(totalHargaBase * diskon / 100)
     const totalTagihan = totalHargaBase - diskonAmount
 
-    // LEFT - Nomor Rekening (NO border, NO background)
+    // LEFT - Metode Pembayaran (Midtrans)
+    const statusLabel: Record<string, string> = {
+      VERIFIED: 'LUNAS',
+      PAID: 'DIBAYAR',
+      PENDING: 'MENUNGGU PEMBAYARAN',
+      REJECTED: 'DITOLAK'
+    }
+    const paymentType = (invoice.midtransPaymentType || 'Bank Transfer').toUpperCase()
+    const adminName = invoice.verifiedByUser?.name || invoice.submittedByUser.name
+    const paymentTime = invoice.verifiedAt || invoice.createdAt
+
     page.drawText('Metode Pembayaran', {
       x: leftX + 10,
       y: yPosition - 10,
@@ -439,35 +488,41 @@ export async function GET(
       color: navyBlue
     })
 
-    page.drawText('Bank:', {
+    page.drawText('Midtrans Payment Gateway', {
       x: leftX + 10,
-      y: yPosition - 30,
-      size: 8,
-      font: font,
-      color: darkGray
-    })
-    page.drawText('BTN KC Jakarta Kuningan', {
-      x: leftX + 10,
-      y: yPosition - 43,
+      y: yPosition - 28,
       size: 10,
       font: fontBold,
       color: darkGray
     })
 
-    page.drawText('No. Rekening:', {
-      x: leftX + 10,
-      y: yPosition - 58,
-      size: 8,
-      font: font,
-      color: darkGray
-    })
-    page.drawText('00001.01.30.000986.9', {
-      x: leftX + 10,
-      y: yPosition - 71,
-      size: 10,
-      font: fontBold,
-      color: navyBlue
-    })
+    let leftY = drawWrappedText(
+      `Status: ${statusLabel[invoice.status] || invoice.status}`,
+      leftX + 10,
+      yPosition - 45,
+      8,
+      font,
+      darkGray,
+      sectionWidth - 20
+    )
+    leftY = drawWrappedText(
+      `Metode: ${paymentType}`,
+      leftX + 10,
+      leftY,
+      8,
+      font,
+      darkGray,
+      sectionWidth - 20
+    )
+    drawWrappedText(
+      `Waktu: ${formatDateTime(paymentTime)}`,
+      leftX + 10,
+      leftY,
+      8,
+      font,
+      darkGray,
+      sectionWidth - 20
+    )
 
     // CENTER - Terbilang (NO border, NO background)
     page.drawText('Terbilang', {
@@ -529,7 +584,7 @@ export async function GET(
     let summaryY = yPosition - 35
 
     // Total Harga (from hargaBase)
-    page.drawText(`Total Harga (${invoice.totalJumlah} KTA):`, {
+    page.drawText('Total Harga:', {
       x: rightX + 10,
       y: summaryY,
       size: 8,
@@ -592,61 +647,11 @@ export async function GET(
 
     yPosition -= 100
 
-    // ============================================
-    // FOOTER - Issued By System
-    // ============================================
-    page.drawLine({
-      start: { x: margin, y: yPosition },
-      end: { x: width - margin, y: yPosition },
-      thickness: 0.5,
-      color: rgb(0.7, 0.7, 0.7)
-    })
-    yPosition -= 25
-
-    // Left - Issued By System
-    page.drawText('Issued By:', {
-      x: margin,
-      y: yPosition,
-      size: 8,
-      font: font,
-      color: darkGray
-    })
-    yPosition -= lineHeight
-
-    page.drawText('System - Gabungan Ahli Teknik Nasional Indonesia', {
-      x: margin,
-      y: yPosition,
-      size: 9,
-      font: fontBold,
-      color: navyBlue
-    })
-    yPosition -= lineHeight
-
-    page.drawText('Document generated automatically by system', {
-      x: margin,
-      y: yPosition,
-      size: 7,
-      font: fontItalic,
-      color: rgb(0.5, 0.5, 0.5)
-    })
-
-    // Right - Print Date & Time
-    const printDateTime = `Print: ${new Date().toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })} ${new Date().toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })}`
-
-    page.drawText(printDateTime, {
-      x: width - margin - printDateTime.length * 3.5,
-      y: yPosition + lineHeight * 2,
-      size: 7,
-      font: font,
-      color: darkGray
-    })
+    // Legal statement elektronik
+    yPosition -= 10
+    const legalText = `Invoice ini diterbitkan secara elektronik oleh Admin "${adminName}" dan sah tanpa tanda tangan maupun cap perusahaan.`
+    const legalY = drawWrappedText(legalText, margin, yPosition, 8, fontItalic, rgb(0.5, 0.5, 0.5), contentWidth)
+    yPosition = legalY - 15
 
     // Serialize PDF to bytes
     const pdfBytes = await pdfDoc.save()
@@ -655,7 +660,7 @@ export async function GET(
     return new NextResponse(pdfBytes, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="${invoice.invoiceNumber}.pdf"`,
+        'Content-Disposition': `inline; filename="${safeInvoiceFilename(invoice.invoiceNumber)}.pdf"`,
       },
     })
 
