@@ -32,6 +32,29 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>
 
+// Subklasifikasi yang boleh dipilih untuk daerah selain K3 (kode 98).
+// Daerah K3 (kode 98) khusus 'Keselamatan Konstruksi' (lihat visibleSubklasifikasi).
+const ALLOWED_SUBKLASIFIKASI_NON_98 = new Set([
+  'AIR TANAH DAN AIR BAKU',
+  'BANGUNAN AIR LIMBAH',
+  'BANGUNAN PELABUHAN',
+  'BANGUNAN PERSAMPAHAN',
+  'BENDUNG DAN BENDUNGAN',
+  'DRAINASE PERKOTAAN',
+  'GEDUNG',
+  'GEODESI',
+  'GEOTEKNIK DAN PONDASI',
+  'GROUTING',
+  'IRIGASI DAN RAWA',
+  'JALAN',
+  'JALAN REL',
+  'JEMBATAN',
+  'MATERIAL',
+  'PEMBONGKARAN BANGUNAN',
+  'SUNGAI DAN PANTAI',
+  'TEROWONGAN',
+])
+
 export default function CreateManualPage() {
   const router = useRouter()
   const { setSidebarCollapsed } = useSidebar()
@@ -110,7 +133,15 @@ export default function CreateManualPage() {
         const result = await response.json()
         if (result.success) {
           setAllJabkerData(result.data)
-          const unique = [...new Set(result.data.map((d: any) => d.subklasifikasi).filter(Boolean))].sort()
+          // Dedupe subklasifikasi: beda huruf besar/kecil atau spasi ekstra dianggap sama
+          const seen = new Map<string, string>()
+          result.data.forEach((d: any) => {
+            const raw = (d.subklasifikasi || '').trim()
+            if (!raw) return
+            const key = raw.toLowerCase()
+            if (!seen.has(key)) seen.set(key, raw)
+          })
+          const unique = [...seen.values()].sort()
           setSubklasifikasiList(unique)
         }
       } catch (error) {
@@ -128,7 +159,7 @@ export default function CreateManualPage() {
       setJabatanKerjaList([])
       return
     }
-    setJabatanKerjaList(allJabkerData.filter(d => d.subklasifikasi === subklasifikasi))
+    setJabatanKerjaList(allJabkerData.filter(d => (d.subklasifikasi || '').toLowerCase() === subklasifikasi.toLowerCase()))
   }, [subklasifikasi, allJabkerData])
 
   // Fetch daerah diskon on component mount
@@ -229,6 +260,15 @@ export default function CreateManualPage() {
   const canAssignAnyDaerah = session?.user?.role === 'PUSAT' ||
                              session?.user?.role === 'ADMIN' ||
                              session?.user?.daerah?.kodeDaerah === '00'
+
+  // Daerah efektif: PUSAT/ADMIN pakai dropdown, user lain pakai daerah session
+  const effDaerahId = canAssignAnyDaerah ? selectedDaerahId : session?.user?.daerahId
+  const isK3 = effDaerahId === '98'
+  const visibleSubklasifikasi = isK3
+    ? subklasifikasiList.filter(s => (s || '').toUpperCase() === 'KESELAMATAN KONSTRUKSI')
+    : !effDaerahId
+      ? subklasifikasiList
+      : subklasifikasiList.filter(s => ALLOWED_SUBKLASIFIKASI_NON_98.has((s || '').toUpperCase()))
 
   const handleFileChange = (type: 'ktp' | 'foto', file: File) => {
     setError(null)
@@ -433,14 +473,11 @@ export default function CreateManualPage() {
     }
   }
 
-  const jenjangOptions = Array.from({ length: 9 }, (_, i) => {
-    const num = i + 1
-    let label = num.toString()
-    if (num <= 3) label += ' - Operator'
-    else if (num <= 6) label += ' - Teknisi/Analis'
-    else label += ' - Ahli'
-    return label
-  })
+  const JENJANG_LABEL: Record<string, string> = {
+    '1': 'Operator', '2': 'Operator', '3': 'Operator',
+    '4': 'Teknisi/Analis', '5': 'Teknisi/Analis', '6': 'Teknisi/Analis',
+    '7': 'Ahli', '8': 'Ahli', '9': 'Ahli',
+  }
 
   return (
     <div className={cn(
@@ -519,7 +556,7 @@ export default function CreateManualPage() {
                   value={form.watch('subklasifikasi')}
                   onChange={(value) => form.setValue('subklasifikasi', value)}
                   placeholder="Ketik atau pilih sub klasifikasi..."
-                  options={subklasifikasiList}
+                  options={visibleSubklasifikasi}
                   loading={loadingReferensi}
                   disabled={isLoading}
                   className="bg-white"
@@ -570,7 +607,7 @@ export default function CreateManualPage() {
                   <div
                     className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm bg-white text-slate-600"
                   >
-                    {jenjangOptions.find(j => j.startsWith(form.watch('jenjang'))) || form.watch('jenjang')}
+                    {JENJANG_LABEL[form.watch('jenjang')] || form.watch('jenjang')}
                   </div>
                 ) : (
                   <Input

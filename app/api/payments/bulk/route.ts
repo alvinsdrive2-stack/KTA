@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only DAERAH, ADMIN or KEUANGAN users can access bulk payments
-    if (session.user.role !== 'DAERAH' && session.user.role !== 'ADMIN' && session.user.role !== 'KEUANGAN') {
+    // Only DAERAH, PUSAT, ADMIN or KEUANGAN users can access bulk payments
+    if (session.user.role !== 'DAERAH' && session.user.role !== 'PUSAT' && session.user.role !== 'ADMIN' && session.user.role !== 'KEUANGAN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
