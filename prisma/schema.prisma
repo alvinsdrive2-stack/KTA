@@ -41,6 +41,16 @@ model Session {
   @@map("sessions")
 }
 
+// Batas jumlah device aktif per role. Dikelola admin (halaman role-settings).
+model RoleSetting {
+  id         String   @id @default(cuid())
+  role       UserRole @unique
+  maxDevices Int      @default(1)
+  updatedAt  DateTime @updatedAt
+
+  @@map("role_settings")
+}
+
 model Daerah {
   id                   String        @id @default(cuid())
   namaDaerah           String
@@ -194,6 +204,7 @@ model BulkPayment {
   midtransRedirectUrl   String?
   midtransTransactionId String?
   midtransPaymentType   String?
+  midtransOrderId       String?       @unique
   daerah                Daerah        @relation(fields: [daerahId], references: [id])
   submittedByUser       User          @relation("BulkPaymentSubmittedBy", fields: [submittedBy], references: [id])
   verifiedByUser        User?         @relation("BulkPaymentVerifiedBy", fields: [verifiedBy], references: [id])

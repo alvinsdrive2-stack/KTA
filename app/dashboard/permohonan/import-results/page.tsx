@@ -356,7 +356,7 @@ export default function ImportResultsPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">No</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Nama Lengkap</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">NIK</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Jenjang</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Kualifikasi</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Jabatan</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Subklasifikasi</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">No. Telepon</th>

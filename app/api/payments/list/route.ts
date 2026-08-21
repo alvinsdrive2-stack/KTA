@@ -4,6 +4,30 @@ import { authMiddleware } from '@/lib/auth-helpers'
 
 export const dynamic = 'force-dynamic'
 
+const sortFields: Record<string, string> = {
+  invoiceNumber: 'invoiceNumber',
+  totalJumlah: 'totalJumlah',
+  totalNominal: 'totalNominal',
+  status: 'status',
+  createdAt: 'createdAt',
+}
+
+function buildOrderBy(sortBy: string | null, sortDir: 'asc' | 'desc'): any {
+  if (!sortBy) {
+    return { createdAt: 'desc' }
+  }
+  if (sortBy === 'daerah') {
+    return { daerah: { namaDaerah: sortDir } }
+  }
+  if (sortBy === 'submittedBy') {
+    return { submittedByUser: { name: sortDir } }
+  }
+  if (sortFields[sortBy]) {
+    return { [sortFields[sortBy]]: sortDir }
+  }
+  return { createdAt: 'desc' }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await authMiddleware(request)
@@ -20,6 +44,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const daerahKode = searchParams.get('daerahKode')
     const search = searchParams.get('search')
+    const sortBy = searchParams.get('sortBy')
+    const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
     const offset = (page - 1) * limit
@@ -59,6 +85,11 @@ export async function GET(request: NextRequest) {
       ]
     }
 
+    // Hanya pembayaran manual yang muncul di konfirmasi.
+    // Pembayaran via Midtrans auto-verified dan tidak perlu dikonfirmasi manual.
+    whereClause.midtransOrderId = null
+    whereClause.midtransTransactionId = null
+
     const [payments, total] = await Promise.all([
       prisma.bulkPayment.findMany({
         where: whereClause,
@@ -96,9 +127,7 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        orderBy: {
-          createdAt: 'desc'
-        },
+        orderBy: buildOrderBy(sortBy, sortDir),
         skip: offset,
         take: limit
       }),

@@ -64,6 +64,14 @@ export async function GET(
       )
     }
 
+    // Midtrans payments are auto-verified, tidak perlu dikonfirmasi manual
+    if (payment.midtransOrderId || payment.midtransTransactionId) {
+      return NextResponse.json(
+        { success: false, error: 'Pembayaran tidak ditemukan' },
+        { status: 404 }
+      )
+    }
+
     const response = {
       id: payment.id,
       invoiceNumber: payment.invoiceNumber,

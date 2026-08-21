@@ -381,7 +381,7 @@ export default function PusatInvoiceDetailPage() {
                     <th className="px-4 py-3 text-left font-medium text-slate-700">ID Izin</th>
                     <th className="px-4 py-3 text-left font-medium text-slate-700">Nama</th>
                     <th className="px-4 py-3 text-left font-medium text-slate-700">NIK</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-700">Jenjang</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-700">Kualifikasi</th>
                     <th className="px-4 py-3 text-left font-medium text-slate-700">Jabatan</th>
                   </tr>
                 </thead>

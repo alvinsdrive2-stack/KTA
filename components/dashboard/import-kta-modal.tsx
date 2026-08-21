@@ -297,7 +297,7 @@ export function ImportKtaModal({ open, onOpenChange, onSuccess }: ImportKtaModal
   }
 
   const downloadTemplate = () => {
-    const headers = ['Nama Lengkap', 'NIK', 'ID Izin', 'Jenjang', 'Jabatan Kerja', 'Subklasifikasi', 'NoTelp', 'Email', 'Alamat', 'Tanggal Daftar (YYYY-MM-DD)', 'Daerah (Optional)']
+    const headers = ['Nama Lengkap', 'NIK', 'ID Izin', 'Kualifikasi', 'Jabatan Kerja', 'Subklasifikasi', 'NoTelp', 'Email', 'Alamat', 'Tanggal Daftar (YYYY-MM-DD)', 'Daerah (Optional)']
     const sampleData = [
       ['Ahmad Fauzi', '1234567890123456', '', '3', 'Pelaksana Lapangan', 'BL003', '081234567890', 'ahmad@example.com', 'Jl. Contoh No. 123', '2024-01-15', ''],
       ['Siti Rahayu', '2345678901234567', '', '5', 'Pelaksana Lapangan', 'BL003', '082345678901', 'siti@example.com', 'Jl. Contoh No. 456', '2024-01-16', ''],
@@ -616,7 +616,7 @@ export function ImportKtaModal({ open, onOpenChange, onSuccess }: ImportKtaModal
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">Nama</th>
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">NIK</th>
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">ID Izin</th>
-                        <th className="px-2 py-2 text-left font-semibold text-slate-700">Jenjang</th>
+                        <th className="px-2 py-2 text-left font-semibold text-slate-700">Kualifikasi</th>
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">Jabatan</th>
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">Subklasifikasi</th>
                         <th className="px-2 py-2 text-left font-semibold text-slate-700">No. Telp</th>

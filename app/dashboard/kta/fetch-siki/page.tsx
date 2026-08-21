@@ -143,7 +143,7 @@ export default function FetchSikiPage() {
                 <p className="font-semibold">{sikiData.subklasifikasi}</p>
               </div>
               <div>
-                <Label className="text-sm font-medium text-gray-500">Jenjang</Label>
+                <Label className="text-sm font-medium text-gray-500">Kualifikasi</Label>
                 <p className="font-semibold">{sikiData.jenjang}</p>
               </div>
               <div>

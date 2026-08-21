@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, FileText, Clock, CheckCircle, XCircle, Search } from 'lucide-react'
 import Link from 'next/link'
 import { PulseLogo } from '@/components/ui/loading-spinner'
+import { useTableSort } from '@/hooks/use-table-sort'
+import { SortableHeader } from '@/components/ui/sortable-header'
 
 interface BulkPayment {
   id: string
@@ -27,6 +29,8 @@ export default function PusatInvoicesHistoryPage() {
   const [invoices, setInvoices] = useState<BulkPayment[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+
+  const { sort, toggleSort, applyClientSort } = useTableSort('createdAt', 'desc')
 
   useEffect(() => {
     fetchInvoices()
@@ -78,6 +82,17 @@ export default function PusatInvoicesHistoryPage() {
     invoice.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
     invoice.id.toLowerCase().includes(search.toLowerCase())
   )
+
+  const sortedInvoices = applyClientSort(filteredInvoices, (inv: BulkPayment) => {
+    switch (sort.key) {
+      case 'invoiceNumber': return inv.invoiceNumber
+      case 'totalJumlah': return inv.totalJumlah
+      case 'totalNominal': return inv.totalNominal
+      case 'status': return inv.status
+      case 'paidAt': return inv.paidAt
+      default: return inv.createdAt
+    }
+  })
 
   if (loading) {
     return (
@@ -138,16 +153,16 @@ export default function PusatInvoicesHistoryPage() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">No. Invoice</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Jumlah KTA</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Total Nominal</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Status</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Tanggal Dibuat</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 text-xs uppercase tracking-wider">Tanggal Dibayar</th>
+                    <SortableHeader label="No. Invoice" sortKey="invoiceNumber" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Jumlah KTA" sortKey="totalJumlah" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Total Nominal" sortKey="totalNominal" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Tanggal Dibuat" sortKey="createdAt" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Tanggal Dibayar" sortKey="paidAt" sort={sort} onSort={toggleSort} />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredInvoices.map((invoice) => {
+                  {sortedInvoices.map((invoice) => {
                     const statusBadge = getStatusBadge(invoice.status)
                     return (
                       <tr
@@ -157,7 +172,6 @@ export default function PusatInvoicesHistoryPage() {
                       >
                         <td className="py-3 px-4">
                           <p className="font-medium text-slate-900">{invoice.invoiceNumber}</p>
-                          <p className="text-xs text-slate-500">ID: {invoice.id.slice(0, 8)}</p>
                         </td>
                         <td className="py-3 px-4">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">

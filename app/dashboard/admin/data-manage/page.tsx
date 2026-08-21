@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
+import { useTableSort } from '@/hooks/use-table-sort'
+import { SortableHeader } from '@/components/ui/sortable-header'
 import {
   Select,
   SelectContent,
@@ -194,7 +196,14 @@ export default function DataManagePage() {
   // Daerah list
   const [daerahList, setDaerahList] = useState<Daerah[]>([])
 
+  const { sort, toggleSort, sortQuery } = useTableSort()
+
   const initialFetchDone = useRef(false)
+
+  const handleSort = (key: string) => {
+    if (sort.key !== key) setPage(1)
+    toggleSort(key)
+  }
 
   // Check access control
   useEffect(() => {
@@ -229,7 +238,7 @@ export default function DataManagePage() {
       setPage(1) // Reset page when tab/filter changes
       fetchAllData()
     }
-  }, [activeTab, statusFilter])
+  }, [activeTab, statusFilter, sort.key, sort.dir])
 
   // Search debounce
   useEffect(() => {
@@ -269,6 +278,8 @@ export default function DataManagePage() {
       const params = new URLSearchParams()
       if (search) params.append('search', search)
       if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+      if (sortQuery) params.append('sortBy', sort.key)
+      if (sortQuery) params.append('sortDir', sort.dir)
       params.append('page', page.toString())
       params.append('limit', pageSize.toString())
 
@@ -295,6 +306,8 @@ export default function DataManagePage() {
       const params = new URLSearchParams()
       if (search) params.append('search', search)
       if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+      if (sortQuery) params.append('sortBy', sort.key)
+      if (sortQuery) params.append('sortDir', sort.dir)
       params.append('page', page.toString())
       params.append('limit', pageSize.toString())
 
@@ -321,6 +334,8 @@ export default function DataManagePage() {
       const params = new URLSearchParams()
       if (search) params.append('search', search)
       if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+      if (sortQuery) params.append('sortBy', sort.key)
+      if (sortQuery) params.append('sortDir', sort.dir)
       params.append('page', page.toString())
       params.append('limit', pageSize.toString())
 
@@ -657,12 +672,12 @@ export default function DataManagePage() {
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">ID Izin</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Nama</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Jabatan</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Daerah</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Status</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Harga</th>
+                      <SortableHeader label="ID Izin" sortKey="idIzin" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Nama" sortKey="nama" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Jabatan" sortKey="jabatanKerja" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Daerah" sortKey="daerah" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Status" sortKey="status" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Harga" sortKey="hargaFinal" sort={sort} onSort={handleSort} />
                       <th className="px-4 py-3 text-center font-medium text-slate-700">Aksi</th>
                     </tr>
                   </thead>
@@ -717,12 +732,12 @@ export default function DataManagePage() {
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Invoice</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Daerah</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Jumlah</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Total</th>
+                      <SortableHeader label="Invoice" sortKey="invoiceNumber" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Daerah" sortKey="daerah" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Jumlah" sortKey="totalJumlah" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Total" sortKey="totalNominal" sort={sort} onSort={handleSort} />
                       <th className="px-4 py-3 text-left font-medium text-slate-700">Enrolment</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Status</th>
+                      <SortableHeader label="Status" sortKey="status" sort={sort} onSort={handleSort} />
                       <th className="px-4 py-3 text-center font-medium text-slate-700">Aksi</th>
                     </tr>
                   </thead>
@@ -781,11 +796,11 @@ export default function DataManagePage() {
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Invoice</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">KTA Request</th>
+                      <SortableHeader label="Invoice" sortKey="invoiceNumber" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="KTA Request" sortKey="nama" sort={sort} onSort={handleSort} />
                       <th className="px-4 py-3 text-left font-medium text-slate-700">Rekening</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Jumlah</th>
-                      <th className="px-4 py-3 text-left font-medium text-slate-700">Status</th>
+                      <SortableHeader label="Jumlah" sortKey="jumlah" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Status" sortKey="statusPembayaran" sort={sort} onSort={handleSort} />
                       <th className="px-4 py-3 text-center font-medium text-slate-700">Aksi</th>
                     </tr>
                   </thead>
@@ -923,7 +938,7 @@ export default function DataManagePage() {
                       <p className="font-medium">{selectedItem.jabatanKerja}</p>
                     </div>
                     <div>
-                      <Label className="text-slate-500">Jenjang</Label>
+                      <Label className="text-slate-500">Kualifikasi</Label>
                       <p className="font-medium">{selectedItem.jenjang}</p>
                     </div>
                     <div>
@@ -1122,7 +1137,7 @@ export default function DataManagePage() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="edit-jenjang">Jenjang</Label>
+                      <Label htmlFor="edit-jenjang">Kualifikasi</Label>
                       <Input
                         id="edit-jenjang"
                         value={formData.jenjang || ''}

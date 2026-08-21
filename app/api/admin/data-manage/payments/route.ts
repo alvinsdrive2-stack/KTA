@@ -6,6 +6,30 @@ import { PaymentStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
+const sortFields: Record<string, string> = {
+  invoiceNumber: 'invoiceNumber',
+  jumlah: 'jumlah',
+  statusPembayaran: 'statusPembayaran',
+  createdAt: 'createdAt',
+  paidAt: 'paidAt',
+}
+
+function buildOrderBy(sortBy: string | null, sortDir: 'asc' | 'desc'): any {
+  if (!sortBy) {
+    return { createdAt: 'desc' }
+  }
+  if (sortBy === 'nama') {
+    return { ktaRequest: { nama: sortDir } }
+  }
+  if (sortBy === 'daerah') {
+    return { ktaRequest: { daerah: { namaDaerah: sortDir } } }
+  }
+  if (sortFields[sortBy]) {
+    return { [sortFields[sortBy]]: sortDir }
+  }
+  return { createdAt: 'desc' }
+}
+
 // GET - Fetch all Payments
 export async function GET(request: NextRequest) {
   try {
@@ -29,6 +53,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
     const status = searchParams.get('status') || ''
     const daerahId = searchParams.get('daerahId') || ''
+    const sortBy = searchParams.get('sortBy')
+    const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
     const skip = (page - 1) * limit
@@ -89,7 +115,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: buildOrderBy(sortBy, sortDir),
         skip,
         take: limit,
       }),

@@ -137,7 +137,7 @@ export default function KTADetailPage() {
         { key: 'nama', label: 'Nama Lengkap' },
         { key: 'nik', label: 'NIK' },
         { key: 'jabatanKerja', label: 'Jabatan Kerja', altKey: 'jabatan' },
-        { key: 'jenjang', label: 'Jenjang' },
+        { key: 'jenjang', label: 'Kualifikasi' },
         { key: 'telp', label: 'No. Telepon', altKey: 'noTelp' },
         { key: 'email', label: 'Email' },
         { key: 'alamat', label: 'Alamat' },
@@ -830,7 +830,7 @@ export default function KTADetailPage() {
 
               {/* Jenjang - Editable by admin or if empty */}
               <div className="space-y-1">
-                <p className="text-sm text-slate-500">Jenjang</p>
+                <p className="text-sm text-slate-500">Kualifikasi</p>
                 {editingField === 'jenjang' ? (
                   <div className="flex gap-2">
                     <Input

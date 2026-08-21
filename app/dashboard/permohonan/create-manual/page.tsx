@@ -24,7 +24,7 @@ const formSchema = z.object({
   nama: z.string().min(1, 'Nama harus diisi'),
   jabatanKerja: z.string().min(1, 'Jabatan kerja harus diisi'),
   subklasifikasi: z.string().min(1, 'Sub klasifikasi harus diisi'),
-  jenjang: z.string().min(1, 'Jenjang harus diisi'),
+  jenjang: z.string().min(1, 'Kualifikasi harus diisi'),
   noTelp: z.string().min(1, 'No. telepon harus diisi'),
   email: z.string().email('Email tidak valid'),
   alamat: z.string().min(1, 'Alamat harus diisi'),
@@ -368,7 +368,7 @@ export default function CreateManualPage() {
     if (!data.nama) missingFields.push('Nama Lengkap')
     if (!data.subklasifikasi) missingFields.push('Sub Klasifikasi')
     if (!data.jabatanKerja) missingFields.push('Jabatan Kerja')
-    if (!data.jenjang) missingFields.push('Jenjang')
+    if (!data.jenjang) missingFields.push('Kualifikasi')
     if (!data.noTelp) missingFields.push('No. Telepon')
     if (!data.email) missingFields.push('Email')
     if (!data.alamat) missingFields.push('Alamat')
@@ -563,7 +563,7 @@ export default function CreateManualPage() {
               {/* Jenjang */}
               <div>
                 <Label htmlFor="jenjang" className="text-slate-700">
-                  Jenjang - Kualifikasi <span className="text-red-600">*</span>
+                  Kualifikasi <span className="text-red-600">*</span>
                   <span className="text-xs text-slate-500 font-normal ml-1">(Auto-fill dari Jabatan Kerja)</span>
                 </Label>
                 {form.watch('jenjang') ? (
@@ -864,8 +864,8 @@ export default function CreateManualPage() {
                 <Info className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-800">
                   <p className="font-semibold">Upgrade KTA Terdeteksi!</p>
-                  <p className="text-sm mt-1">KTA Lama: Jenjang {upgradeInfo.oldJenjang} - Rp {upgradeInfo.hargaLama.toLocaleString('id-ID')}</p>
-                  <p className="text-sm">KTA Baru: Jenjang {upgradeInfo.newJenjang} - Rp {upgradeInfo.hargaBaru.toLocaleString('id-ID')}</p>
+                  <p className="text-sm mt-1">KTA Lama: Kualifikasi {upgradeInfo.oldJenjang} - Rp {upgradeInfo.hargaLama.toLocaleString('id-ID')}</p>
+                  <p className="text-sm">KTA Baru: Kualifikasi {upgradeInfo.newJenjang} - Rp {upgradeInfo.hargaBaru.toLocaleString('id-ID')}</p>
                   <p className="text-lg font-bold mt-1">Biaya Upgrade: Rp {upgradeInfo.hargaUpgrade.toLocaleString('id-ID')}</p>
                 </AlertDescription>
               </Alert>
@@ -882,7 +882,7 @@ export default function CreateManualPage() {
             )}
 
             <div>
-              <Label className="text-sm font-medium text-slate-700">Jenjang</Label>
+              <Label className="text-sm font-medium text-slate-700">Kualifikasi</Label>
               <p className="mt-1 text-lg font-semibold text-slate-900">
                 {jenjang || '-'}
               </p>

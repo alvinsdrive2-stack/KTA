@@ -11,6 +11,8 @@ import { Search, Database, ArrowLeft, Loader2, FileText, CheckCircle, XCircle, A
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { JenjangBadge } from '@/components/ui/jenjang-badge'
 import { BulkFetchSikiModal } from '@/components/dashboard/bulk-fetch-siki-modal'
+import { useTableSort } from '@/hooks/use-table-sort'
+import { SortableHeader } from '@/components/ui/sortable-header'
 import {
   Select,
   SelectContent,
@@ -49,7 +51,14 @@ export default function LegacyKTAPage() {
   const [bulkFetchModalOpen, setBulkFetchModalOpen] = useState(false)
   const [nullIdIzinCount, setNullIdIzinCount] = useState(0)
 
+  const { sort, toggleSort, sortQuery } = useTableSort()
+
   const initialLoadDone = useRef(false)
+
+  const handleSort = (key: string) => {
+    if (sort.key !== key) setCurrentPage(1)
+    toggleSort(key)
+  }
 
   // Check if user is ADMIN
   const isAdmin = session?.user.role === 'ADMIN'
@@ -70,7 +79,7 @@ export default function LegacyKTAPage() {
     }
     fetchLegacyKTAs()
     fetchNullIdIzinCount()
-  }, [selectedDaerah, debouncedSearchTerm, currentPage, isAdmin])
+  }, [selectedDaerah, debouncedSearchTerm, currentPage, isAdmin, sort.key, sort.dir])
 
   const fetchNullIdIzinCount = async () => {
     try {
@@ -100,6 +109,8 @@ export default function LegacyKTAPage() {
 
       if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
       if (selectedDaerah) params.append('daerahId', selectedDaerah)
+      if (sortQuery) params.append('sortBy', sort.key)
+      if (sortQuery) params.append('sortDir', sort.dir)
       params.append('page', currentPage.toString())
       params.append('limit', '20')
 
@@ -303,13 +314,13 @@ export default function LegacyKTAPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/50">
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Nama</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">NIK</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">No. KTA</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">ID Izin</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Jenjang</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Jabatan</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">Status</th>
+                      <SortableHeader label="Nama" sortKey="nama" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="NIK" sortKey="nik" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="No. KTA" sortKey="nomorKTA" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="ID Izin" sortKey="idIzin" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Kualifikasi" sortKey="jenjang" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Jabatan" sortKey="jabatanKerja" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Status" sortKey="status" sort={sort} onSort={handleSort} />
                     </tr>
                   </thead>
                   <tbody>
