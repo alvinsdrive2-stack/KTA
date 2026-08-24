@@ -6,7 +6,6 @@ import { useSession } from '@/hooks/useSession'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Search, Download, Filter, FileText, CheckCircle, Package, CheckSquare, X, Calendar, FileSpreadsheet, Loader2, Upload, Database, Import, DownloadCloudIcon } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useKTASelection } from '@/contexts/KTASelectionContext'
@@ -30,6 +29,7 @@ interface KTARequest {
   jenjang: string
   jabatanKerja: string
   status: string
+  tanggalDaftar: string
   nomorKTA: string | null
   kartuGeneratedPath: string | null
   createdAt: string
@@ -185,24 +185,6 @@ export default function KTAPage() {
         })
       })
     }
-  }
-
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      APPROVED_BY_PUSAT: 'bg-green-100 text-green-800 border-green-200',
-      READY_TO_PRINT: 'bg-cyan-100 text-cyan-800 border-cyan-200',
-      PRINTED: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    }
-    return colors[status] || 'bg-gray-100 text-gray-800'
-  }
-
-  const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      APPROVED_BY_PUSAT: 'Terkonfirmasi',
-      READY_TO_PRINT: 'Siap Cetak',
-      PRINTED: 'Sudah Cetak',
-    }
-    return labels[status] || status
   }
 
   const getInvoiceNumber = (request: KTARequest) => {
@@ -453,12 +435,11 @@ export default function KTAPage() {
                       </th>
                       <SortableHeader label="Nama" sortKey="nama" sort={sort} onSort={handleSort} />
                       <SortableHeader label="No. KTA" sortKey="nomorKTA" sort={sort} onSort={handleSort} />
-                      <SortableHeader label="ID Izin" sortKey="idIzin" sort={sort} onSort={handleSort} />
                       <SortableHeader label="NIK" sortKey="nik" sort={sort} onSort={handleSort} />
                       <SortableHeader label="Kualifikasi" sortKey="jenjang" sort={sort} onSort={handleSort} />
                       <SortableHeader label="Jabatan" sortKey="jabatanKerja" sort={sort} onSort={handleSort} />
                       {isPusatOrAdmin && <SortableHeader label="Daerah" sortKey="daerah" sort={sort} onSort={handleSort} />}
-                      <SortableHeader label="Status" sortKey="status" sort={sort} onSort={handleSort} />
+                      <SortableHeader label="Tanggal Daftar" sortKey="tanggalDaftar" sort={sort} onSort={handleSort} />
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-700 uppercase tracking-wider">No. Invoice</th>
                     </tr>
                   </thead>
@@ -472,7 +453,6 @@ export default function KTAPage() {
                           }`}>
                             <div className="h-4 bg-slate-200 rounded animate-pulse"></div>
                           </td>
-                          <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
                           <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
                           <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
                           <td className="py-3 px-4"><div className="h-4 bg-slate-200 rounded animate-pulse"></div></td>
@@ -514,7 +494,6 @@ export default function KTAPage() {
                           </td>
                           <td className="py-3 px-4 text-sm text-slate-900 font-medium">{request.nama}</td>
                           <td className="py-3 px-4 text-sm text-slate-700 font-mono">{request.nomorKTA || '-'}</td>
-                          <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.idIzin || '-'}</td>
                           <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.nik}</td>
                           <td className="py-3 px-4">
                             <JenjangBadge jenjang={request.jenjang} />
@@ -523,10 +502,10 @@ export default function KTAPage() {
                           {isPusatOrAdmin && (
                             <td className="py-3 px-4 text-sm text-slate-600">{request.daerah?.namaDaerah || '-'}</td>
                           )}
-                          <td className="py-3 px-4">
-                            <Badge className={getStatusColor(request.status)}>
-                              {getStatusLabel(request.status)}
-                            </Badge>
+                          <td className="py-3 px-4 text-sm text-slate-600">
+                            {request.tanggalDaftar
+                              ? new Date(request.tanggalDaftar).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                              : '-'}
                           </td>
                           <td className="py-3 px-4 text-sm text-blue-600 font-medium">
                             {getInvoiceNumber(request)}
