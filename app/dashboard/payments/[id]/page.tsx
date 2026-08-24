@@ -457,7 +457,17 @@ export default function PaymentDetailPage() {
               {/* Bukti Pembayaran Section */}
               <div className="pt-4 border-t">
                 <p className="text-sm font-medium text-gray-700 mb-3">Bukti Pembayaran</p>
-                {payment.buktiPembayaranUrl ? (
+                {payment.totalNominal === 0 ? (
+                  <Alert className="bg-green-50 border-green-200">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <AlertDescription className="text-green-800">
+                      <p className="font-semibold">Pengajuan K3</p>
+                      <p className="text-sm">
+                        Tidak ada biaya (diskon 100% / biaya Rp 0). Pengajuan diproses tanpa pembayaran.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+                ) : payment.buktiPembayaranUrl ? (
                   <div className="border rounded-lg overflow-hidden bg-slate-50">
                     {payment.buktiPembayaranUrl.toLowerCase().endsWith('.pdf') ? (
                       <iframe
