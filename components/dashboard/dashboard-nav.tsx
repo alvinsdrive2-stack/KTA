@@ -54,27 +54,6 @@ const navItems: NavItem[] = [
         roles: ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
         badge: null,
       },
-  {
-    title: 'Pembayaran',
-    href: '/dashboard/payments/daerah',
-    icon: CreditCard,
-    roles: ['DAERAH'],
-    badge: null,
-  },
-  {
-    title: 'Pembayaran',
-    href: '/dashboard/payments/pusat',
-    icon: CreditCard,
-    roles: ['PUSAT', 'ADMIN'],
-    badge: null,
-  },
-  {
-    title: 'Konfirmasi',
-    href: '/dashboard/payments',
-    icon: Confirmicon,
-    roles: ['ADMIN'],
-    badge: null,
-  },
 ]
 
 const navSections: NavSection[] = [
@@ -88,32 +67,6 @@ const navSections: NavSection[] = [
         href: '/dashboard/kta',
         icon: Download,
         roles: ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
-        badge: null,
-      }
-    ]
-  },
-  {
-    title: 'Riwayat',
-    roles: ['DAERAH'],
-    items: [
-      {
-        title: 'Riwayat Invoice',
-        href: '/dashboard/payments/daerah/invoices',
-        icon: History,
-        roles: ['DAERAH'],
-        badge: null,
-      }
-    ]
-  },
-  {
-    title: 'Riwayat',
-    roles: ['PUSAT', 'ADMIN'],
-    items: [
-      {
-        title: 'Riwayat Invoice',
-        href: '/dashboard/payments/pusat/invoices',
-        icon: History,
-        roles: ['PUSAT', 'ADMIN'],
         badge: null,
       }
     ]
@@ -133,47 +86,48 @@ const navSections: NavSection[] = [
   },
   {
     title: 'Keuangan',
-    roles: ['KEUANGAN'],
+    roles: ['DAERAH', 'PUSAT', 'ADMIN', 'KEUANGAN'],
     items: [
+      {
+        title: 'Pembayaran',
+        href: '/dashboard/payments/daerah',
+        icon: CreditCard,
+        roles: ['DAERAH'],
+        badge: null,
+      },
       {
         title: 'Pembayaran',
         href: '/dashboard/payments/pusat',
         icon: CreditCard,
-        roles: ['KEUANGAN'],
+        roles: ['PUSAT', 'ADMIN', 'KEUANGAN'],
         badge: null,
       },
       {
         title: 'Konfirmasi',
         href: '/dashboard/payments',
         icon: Confirmicon,
-        roles: ['KEUANGAN'],
+        roles: ['PUSAT', 'ADMIN', 'KEUANGAN'],
+        badge: null,
+      },
+      {
+        title: 'Riwayat Invoice',
+        href: '/dashboard/payments/daerah/invoices',
+        icon: History,
+        roles: ['DAERAH'],
         badge: null,
       },
       {
         title: 'Riwayat Invoice',
         href: '/dashboard/payments/pusat/invoices',
         icon: History,
-        roles: ['KEUANGAN'],
+        roles: ['PUSAT', 'ADMIN', 'KEUANGAN'],
         badge: null,
       },
       {
         title: 'Laporan',
         href: '/dashboard/keuangan',
         icon: Receipt,
-        roles: ['KEUANGAN'],
-        badge: null,
-      }
-    ]
-  },
-  {
-    title: 'Laporan',
-    roles: ['DAERAH', 'PUSAT', 'ADMIN'],
-    items: [
-      {
-        title: 'Laporan Pendapatan',
-        href: '/dashboard/keuangan',
-        icon: Receipt,
-        roles: ['DAERAH', 'PUSAT', 'ADMIN'],
+        roles: ['DAERAH', 'PUSAT', 'ADMIN', 'KEUANGAN'],
         badge: null,
       }
     ]
