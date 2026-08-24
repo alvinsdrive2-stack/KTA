@@ -94,8 +94,8 @@ export async function POST(request: NextRequest) {
       finalHargaLama = upgradeCheck.hargaLama
     }
 
-    // Generate ID Izin (M - for Manual)
-    const idIzin = `M${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+    // Manual input tanpa ID Izin
+    const idIzin = null
 
     // Create KTA Request
     const ktaRequest = await prisma.kTARequest.create({

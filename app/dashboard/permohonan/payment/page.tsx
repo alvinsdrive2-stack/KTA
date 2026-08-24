@@ -208,7 +208,7 @@ export default function PaymentPage() {
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <p className="font-medium">{index + 1}. {request.nama}</p>
-                        <p className="text-sm text-gray-600">ID Izin: {request.idIzin}</p>
+                        <p className="text-sm text-gray-600">ID Izin: {request.idIzin || '-'}</p>
                         <p className="text-sm text-gray-600">NIK: {request.nik}</p>
                         <p className="text-sm text-gray-600">Jabatan: {request.jabatanKerja}</p>
                         {request.daerah && (

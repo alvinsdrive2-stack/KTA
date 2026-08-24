@@ -58,7 +58,7 @@ export default function WaitingApprovalPage() {
 
   const filteredRequests = ktaRequests.filter(request =>
     request.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    request.idIzin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (request.idIzin || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     request.nik.includes(searchTerm) ||
     request.daerah.namaDaerah.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -169,7 +169,7 @@ export default function WaitingApprovalPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                       <div>
                         <span className="text-gray-500">ID Izin:</span>
-                        <p className="font-medium">{request.idIzin}</p>
+                        <p className="font-medium">{request.idIzin || '-'}</p>
                       </div>
                       <div>
                         <span className="text-gray-500">NIK:</span>
@@ -232,7 +232,7 @@ export default function WaitingApprovalPage() {
                             {selectedKTA && (
                               <div className="bg-gray-50 p-4 rounded-lg">
                                 <p><strong>Nama:</strong> {selectedKTA.nama}</p>
-                                <p><strong>ID Izin:</strong> {selectedKTA.idIzin}</p>
+                                <p><strong>ID Izin:</strong> {selectedKTA.idIzin || '-'}</p>
                                 <p><strong>Daerah:</strong> {selectedKTA.daerah.namaDaerah}</p>
                               </div>
                             )}

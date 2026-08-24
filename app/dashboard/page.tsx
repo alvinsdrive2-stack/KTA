@@ -660,7 +660,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="text-sm text-slate-600">{request.idIzin}</td>
+                    <td className="text-sm text-slate-600">{request.idIzin || '-'}</td>
                     <td className="text-sm text-slate-600 font-mono">{request.nik}</td>
                     <td className="text-sm text-slate-600">{request.jabatanKerja}</td>
                     <td>

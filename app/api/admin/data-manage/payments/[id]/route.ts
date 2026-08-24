@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { PaymentStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -124,7 +123,6 @@ export async function PATCH(
       rekeningTujuan,
       jumlah,
       buktiBayarLink,
-      statusPembayaran,
       bulkPaymentId,
       paidAt,
     } = body
@@ -161,13 +159,6 @@ export async function PATCH(
     if (rekeningTujuan) updateData.rekeningTujuan = rekeningTujuan
     if (jumlah !== undefined) updateData.jumlah = jumlah
     if (buktiBayarLink !== undefined) updateData.buktiBayarLink = buktiBayarLink
-    if (statusPembayaran) {
-      updateData.statusPembayaran = statusPembayaran as PaymentStatus
-      // Set paid timestamp if status is being changed to PAID or VERIFIED
-      if ((statusPembayaran === PaymentStatus.PAID || statusPembayaran === PaymentStatus.VERIFIED) && !existingPayment.paidAt) {
-        updateData.paidAt = new Date()
-      }
-    }
     if (bulkPaymentId !== undefined) updateData.bulkPaymentId = bulkPaymentId || null
     if (paidAt !== undefined) updateData.paidAt = paidAt ? new Date(paidAt) : null
 

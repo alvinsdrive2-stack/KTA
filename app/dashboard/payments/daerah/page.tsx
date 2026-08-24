@@ -129,7 +129,7 @@ export default function DaerahPaymentPage() {
         const searchLower = debouncedSearchTerm.toLowerCase()
         const filtered = allKtaRequests.filter(kta =>
           kta.nama.toLowerCase().includes(searchLower) ||
-          kta.idIzin.toLowerCase().includes(searchLower) ||
+          (kta.idIzin || '').toLowerCase().includes(searchLower) ||
           kta.nik.toLowerCase().includes(searchLower)
         )
         setKtaRequests(filtered)
@@ -269,7 +269,7 @@ export default function DaerahPaymentPage() {
     const searchLower = debouncedSearchTerm.toLowerCase()
     return payment.payments.some(p =>
       p.ktaRequest.nama.toLowerCase().includes(searchLower) ||
-      p.ktaRequest.idIzin.toLowerCase().includes(searchLower)
+      (p.ktaRequest.idIzin || '').toLowerCase().includes(searchLower)
     )
   })
 

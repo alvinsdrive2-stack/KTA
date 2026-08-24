@@ -58,7 +58,8 @@ export async function GET(
       ktaRequest.fotoUrl = '/images/photo-placeholder.png'
     }
 
-    const qrCodeUrl = `https://api.qrserver.com/api.php?size=128x128&data=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL}/verify/${ktaRequest.idIzin}`)}`
+    const verifyRef = ktaRequest.idIzin || ktaRequest.id
+    const qrCodeUrl = `https://api.qrserver.com/api.php?size=128x128&data=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL}/verify/${verifyRef}`)}`
 
     return NextResponse.json({
       success: true,

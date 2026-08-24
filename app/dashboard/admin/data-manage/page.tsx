@@ -691,7 +691,7 @@ export default function DataManagePage() {
                     ) : (
                       ktaRequests.map((item) => (
                         <tr key={item.id} className="hover:bg-slate-50">
-                          <td className="px-4 py-3 font-medium text-slate-900">{item.idIzin}</td>
+                          <td className="px-4 py-3 font-medium text-slate-900">{item.idIzin || '-'}</td>
                           <td className="px-4 py-3 text-slate-700">{item.nama}</td>
                           <td className="px-4 py-3 text-slate-700">{item.jabatanKerja}</td>
                           <td className="px-4 py-3 text-slate-700">{item.daerah?.namaDaerah || '-'}</td>
@@ -919,7 +919,7 @@ export default function DataManagePage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-slate-500">ID Izin</Label>
-                      <p className="font-medium">{selectedItem.idIzin}</p>
+                      <p className="font-medium">{selectedItem.idIzin || '-'}</p>
                     </div>
                     <div>
                       <Label className="text-slate-500">Status</Label>
@@ -1163,26 +1163,12 @@ export default function DataManagePage() {
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="edit-status">Status</Label>
-                      <Select
-                        value={formData.status || ''}
-                        onValueChange={(value) => handleInputChange('status', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="DRAFT">Draft</SelectItem>
-                          <SelectItem value="FETCHED_FROM_SIKI">Dari SIKI</SelectItem>
-                          <SelectItem value="EDITED">Edited</SelectItem>
-                          <SelectItem value="WAITING_PAYMENT">Menunggu Pembayaran</SelectItem>
-                          <SelectItem value="READY_FOR_PUSAT">Siap ke Pusat</SelectItem>
-                          <SelectItem value="APPROVED_BY_PUSAT">Disetujui Pusat</SelectItem>
-                          <SelectItem value="READY_TO_PRINT">Siap Cetak</SelectItem>
-                          <SelectItem value="PRINTED">Sudah Cetak</SelectItem>
-                          <SelectItem value="REJECTED">Ditolak</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label>Status</Label>
+                      <p>
+                        <Badge className={KTA_STATUS_COLORS[formData.status] || 'bg-gray-100 text-gray-800'}>
+                          {KTA_STATUS_LABELS[formData.status] || formData.status}
+                        </Badge>
+                      </p>
                     </div>
                     <div className="col-span-2">
                       <Label htmlFor="edit-email">Email</Label>
@@ -1242,21 +1228,12 @@ export default function DataManagePage() {
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="edit-status">Status</Label>
-                      <Select
-                        value={formData.status || ''}
-                        onValueChange={(value) => handleInputChange('status', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="PENDING">Pending</SelectItem>
-                          <SelectItem value="PAID">Dibayar</SelectItem>
-                          <SelectItem value="VERIFIED">Terverifikasi</SelectItem>
-                          <SelectItem value="REJECTED">Ditolak</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label>Status</Label>
+                      <p>
+                        <Badge className={PAYMENT_STATUS_COLORS[formData.status] || 'bg-gray-100 text-gray-800'}>
+                          {PAYMENT_STATUS_LABELS[formData.status] || formData.status}
+                        </Badge>
+                      </p>
                     </div>
                     <div>
                       <Label htmlFor="edit-totalJumlah">Total Jumlah</Label>
@@ -1322,21 +1299,12 @@ export default function DataManagePage() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="edit-statusPembayaran">Status Pembayaran</Label>
-                      <Select
-                        value={formData.statusPembayaran || ''}
-                        onValueChange={(value) => handleInputChange('statusPembayaran', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="PENDING">Pending</SelectItem>
-                          <SelectItem value="PAID">Dibayar</SelectItem>
-                          <SelectItem value="VERIFIED">Terverifikasi</SelectItem>
-                          <SelectItem value="REJECTED">Ditolak</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label>Status Pembayaran</Label>
+                      <p>
+                        <Badge className={PAYMENT_STATUS_COLORS[formData.statusPembayaran] || 'bg-gray-100 text-gray-800'}>
+                          {PAYMENT_STATUS_LABELS[formData.statusPembayaran] || formData.statusPembayaran}
+                        </Badge>
+                      </p>
                     </div>
                     <div>
                       <Label htmlFor="edit-jumlah">Jumlah</Label>

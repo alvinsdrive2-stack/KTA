@@ -391,7 +391,7 @@ export default function PermohonanPage() {
                         onClick={() => router.push(`/dashboard/kta/${request.id}`)}
                       >
                         <td className="py-3 px-4 text-sm text-slate-900 font-medium">{request.nama}</td>
-                        <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.idIzin}</td>
+                        <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.idIzin || '-'}</td>
                         <td className="py-3 px-4 text-sm text-slate-600 font-mono">{request.nik}</td>
                         <td className="py-3 px-4">
                           {request.jenjang ? <JenjangBadge jenjang={request.jenjang} /> : '-'}

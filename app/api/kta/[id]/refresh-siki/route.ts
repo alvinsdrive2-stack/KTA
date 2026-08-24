@@ -40,6 +40,14 @@ export async function POST(
         break
     }
 
+    // Manual input tanpa ID Izin, gak ada data SIKI
+    if (!ktaRequest.idIzin) {
+      return NextResponse.json(
+        { error: 'Data input manual tidak memiliki ID Izin untuk di-refresh dari SIKI' },
+        { status: 400 }
+      )
+    }
+
     // Directly fetch from SIKI API
     const { sikiApi } = await import('@/lib/siki-api')
     const sikiData = await sikiApi.getPekerjaByIdIzin(ktaRequest.idIzin)

@@ -182,7 +182,7 @@ export default function KTAPrintPage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">ID Izin</p>
-                    <p className="font-mono">{ktaRequest.idIzin}</p>
+                    <p className="font-mono">{ktaRequest.idIzin || '-'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Jabatan Kerja</p>
@@ -228,7 +228,7 @@ export default function KTAPrintPage() {
             {/* Signature */}
             <div className="bg-gray-50 px-6 py-4 border-t">
               <div className="text-center text-sm text-gray-600">
-                <p>Verifikasi keaslian kartu di: https://kta.lpjkn.id/verify/{ktaRequest.idIzin}</p>
+                <p>Verifikasi keaslian kartu di: https://kta.lpjkn.id/verify/{ktaRequest.idIzin || '-'}</p>
               </div>
             </div>
           </div>
