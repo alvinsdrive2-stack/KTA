@@ -201,7 +201,7 @@ export default function PusatInvoicesHistoryPage() {
                           })}
                         </td>
                         <td className="py-3 px-4 text-sm text-slate-600">
-                          {invoice.verifiedAt ? (
+                          {invoice.status !== 'REJECTED' && invoice.verifiedAt ? (
                             new Date(invoice.verifiedAt).toLocaleDateString('id-ID', {
                               day: 'numeric',
                               month: 'short',
