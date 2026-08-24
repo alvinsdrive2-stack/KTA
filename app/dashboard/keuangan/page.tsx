@@ -37,8 +37,8 @@ export default function KeuanganPage() {
   const sessionLoading = sessionStatus === 'loading'
   const userRole = session?.user?.role as string
 
-  // Only ADMIN and KEUANGAN can access
-  const isAuthorized = userRole === 'ADMIN' || userRole === 'KEUANGAN'
+  // ADMIN, KEUANGAN, PUSAT, and DAERAH can access
+  const isAuthorized = ['ADMIN', 'KEUANGAN', 'PUSAT', 'DAERAH'].includes(userRole)
 
   const [period, setPeriod] = useState<PeriodFilter>('ytd')
   const [stats, setStats] = useState<FinanceStats | null>(null)
@@ -186,9 +186,13 @@ export default function KeuanganPage() {
         <div className="relative z-10">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Dashboard Keuangan</h1>
+              <h1 className="text-3xl font-bold text-white mb-2">
+            {userRole === 'DAERAH' ? 'Laporan Pendapatan Daerah' : 'Dashboard Keuangan'}
+          </h1>
               <p className="text-white/90">
-                Pantau dan analisis pendapatan Gabungan Ahli Teknik Nasional Indonesia
+                {userRole === 'DAERAH'
+                  ? 'Pantau pendapatan daerah Anda'
+                  : 'Pantau dan analisis pendapatan Gabungan Ahli Teknik Nasional Indonesia'}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -244,10 +248,12 @@ export default function KeuanganPage() {
         />
       </div>
 
-      {/* Top Regions */}
-      <div className="animate-slide-up-stagger stagger-5">
-        <TopRegionsCard data={regionData} loading={loading} />
-      </div>
+      {/* Top Regions - only for roles that see all regions */}
+      {userRole !== 'DAERAH' && (
+        <div className="animate-slide-up-stagger stagger-5">
+          <TopRegionsCard data={regionData} loading={loading} />
+        </div>
+      )}
     </div>
   )
 }

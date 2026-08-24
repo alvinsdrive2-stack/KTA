@@ -23,7 +23,7 @@ const routeAccessMap: Record<string, string[]> = {
 
   // Admin only
   '/dashboard/admin/daerah-diskon': ['PUSAT', 'ADMIN','KEUANGAN'],
-  '/dashboard/keuangan': ['PUSAT', 'ADMIN','KEUANGAN'],
+  '/dashboard/keuangan': ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
   '/dashboard/daerah': ['PUSAT', 'ADMIN','KEUANGAN'],
   '/dashboard/daerah/[id]': ['PUSAT', 'ADMIN','KEUANGAN'],
 }

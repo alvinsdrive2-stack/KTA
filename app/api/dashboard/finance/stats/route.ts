@@ -50,8 +50,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only ADMIN and KEUANGAN can access
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'KEUANGAN') {
+    // ADMIN, KEUANGAN, PUSAT, and DAERAH can access
+    const allowedRoles = ['ADMIN', 'KEUANGAN', 'PUSAT', 'DAERAH']
+    if (!allowedRoles.includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -61,11 +62,17 @@ export async function GET(request: NextRequest) {
     const currentRange = getDateRange(period)
     const previousRange = getPreviousPeriodRange(period)
 
+    // DAERAH users only see their own daerah's payments
+    const scopeFilter = session.user.role === 'DAERAH' && session.user.daerahId
+      ? { daerahId: session.user.daerahId }
+      : {}
+
     // Current period stats
     const [currentConfirmed, currentPending, currentTotalKTA] = await Promise.all([
       prisma.bulkPayment.aggregate({
         where: {
           status: 'VERIFIED',
+          ...scopeFilter,
           createdAt: {
             gte: currentRange.start,
             lte: currentRange.end,
@@ -76,6 +83,7 @@ export async function GET(request: NextRequest) {
       prisma.bulkPayment.aggregate({
         where: {
           status: 'PENDING',
+          ...scopeFilter,
           createdAt: {
             gte: currentRange.start,
             lte: currentRange.end,
@@ -85,6 +93,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.bulkPayment.aggregate({
         where: {
+          ...scopeFilter,
           createdAt: {
             gte: currentRange.start,
             lte: currentRange.end,
@@ -99,6 +108,7 @@ export async function GET(request: NextRequest) {
       prisma.bulkPayment.aggregate({
         where: {
           status: 'VERIFIED',
+          ...scopeFilter,
           createdAt: {
             gte: previousRange.start,
             lte: previousRange.end,
@@ -109,6 +119,7 @@ export async function GET(request: NextRequest) {
       prisma.bulkPayment.aggregate({
         where: {
           status: 'PENDING',
+          ...scopeFilter,
           createdAt: {
             gte: previousRange.start,
             lte: previousRange.end,

@@ -49,8 +49,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only ADMIN and KEUANGAN can access
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'KEUANGAN') {
+    // ADMIN, KEUANGAN, PUSAT, and DAERAH can access
+    const allowedRoles = ['ADMIN', 'KEUANGAN', 'PUSAT', 'DAERAH']
+    if (!allowedRoles.includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -60,9 +61,15 @@ export async function GET(request: NextRequest) {
 
     const { start, end } = getDateRange(period)
 
+    // DAERAH users only see their own daerah
+    const scopeFilter = session.user.role === 'DAERAH' && session.user.daerahId
+      ? { daerahId: session.user.daerahId }
+      : {}
+
     // Fetch bulk payments grouped by region
     const bulkPayments = await prisma.bulkPayment.findMany({
       where: {
+        ...scopeFilter,
         createdAt: {
           gte: start,
           lte: end,
