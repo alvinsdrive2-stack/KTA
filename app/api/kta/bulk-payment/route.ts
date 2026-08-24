@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { generateInvoiceNumber } from '@/lib/invoice'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate invoice number
-    const invoiceNumber = `INV-${session.user.daerahId}-${timestamp}`
+    const invoiceNumber = await generateInvoiceNumber()
 
     // Create bulk payment record
     const bulkPayment = await prisma.bulkPayment.create({

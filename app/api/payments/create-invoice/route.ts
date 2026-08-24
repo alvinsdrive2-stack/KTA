@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { generateInvoiceNumber } from '@/lib/invoice'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,34 +45,8 @@ export async function POST(request: NextRequest) {
     })
     const isFree = (daerahInfo?.diskonPersen || 0) >= 100
 
-    // Generate invoice number: INV-KTA-BPP-[tahun]-[bulan].[sequence]
-    // No slash so it matches Midtrans order_id rules (alphanumeric + - _ ~ .)
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-
-    // Get sequence number for this month
-    const existingInvoices = await prisma.bulkPayment.findMany({
-      where: {
-        invoiceNumber: {
-          startsWith: `INV-KTA-BPP-${year}-${month}.`
-        }
-      },
-      orderBy: {
-        invoiceNumber: 'desc'
-      },
-      take: 1
-    })
-
-    let sequence = 1
-    if (existingInvoices.length > 0) {
-      const lastInvoiceNumber = existingInvoices[0].invoiceNumber
-      const lastSequence = parseInt(lastInvoiceNumber.split('.').pop() || 0)
-      sequence = lastSequence + 1
-    }
-
-    const sequenceStr = String(sequence).padStart(3, '0')
-    const invoiceNumber = `INV-KTA-BPP-${year}-${month}.${sequenceStr}`
+    // Generate invoice number: INV/KTA-GATENSI/[yymm]/[urut]
+    const invoiceNumber = await generateInvoiceNumber()
 
     console.log('Creating bulk payment with data:', {
       invoiceNumber,

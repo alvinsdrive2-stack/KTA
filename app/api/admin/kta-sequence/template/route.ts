@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       'Kode Daerah': d.kodeDaerah,
       'Nama Daerah': d.namaDaerah,
       'Last Sequence Ahli': d.lastSequenceAhli,
-      'Last Sequence Teknisi': d.lastSequenceTeknisi,
+      'Last Sequence Teknisi/Analis': d.lastSequenceTeknisi,
       'Last Sequence Operator': d.lastSequenceOperator,
     }))
 
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       { wch: 15 }, // Kode Daerah
       { wch: 30 }, // Nama Daerah
       { wch: 20 }, // Last Sequence Ahli
-      { wch: 20 }, // Last Sequence Teknisi
+      { wch: 20 }, // Last Sequence Teknisi/Analis
       { wch: 20 }, // Last Sequence Operator
     ]
 

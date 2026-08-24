@@ -207,7 +207,7 @@ export default function ImportKTASequencePage() {
                       <th className="text-left py-2 px-3 font-medium">Kode Daerah</th>
                       <th className="text-left py-2 px-3 font-medium">Nama Daerah</th>
                       <th className="text-center py-2 px-3 font-medium">Ahli</th>
-                      <th className="text-center py-2 px-3 font-medium">Teknisi</th>
+                      <th className="text-center py-2 px-3 font-medium">Teknisi/Analis</th>
                       <th className="text-center py-2 px-3 font-medium">Operator</th>
                       <th className="text-center py-2 px-3 font-medium">Status</th>
                     </tr>
