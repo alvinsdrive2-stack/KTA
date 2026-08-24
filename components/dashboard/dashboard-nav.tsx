@@ -166,6 +166,19 @@ const navSections: NavSection[] = [
     ]
   },
   {
+    title: 'Laporan',
+    roles: ['DAERAH', 'PUSAT', 'ADMIN'],
+    items: [
+      {
+        title: 'Laporan Pendapatan',
+        href: '/dashboard/keuangan',
+        icon: Receipt,
+        roles: ['DAERAH', 'PUSAT', 'ADMIN'],
+        badge: null,
+      }
+    ]
+  },
+  {
     title: 'ADMIN',
     roles: ['ADMIN','KEUANGAN'],
     items: [
