@@ -13,6 +13,7 @@ const sortFields: Record<string, string> = {
   jabatanKerja: 'jabatanKerja',
   status: 'status',
   nomorKTA: 'nomorKTA',
+  tanggalDaftar: 'tanggalDaftar',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
 }
@@ -120,14 +121,14 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    // Filter by date range on createdAt
+    // Filter by date range on tanggalDaftar (tanggal daftar anggota)
     if (startDate || endDate) {
-      whereClause.createdAt = {}
-      if (startDate) whereClause.createdAt.gte = new Date(startDate)
+      whereClause.tanggalDaftar = {}
+      if (startDate) whereClause.tanggalDaftar.gte = new Date(startDate)
       if (endDate) {
         const endDateTime = new Date(endDate)
         endDateTime.setHours(23, 59, 59, 999)
-        whereClause.createdAt.lte = endDateTime
+        whereClause.tanggalDaftar.lte = endDateTime
       }
     }
 

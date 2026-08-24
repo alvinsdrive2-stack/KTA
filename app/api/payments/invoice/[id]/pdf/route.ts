@@ -468,6 +468,7 @@ export async function GET(
     const diskon = invoice.daerah.diskonPersen || 0
     const diskonAmount = Math.floor(totalHargaBase * diskon / 100)
     const totalTagihan = totalHargaBase - diskonAmount
+    const isFree = diskon >= 100
 
     // LEFT - Metode Pembayaran (Midtrans)
     const statusLabel: Record<string, string> = {
@@ -488,41 +489,73 @@ export async function GET(
       color: navyBlue
     })
 
-    page.drawText('Midtrans Payment Gateway', {
-      x: leftX + 10,
-      y: yPosition - 28,
-      size: 10,
-      font: fontBold,
-      color: darkGray
-    })
+    if (isFree) {
+      // Daerah gratis (diskon >= 100, auto-PAID): metode lama pakai transfer bank, bukan Midtrans
+      page.drawText('Bank:', {
+        x: leftX + 10,
+        y: yPosition - 30,
+        size: 8,
+        font,
+        color: darkGray
+      })
+      page.drawText('BTN KC Jakarta Kuningan', {
+        x: leftX + 10,
+        y: yPosition - 43,
+        size: 10,
+        font: fontBold,
+        color: darkGray
+      })
+      page.drawText('No. Rekening:', {
+        x: leftX + 10,
+        y: yPosition - 58,
+        size: 8,
+        font,
+        color: darkGray
+      })
+      page.drawText('00001.01.30.000986.9', {
+        x: leftX + 10,
+        y: yPosition - 71,
+        size: 10,
+        font: fontBold,
+        color: navyBlue
+      })
+    } else {
+      page.drawText('Midtrans Payment Gateway', {
+        x: leftX + 10,
+        y: yPosition - 28,
+        size: 10,
+        font: fontBold,
+        color: darkGray
+      })
 
-    let leftY = drawWrappedText(
-      `Status: ${statusLabel[invoice.status] || invoice.status}`,
-      leftX + 10,
-      yPosition - 45,
-      8,
-      font,
-      darkGray,
-      sectionWidth - 20
-    )
-    leftY = drawWrappedText(
-      `Metode: ${paymentType}`,
-      leftX + 10,
-      leftY,
-      8,
-      font,
-      darkGray,
-      sectionWidth - 20
-    )
-    drawWrappedText(
-      `Waktu: ${formatDateTime(paymentTime)}`,
-      leftX + 10,
-      leftY,
-      8,
-      font,
-      darkGray,
-      sectionWidth - 20
-    )
+      let leftY = drawWrappedText(
+        `Status: ${statusLabel[invoice.status] || invoice.status}`,
+        leftX + 10,
+        yPosition - 45,
+        8,
+        font,
+        darkGray,
+        sectionWidth - 20
+      )
+      leftY = drawWrappedText(
+        `Metode: ${paymentType}`,
+        leftX + 10,
+        leftY,
+        8,
+        font,
+        darkGray,
+        sectionWidth - 20
+      )
+      drawWrappedText(
+        `Waktu: ${formatDateTime(paymentTime)}`,
+        leftX + 10,
+        leftY,
+        8,
+        font,
+        darkGray,
+        sectionWidth - 20
+      )
+    }
 
     // CENTER - Terbilang (NO border, NO background)
     page.drawText('Terbilang', {

@@ -154,6 +154,7 @@ export async function GET(
     const diskon = invoice.daerah.diskonPersen || 0
     const diskonAmount = Math.floor(totalHargaBase * diskon / 100)
     const totalTagihan = totalHargaBase - diskonAmount
+    const isFree = diskon >= 100
 
     // Ditagihkan Kepada
     const isDaerah = invoice.submittedByUser.role === 'DAERAH'
@@ -387,8 +388,8 @@ export async function GET(
     ws.getRow(row).height = 20.1
     row++
 
-    // Baris 2: Midtrans + (E:F masih bagian judul Rincian)
-    ws.getCell(`B${row}`).value = 'Midtrans Payment Gateway'
+    // Baris 2: metode (E:F masih bagian judul Rincian)
+    ws.getCell(`B${row}`).value = isFree ? 'Bank Transfer' : 'Midtrans Payment Gateway'
     ws.getCell(`B${row}`).font = { name: 'Helvetica', size: 9, bold: true, color: { argb: DARK } }
     ws.getCell(`B${row}`).alignment = { horizontal: 'left', vertical: 'top', wrapText: true }
     ws.getRow(row).height = 21.95
@@ -416,8 +417,10 @@ export async function GET(
     ws.getRow(row).height = Math.max(30, tblLines * 15 + 6)
     row++
 
-    // Baris 4: Status (B) + Porsi BPD (E:F)
-    ws.getCell(`B${row}`).value = `Status: ${statusLabel[invoice.status] || invoice.status}`
+    // Baris 4: Status (B) + Porsi BPD (E:F). Gratis (diskon >= 100) tampil info bank, bukan Midtrans.
+    ws.getCell(`B${row}`).value = isFree
+      ? 'Bank: BTN KC Jakarta Kuningan'
+      : `Status: ${statusLabel[invoice.status] || invoice.status}`
     ws.getCell(`B${row}`).font = { name: 'Helvetica', size: 9, color: { argb: DARK } }
     ws.getCell(`B${row}`).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
 
@@ -435,8 +438,10 @@ export async function GET(
     ws.getRow(row).height = 21.95
     row++
 
-    // Baris 5: Metode (B) + lanjutan border Rincian (E:F kosong)
-    ws.getCell(`B${row}`).value = `Metode: ${paymentType}`
+    // Baris 5: Metode (B) + lanjutan border Rincian (E:F kosong). Gratis tampil nomor rekening.
+    ws.getCell(`B${row}`).value = isFree
+      ? 'No. Rekening: 00001.01.30.000986.9'
+      : `Metode: ${paymentType}`
     ws.getCell(`B${row}`).font = { name: 'Helvetica', size: 9, color: { argb: DARK } }
     ws.getCell(`B${row}`).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
     ws.getCell(`E${row}`).border = { left: { style: 'medium', color: { argb: NAVY } } }
