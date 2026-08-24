@@ -1,7 +1,8 @@
 node_modules
 .next
 .env.local
-.env.local.backup
+.env.local.*
+.env.backup
 .env.production
 .env.example
 .claude
