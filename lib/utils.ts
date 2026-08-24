@@ -33,12 +33,6 @@ export function formatDateTime(date: Date | string): string {
   })
 }
 
-export function generateInvoiceNumber(): string {
-  const timestamp = Date.now()
-  const random = Math.floor(Math.random() * 1000)
-  return `INV-${timestamp}-${random}`
-}
-
 // Invoice number pakai slash (INV/KTA-GATENSI/2608/001) — amankan buat nama file download
 export function safeInvoiceFilename(invoiceNumber: string): string {
   return invoiceNumber.replace(/[^a-zA-Z0-9._~-]/g, '-')

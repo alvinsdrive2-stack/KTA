@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { KTAStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -160,7 +159,6 @@ export async function PATCH(
       email,
       alamat,
       tanggalDaftar,
-      status,
       hargaRegion,
       diskonPersen,
       hargaBase,
@@ -210,7 +208,6 @@ export async function PATCH(
     if (email) updateData.email = email
     if (alamat) updateData.alamat = alamat
     if (tanggalDaftar) updateData.tanggalDaftar = new Date(tanggalDaftar)
-    if (status) updateData.status = status as KTAStatus
     if (hargaRegion !== undefined) updateData.hargaRegion = hargaRegion
     if (diskonPersen !== undefined) updateData.diskonPersen = diskonPersen
     if (hargaBase !== undefined) updateData.hargaBase = hargaBase

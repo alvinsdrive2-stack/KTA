@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     // Validate columns
     const firstRow = jsonData[0] as any
-    const requiredColumns = ['Kode Daerah', 'Last Sequence Ahli', 'Last Sequence Teknisi', 'Last Sequence Operator']
+    const requiredColumns = ['Kode Daerah', 'Last Sequence Ahli', 'Last Sequence Teknisi/Analis', 'Last Sequence Operator']
     const missingColumns = requiredColumns.filter(col => !(col in firstRow))
 
     if (missingColumns.length > 0) {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     for (const row of jsonData) {
       const kodeDaerah = row['Kode Daerah']
       const lastSequenceAhli = parseInt(row['Last Sequence Ahli']) || 0
-      const lastSequenceTeknisi = parseInt(row['Last Sequence Teknisi']) || 0
+      const lastSequenceTeknisi = parseInt(row['Last Sequence Teknisi/Analis']) || 0
       const lastSequenceOperator = parseInt(row['Last Sequence Operator']) || 0
 
       try {

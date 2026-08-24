@@ -18,7 +18,6 @@ interface BulkPayment {
   totalNominal: number
   status: 'PENDING' | 'PAID' | 'VERIFIED' | 'REJECTED'
   createdAt: string
-  paidAt?: string
   verifiedAt?: string
   rejectionReason?: string
 }
@@ -36,7 +35,7 @@ export default function InvoicesHistoryPage() {
       case 'totalJumlah': return inv.totalJumlah
       case 'totalNominal': return inv.totalNominal
       case 'status': return inv.status
-      case 'paidAt': return inv.paidAt
+      case 'verifiedAt': return inv.verifiedAt
       default: return inv.createdAt
     }
   })
@@ -134,7 +133,7 @@ export default function InvoicesHistoryPage() {
                     <SortableHeader label="Total Nominal" sortKey="totalNominal" sort={sort} onSort={toggleSort} />
                     <SortableHeader label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
                     <SortableHeader label="Tanggal Dibuat" sortKey="createdAt" sort={sort} onSort={toggleSort} />
-                    <SortableHeader label="Tanggal Dibayar" sortKey="paidAt" sort={sort} onSort={toggleSort} />
+                    <SortableHeader label="Tanggal Dibayar" sortKey="verifiedAt" sort={sort} onSort={toggleSort} />
                   </tr>
                 </thead>
                 <tbody>
@@ -178,8 +177,8 @@ export default function InvoicesHistoryPage() {
                           })}
                         </td>
                         <td className="py-3 px-4 text-sm text-slate-600">
-                          {invoice.paidAt ? (
-                            new Date(invoice.paidAt).toLocaleDateString('id-ID', {
+                          {invoice.verifiedAt ? (
+                            new Date(invoice.verifiedAt).toLocaleDateString('id-ID', {
                               day: 'numeric',
                               month: 'short',
                               year: 'numeric',

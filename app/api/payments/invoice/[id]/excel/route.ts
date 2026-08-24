@@ -39,6 +39,7 @@ const formatDateTime = (d: Date | string) => {
 
 const terbilang = (nilai: number): string => {
   const satuan = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas']
+  if (nilai === 0) return 'Nol'
   if (nilai < 12) return satuan[Math.floor(nilai)]
   if (nilai < 20) return satuan[Math.floor(nilai) - 10] + ' Belas'
   if (nilai < 100) return (Math.floor(nilai) / 10 >= 1 ? satuan[Math.floor(nilai / 10)] + ' Puluh ' : '') + (nilai % 10 > 0 ? satuan[nilai % 10] : '')
@@ -329,7 +330,7 @@ export async function GET(
         : jenjangLabel
       const cells = [
         `${index + 1}`,
-        payment.ktaRequest.idIzin,
+        payment.ktaRequest.idIzin || '-',
         payment.ktaRequest.nama,
         payment.ktaRequest.nik,
         jenjangText,

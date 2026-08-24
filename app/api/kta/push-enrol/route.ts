@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { generateInvoiceNumber } from '@/lib/invoice'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,8 +86,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Generate invoice number
-      const timestamp = Date.now()
-      const invoiceNumber = `INV-ENROL-${daerahId}-${timestamp}`
+      const invoiceNumber = await generateInvoiceNumber()
 
       // Create bulk payment record (without buktiPembayaranUrl since this is enrol push)
       const bulkPayment = await prisma.bulkPayment.create({
