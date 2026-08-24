@@ -28,14 +28,14 @@ export async function GET(request: NextRequest) {
       where.status = { in: ['APPROVED_BY_PUSAT', 'READY_TO_PRINT', 'PRINTED'] }
     }
 
-    // Date filter
+    // Date filter (tanggal daftar anggota)
     if (startDate || endDate) {
-      where.createdAt = {}
-      if (startDate) where.createdAt.gte = new Date(startDate)
+      where.tanggalDaftar = {}
+      if (startDate) where.tanggalDaftar.gte = new Date(startDate)
       if (endDate) {
         const endDateTime = new Date(endDate)
         endDateTime.setHours(23, 59, 59, 999)
-        where.createdAt.lte = endDateTime
+        where.tanggalDaftar.lte = endDateTime
       }
     }
 
