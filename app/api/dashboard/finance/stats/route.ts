@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { resolveRange } from '@/lib/finance-period'
+import { getBulkPaymentsWithPorsi } from '@/lib/finance-porsi'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,57 +14,6 @@ function getPreviousPeriodRange(current: { start: Date, end: Date }): { start: D
   const start = new Date(end.getTime() - duration + 1)
 
   return { start, end }
-}
-
-// Hitung porsi (diskon) per bulkPayment, split confirmed/pending.
-// Dipakai buat role DAERAH karena pendapatan daerah = porsi diskon, bukan total nominal.
-async function computePorsiRevenue(where: any) {
-  const bulkPayments = await prisma.bulkPayment.findMany({
-    where,
-    include: {
-      payments: {
-        include: {
-          ktaRequest: {
-            select: {
-              hargaBase: true,
-              isUpgrade: true,
-              upgradeFromKtaId: true,
-            }
-          }
-        }
-      }
-    }
-  })
-
-  // KTA asal buat line upgrade, biar base upgrade dihitung bener (hargaBase - hargaBase sebelumnya)
-  const upgradeFromIds = Array.from(new Set(
-    bulkPayments.flatMap(bp => bp.payments.map(p => p.ktaRequest.upgradeFromKtaId).filter(Boolean))
-  )) as string[]
-
-  const prevKtas = upgradeFromIds.length > 0
-    ? await prisma.kTARequest.findMany({
-        where: { id: { in: upgradeFromIds } },
-        select: { id: true, hargaBase: true }
-      })
-    : []
-
-  const prevBaseMap = new Map(prevKtas.map(k => [k.id, k.hargaBase || 0]))
-
-  let confirmed = 0
-  let pending = 0
-  for (const bp of bulkPayments) {
-    const invoiceBase = bp.payments.reduce((acc, p) => {
-      const k = p.ktaRequest
-      const effective = k.isUpgrade && k.upgradeFromKtaId
-        ? (k.hargaBase || 0) - (prevBaseMap.get(k.upgradeFromKtaId) || 0)
-        : (k.hargaBase || 0)
-      return acc + effective
-    }, 0)
-    const porsi = Math.max(0, invoiceBase - bp.totalNominal)
-    if (bp.status === 'VERIFIED') confirmed += porsi
-    else if (bp.status === 'PENDING') pending += porsi
-  }
-  return { confirmed, pending }
 }
 
 export async function GET(request: NextRequest) {
@@ -96,10 +46,10 @@ export async function GET(request: NextRequest) {
     let totalKTA: number
 
     if (isDaerah) {
-      // Pendapatan daerah = porsi diskon
+      // Pendapatan daerah = porsi diskon, bukan total nominal
       const [cur, prev, ktaAgg] = await Promise.all([
-        computePorsiRevenue({ ...scopeFilter, createdAt: { gte: currentRange.start, lte: currentRange.end } }),
-        computePorsiRevenue({ ...scopeFilter, createdAt: { gte: previousRange.start, lte: previousRange.end } }),
+        getBulkPaymentsWithPorsi({ ...scopeFilter, createdAt: { gte: currentRange.start, lte: currentRange.end } }),
+        getBulkPaymentsWithPorsi({ ...scopeFilter, createdAt: { gte: previousRange.start, lte: previousRange.end } }),
         prisma.bulkPayment.aggregate({
           where: {
             ...scopeFilter,
@@ -111,10 +61,10 @@ export async function GET(request: NextRequest) {
           _sum: { totalJumlah: true },
         }),
       ])
-      confirmedRevenue = cur.confirmed
-      pendingRevenue = cur.pending
-      previousConfirmedRevenue = prev.confirmed
-      previousPendingRevenue = prev.pending
+      confirmedRevenue = cur.filter(b => b.status === 'VERIFIED').reduce((s, b) => s + b.porsi, 0)
+      pendingRevenue = cur.filter(b => b.status === 'PENDING').reduce((s, b) => s + b.porsi, 0)
+      previousConfirmedRevenue = prev.filter(b => b.status === 'VERIFIED').reduce((s, b) => s + b.porsi, 0)
+      previousPendingRevenue = prev.filter(b => b.status === 'PENDING').reduce((s, b) => s + b.porsi, 0)
       totalKTA = ktaAgg._sum.totalJumlah || 0
     } else {
       // Current period stats
