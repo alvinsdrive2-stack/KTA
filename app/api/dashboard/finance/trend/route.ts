@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { resolveRange } from '@/lib/finance-period'
+import { getBulkPaymentsWithPorsi } from '@/lib/finance-porsi'
 
 export const dynamic = 'force-dynamic'
 
@@ -96,18 +97,23 @@ export async function GET(request: NextRequest) {
       whereClause.daerahId = session.user.daerahId
     }
 
+    // DAERAH: pendapatan = porsi diskon, bukan total nominal
+    const isDaerah = session.user.role === 'DAERAH' && session.user.daerahId
+
     // Fetch bulk payments in the period
-    const bulkPayments = await prisma.bulkPayment.findMany({
-      where: whereClause,
-      select: {
-        createdAt: true,
-        totalNominal: true,
-        status: true,
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    })
+    const bulkPayments = isDaerah
+      ? await getBulkPaymentsWithPorsi(whereClause)
+      : await prisma.bulkPayment.findMany({
+          where: whereClause,
+          select: {
+            createdAt: true,
+            totalNominal: true,
+            status: true,
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+        })
 
     // Group by time period
     const groupedData = new Map<string, { confirmed: number; pending: number }>()
@@ -128,15 +134,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Aggregate data by period
-    bulkPayments.forEach((payment) => {
+    // Aggregate data by period. DAERAH pake porsi, sisanya pake total nominal.
+    bulkPayments.forEach((payment: any) => {
       const key = getGroupingKey(payment.createdAt, mode)
       const existing = groupedData.get(key) || { confirmed: 0, pending: 0 }
 
+      const amount = payment.porsi !== undefined ? payment.porsi : (payment.totalNominal || 0)
+
       if (payment.status === 'VERIFIED') {
-        existing.confirmed += payment.totalNominal
+        existing.confirmed += amount
       } else if (payment.status === 'PENDING') {
-        existing.pending += payment.totalNominal
+        existing.pending += amount
       }
 
       groupedData.set(key, existing)
