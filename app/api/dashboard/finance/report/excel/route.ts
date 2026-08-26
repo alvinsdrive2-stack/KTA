@@ -163,15 +163,15 @@ export async function GET(request: NextRequest) {
     const wb = new Workbook()
     const ws = wb.addWorksheet(isDaerah ? 'Porsi BPD' : 'Laporan Keuangan')
 
-    // Layout beda per role: DAERAH drop kolom Daerah, fokus porsi
+    // Layout beda per role: DAERAH drop kolom Daerah & cuma satu kolom Porsi (isi diskon)
     const cols = isDaerah
-      ? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+      ? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
       : ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
     const colCount = cols.length
     const lastCol = cols[colCount - 1]
 
     ws.columns = isDaerah
-      ? [{ width: 5 }, { width: 24 }, { width: 14 }, { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }]
+      ? [{ width: 5 }, { width: 24 }, { width: 14 }, { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }]
       : [{ width: 5 }, { width: 24 }, { width: 14 }, { width: 24 }, { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }]
 
     const box = (cell: any) => {
@@ -233,9 +233,12 @@ export async function GET(request: NextRequest) {
 
     row++ // spacer
 
+    // Kolom numerik mulai dari index ini
+    const numericStart = isDaerah ? 7 : 8
+
     // Table header
     const headers = isDaerah
-      ? ['No', 'No. Invoice', 'Tanggal', 'ID Izin', 'NIK', 'Nama', 'Kualifikasi', 'Harga', 'Diskon (Porsi)', 'Total Bayar']
+      ? ['No', 'No. Invoice', 'Tanggal', 'ID Izin', 'NIK', 'Nama', 'Kualifikasi', 'Porsi']
       : ['No', 'No. Invoice', 'Tanggal', 'Daerah', 'ID Izin', 'NIK', 'Nama', 'Kualifikasi', 'Harga', 'Diskon (Porsi)', 'Total Bayar']
     cols.forEach((col, i) => {
       const cell = ws.getCell(`${col}${row}`)
@@ -249,19 +252,19 @@ export async function GET(request: NextRequest) {
     // Data rows
     rows.forEach((r) => {
       const values: (string | number)[] = isDaerah
-        ? [r.no, r.invoice, r.tanggal, r.idIzin, r.nik, r.nama, r.jenjang, r.harga, r.diskon, r.bayar]
+        ? [r.no, r.invoice, r.tanggal, r.idIzin, r.nik, r.nama, r.jenjang, r.diskon]
         : [r.no, r.invoice, r.tanggal, r.daerah, r.idIzin, r.nik, r.nama, r.jenjang, r.harga, r.diskon, r.bayar]
       cols.forEach((col, i) => {
         const cell = ws.getCell(`${col}${row}`)
         cell.value = values[i]
         cell.font = { name: 'Helvetica', size: 9, color: { argb: DARK } }
         cell.alignment = {
-          horizontal: i >= 8 ? 'right' : (i === 0 ? 'center' : 'left'),
+          horizontal: i >= numericStart ? 'right' : (i === 0 ? 'center' : 'left'),
           vertical: 'middle',
           wrapText: true,
         }
         box(cell)
-        if (i >= 8) cell.numFmt = '#,##0'
+        if (i >= numericStart) cell.numFmt = '#,##0'
       })
       ws.getRow(row).height = 18
       row++
@@ -277,7 +280,7 @@ export async function GET(request: NextRequest) {
     totalLabel.font = { name: 'Helvetica', size: 11, bold: true, color: { argb: WHITE } }
     totalLabel.alignment = { horizontal: 'right', vertical: 'middle' }
 
-    const totalValues = [totalHarga, totalDiskon, totalBayar]
+    const totalValues = isDaerah ? [totalDiskon] : [totalHarga, totalDiskon, totalBayar]
     const totalCols = cols.slice(totalMergeCount)
     totalCols.forEach((col, i) => {
       const cell = ws.getCell(`${col}${row}`)
