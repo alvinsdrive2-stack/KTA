@@ -46,9 +46,11 @@ export async function GET(request: NextRequest) {
       ? new Date(`${endStr}T23:59:59.999`)
       : fallback.end
 
+    const isDaerah = session.user.role === 'DAERAH'
+
     // Scope: DAERAH hanya lihat daerah sendiri; lainnya bisa semua (opsional filter daerahKode)
     let daerahWhere: any = {}
-    if (session.user.role === 'DAERAH' && session.user.daerahId) {
+    if (isDaerah && session.user.daerahId) {
       daerahWhere.daerahId = session.user.daerahId
     } else {
       const daerahKode = searchParams.get('daerahKode')
@@ -147,14 +149,30 @@ export async function GET(request: NextRequest) {
     const totalDiskon = rows.reduce((s, r) => s + r.diskon, 0)
     const totalBayar = rows.reduce((s, r) => s + r.bayar, 0)
 
+    // Porsi persen buat info di sheet daerah
+    let porsiPersen = 0
+    if (isDaerah && session.user.daerahId) {
+      const daerahInfo = await prisma.daerah.findUnique({
+        where: { id: session.user.daerahId },
+        select: { diskonPersen: true }
+      })
+      porsiPersen = daerahInfo?.diskonPersen || 0
+    }
+
     // ===== Build Excel =====
     const wb = new Workbook()
-    const ws = wb.addWorksheet('Laporan Keuangan')
+    const ws = wb.addWorksheet(isDaerah ? 'Porsi BPD' : 'Laporan Keuangan')
 
-    ws.columns = [
-      { width: 5 }, { width: 24 }, { width: 14 }, { width: 24 }, { width: 16 },
-      { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 },
-    ]
+    // Layout beda per role: DAERAH drop kolom Daerah, fokus porsi
+    const cols = isDaerah
+      ? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+      : ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+    const colCount = cols.length
+    const lastCol = cols[colCount - 1]
+
+    ws.columns = isDaerah
+      ? [{ width: 5 }, { width: 24 }, { width: 14 }, { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }]
+      : [{ width: 5 }, { width: 24 }, { width: 14 }, { width: 24 }, { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }]
 
     const box = (cell: any) => {
       cell.border = {
@@ -175,15 +193,15 @@ export async function GET(request: NextRequest) {
     let row = 1
 
     // Title
-    ws.mergeCells(`A${row}:K${row}`)
+    ws.mergeCells(`A${row}:${lastCol}${row}`)
     const titleCell = ws.getCell(`A${row}`)
-    titleCell.value = 'LAPORAN KEUANGAN'
+    titleCell.value = isDaerah ? 'LAPORAN PORSI BPD' : 'LAPORAN KEUANGAN'
     titleCell.font = { name: 'Helvetica', size: 18, bold: true, color: { argb: NAVY } }
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
     ws.getRow(row).height = 30
     row++
 
-    ws.mergeCells(`A${row}:K${row}`)
+    ws.mergeCells(`A${row}:${lastCol}${row}`)
     const orgCell = ws.getCell(`A${row}`)
     orgCell.value = 'Gabungan Ahli Teknik Nasional Indonesia (GATENSI)'
     orgCell.font = { name: 'Helvetica', size: 11, bold: true, color: { argb: DARK } }
@@ -194,18 +212,20 @@ export async function GET(request: NextRequest) {
     row++ // spacer
 
     // Filter info
-    ws.mergeCells(`A${row}:K${row}`)
+    ws.mergeCells(`A${row}:${lastCol}${row}`)
     ws.getCell(`A${row}`).value = `Periode: ${formatDate(start)} — ${formatDate(end)}`
     ws.getCell(`A${row}`).font = { name: 'Helvetica', size: 10, bold: true, color: { argb: NAVY } }
     ws.getCell(`A${row}`).alignment = { horizontal: 'left', vertical: 'middle' }
     ws.getRow(row).height = 18
     row++
 
-    const daeraLabel = session.user.role === 'DAERAH'
+    const daeraLabel = isDaerah
       ? bulkPayments[0]?.daerah?.namaDaerah || '-'
       : (searchParams.get('daerahKode') ? `Kode ${searchParams.get('daerahKode')}` : 'Semua Daerah')
-    ws.mergeCells(`A${row}:K${row}`)
-    ws.getCell(`A${row}`).value = `Daerah: ${daeraLabel}`
+    ws.mergeCells(`A${row}:${lastCol}${row}`)
+    ws.getCell(`A${row}`).value = isDaerah
+      ? `Daerah: ${daeraLabel}  •  Porsi BPD: ${porsiPersen}%`
+      : `Daerah: ${daeraLabel}`
     ws.getCell(`A${row}`).font = { name: 'Helvetica', size: 10, bold: true, color: { argb: NAVY } }
     ws.getCell(`A${row}`).alignment = { horizontal: 'left', vertical: 'middle' }
     ws.getRow(row).height = 18
@@ -214,8 +234,9 @@ export async function GET(request: NextRequest) {
     row++ // spacer
 
     // Table header
-    const headers = ['No', 'No. Invoice', 'Tanggal', 'Daerah', 'ID Izin', 'NIK', 'Nama', 'Kualifikasi', 'Harga', 'Diskon (Porsi)', 'Total Bayar']
-    const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+    const headers = isDaerah
+      ? ['No', 'No. Invoice', 'Tanggal', 'ID Izin', 'NIK', 'Nama', 'Kualifikasi', 'Harga', 'Diskon (Porsi)', 'Total Bayar']
+      : ['No', 'No. Invoice', 'Tanggal', 'Daerah', 'ID Izin', 'NIK', 'Nama', 'Kualifikasi', 'Harga', 'Diskon (Porsi)', 'Total Bayar']
     cols.forEach((col, i) => {
       const cell = ws.getCell(`${col}${row}`)
       cell.value = headers[i]
@@ -227,10 +248,9 @@ export async function GET(request: NextRequest) {
 
     // Data rows
     rows.forEach((r) => {
-      const values: (string | number)[] = [
-        r.no, r.invoice, r.tanggal, r.daerah, r.idIzin, r.nik, r.nama, r.jenjang,
-        r.harga, r.diskon, r.bayar,
-      ]
+      const values: (string | number)[] = isDaerah
+        ? [r.no, r.invoice, r.tanggal, r.idIzin, r.nik, r.nama, r.jenjang, r.harga, r.diskon, r.bayar]
+        : [r.no, r.invoice, r.tanggal, r.daerah, r.idIzin, r.nik, r.nama, r.jenjang, r.harga, r.diskon, r.bayar]
       cols.forEach((col, i) => {
         const cell = ws.getCell(`${col}${row}`)
         cell.value = values[i]
@@ -249,14 +269,17 @@ export async function GET(request: NextRequest) {
 
     // Total row
     const totalRowStart = row
-    ws.mergeCells(`A${row}:H${row}`)
+    // Kolom merge buat label total: A..G (7) buat daerah, A..H (8) buat lainnya
+    const totalMergeCount = isDaerah ? 7 : 8
+    ws.mergeCells(`A${row}:${cols[totalMergeCount - 1]}${row}`)
     const totalLabel = ws.getCell(`A${row}`)
-    totalLabel.value = 'TOTAL'
+    totalLabel.value = isDaerah ? 'TOTAL PORSI BPD' : 'TOTAL'
     totalLabel.font = { name: 'Helvetica', size: 11, bold: true, color: { argb: WHITE } }
     totalLabel.alignment = { horizontal: 'right', vertical: 'middle' }
 
     const totalValues = [totalHarga, totalDiskon, totalBayar]
-    ;['I', 'J', 'K'].forEach((col, i) => {
+    const totalCols = cols.slice(totalMergeCount)
+    totalCols.forEach((col, i) => {
       const cell = ws.getCell(`${col}${row}`)
       cell.value = totalValues[i]
       cell.font = { name: 'Helvetica', size: 11, bold: true, color: { argb: WHITE } }
@@ -264,24 +287,24 @@ export async function GET(request: NextRequest) {
       cell.alignment = { horizontal: 'right', vertical: 'middle' }
       box(cell)
     })
-    for (let c = 0; c <= 10; c++) {
+    for (let c = 0; c < colCount; c++) {
       const cell = ws.getCell(`${cols[c]}${totalRowStart}`)
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } }
-      if (c < 8) box(cell)
-      if (c >= 8 && c <= 10) cell.border = { ...cell.border, left: { style: 'thin', color: { argb: NAVY } }, right: { style: 'thin', color: { argb: NAVY } } }
+      if (c < totalMergeCount) box(cell)
+      if (c >= totalMergeCount) cell.border = { ...cell.border, left: { style: 'thin', color: { argb: NAVY } }, right: { style: 'thin', color: { argb: NAVY } } }
     }
     ws.getRow(row).height = 22
 
     // Auto filter di header tabel biar gampang disortir di Excel
     if (rows.length > 0) {
-      ws.autoFilter = { from: `A${headerRow}`, to: `K${row}` }
+      ws.autoFilter = { from: `A${headerRow}`, to: `${lastCol}${row}` }
     }
 
     const buffer = await wb.xlsx.writeBuffer()
 
-    const filename = startStr && endStr
-      ? `laporan-keuangan-${startStr}-${endStr}.xlsx`
-      : `laporan-keuangan.xlsx`
+    const filename = isDaerah
+      ? (startStr && endStr ? `laporan-porsi-bpd-${startStr}-${endStr}.xlsx` : `laporan-porsi-bpd.xlsx`)
+      : (startStr && endStr ? `laporan-keuangan-${startStr}-${endStr}.xlsx` : `laporan-keuangan.xlsx`)
 
     return new NextResponse(buffer as Buffer, {
       headers: {
