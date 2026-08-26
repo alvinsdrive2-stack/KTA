@@ -220,7 +220,7 @@ export default function KeuanganPage() {
           value: Math.round(stats.growthRate),
           icon: TrendingUp,
           description: `${stats.growthRate >= 0 ? '+' : ''}${stats.growthRate.toFixed(1)}% vs periode lalu`,
-          color: stats.growthRate >= 0 ? 'green' : 'red',
+          color: stats.growthRate >= 0 ? 'green' as const : 'red' as const,
         },
         {
           title: 'Rata-rata / KTA',

@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const previousRange = getPreviousPeriodRange(currentRange)
 
     const isDaerah = session.user.role === 'DAERAH' && session.user.daerahId
-    const scopeFilter = isDaerah ? { daerahId: session.user.daerahId } : {}
+    const scopeFilter = isDaerah ? { daerahId: session.user.daerahId as string } : {}
 
     let confirmedRevenue: number
     let pendingRevenue: number
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       pendingRevenue = cur.filter(b => b.status === 'PENDING').reduce((s, b) => s + b.porsi, 0)
       previousConfirmedRevenue = prev.filter(b => b.status === 'VERIFIED').reduce((s, b) => s + b.porsi, 0)
       previousPendingRevenue = prev.filter(b => b.status === 'PENDING').reduce((s, b) => s + b.porsi, 0)
-      totalKTA = ktaAgg._sum.totalJumlah || 0
+      totalKTA = ktaAgg._sum?.totalJumlah || 0
     } else {
       // Current period stats
       const [currentConfirmed, currentPending, currentTotalKTA] = await Promise.all([
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
     let porsiAmount = 0
     if (isDaerah) {
       const daerahInfo = await prisma.daerah.findUnique({
-        where: { id: session.user.daerahId },
+        where: { id: session.user.daerahId as string },
         select: { diskonPersen: true }
       })
       porsiPersen = daerahInfo?.diskonPersen || 0

@@ -317,7 +317,7 @@ export async function GET(request: NextRequest) {
       ? (startStr && endStr ? `laporan-porsi-bpd-${startStr}-${endStr}.xlsx` : `laporan-porsi-bpd.xlsx`)
       : (startStr && endStr ? `laporan-keuangan-${startStr}-${endStr}.xlsx` : `laporan-keuangan.xlsx`)
 
-    return new NextResponse(buffer as Buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`,
