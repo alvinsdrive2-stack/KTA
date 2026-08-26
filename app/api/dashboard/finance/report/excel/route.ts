@@ -21,6 +21,14 @@ const formatDate = (d: Date | string) => {
   })
 }
 
+const kualifikasiLabel = (jenjang: string | null) => {
+  const n = parseInt(jenjang || '', 10)
+  if (n >= 1 && n <= 3) return 'Operator'
+  if (n >= 4 && n <= 6) return 'Teknisi/Analis'
+  if (n >= 7 && n <= 9) return 'Ahli'
+  return jenjang || '-'
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -137,7 +145,7 @@ export async function GET(request: NextRequest) {
           idIzin: k.idIzin || '-',
           nik: k.nik || '-',
           nama: k.nama || '-',
-          jenjang: k.jenjang || '-',
+          jenjang: kualifikasiLabel(k.jenjang),
           harga: base,
           diskon: Math.max(0, base - bayar),
           bayar,
