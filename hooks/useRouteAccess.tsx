@@ -22,7 +22,7 @@ import { useToast } from '@/components/ui/use-toast'
  */
 export function useRouteAccess() {
   const router = useRouter()
-  const { session, isLoading: sessionLoading } = useSession()
+  const { session, loading: sessionLoading } = useSession()
   const { toast } = useToast()
 
   useEffect(() => {
