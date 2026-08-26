@@ -2,38 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { resolveRange } from '@/lib/finance-period'
 
 export const dynamic = 'force-dynamic'
 
-export type PeriodFilter = '1month' | '3months' | '6months' | 'ytd'
-
-function getDateRange(filter: PeriodFilter): { start: Date, end: Date } {
-  const now = new Date()
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
-  let start: Date
-
-  switch (filter) {
-    case '1month':
-      start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      break
-    case '3months':
-      start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
-      break
-    case '6months':
-      start = new Date(now.getFullYear(), now.getMonth() - 6, 1)
-      break
-    case 'ytd':
-      start = new Date(now.getFullYear(), 0, 1)
-      break
-    default:
-      start = new Date(now.getFullYear(), 0, 1)
-  }
-
-  return { start, end }
-}
-
-function getPreviousPeriodRange(filter: PeriodFilter): { start: Date, end: Date } {
-  const current = getDateRange(filter)
+function getPreviousPeriodRange(current: { start: Date, end: Date }): { start: Date, end: Date } {
   const duration = current.end.getTime() - current.start.getTime()
 
   const end = new Date(current.start.getTime() - 1)
@@ -57,10 +30,10 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const period = (searchParams.get('period') || 'ytd') as PeriodFilter
+    const { start, end } = resolveRange(searchParams)
 
-    const currentRange = getDateRange(period)
-    const previousRange = getPreviousPeriodRange(period)
+    const currentRange = { start, end }
+    const previousRange = getPreviousPeriodRange(currentRange)
 
     // DAERAH users only see their own daerah's payments
     const scopeFilter = session.user.role === 'DAERAH' && session.user.daerahId
@@ -146,6 +119,64 @@ export async function GET(request: NextRequest) {
     // Calculate average per KTA
     const avgPerKTA = totalKTA > 0 ? Math.round(totalRevenue / totalKTA) : 0
 
+    // Porsi BPD (nilai diskon yang didapat daerah) — hanya buat role DAERAH.
+    // bulkPayment cuma nyimpen totalNominal (udah kena diskon), jadi hitung dari selisih base vs final per invoice.
+    let porsiPersen = 0
+    let porsiAmount = 0
+
+    if (session.user.role === 'DAERAH' && session.user.daerahId) {
+      const daerahInfo = await prisma.daerah.findUnique({
+        where: { id: session.user.daerahId },
+        select: { diskonPersen: true }
+      })
+      porsiPersen = daerahInfo?.diskonPersen || 0
+
+      const bulkPayments = await prisma.bulkPayment.findMany({
+        where: {
+          daerahId: session.user.daerahId,
+          createdAt: { gte: currentRange.start, lte: currentRange.end },
+        },
+        include: {
+          payments: {
+            include: {
+              ktaRequest: {
+                select: {
+                  hargaBase: true,
+                  isUpgrade: true,
+                  upgradeFromKtaId: true,
+                }
+              }
+            }
+          }
+        }
+      })
+
+      // KTA asal buat line upgrade, biar base upgrade dihitung bener (hargaBase - hargaBase sebelumnya)
+      const upgradeFromIds = Array.from(new Set(
+        bulkPayments.flatMap(bp => bp.payments.map(p => p.ktaRequest.upgradeFromKtaId).filter(Boolean))
+      )) as string[]
+
+      const prevKtas = upgradeFromIds.length > 0
+        ? await prisma.kTARequest.findMany({
+            where: { id: { in: upgradeFromIds } },
+            select: { id: true, hargaBase: true }
+          })
+        : []
+
+      const prevBaseMap = new Map(prevKtas.map(k => [k.id, k.hargaBase || 0]))
+
+      porsiAmount = bulkPayments.reduce((sum, bp) => {
+        const invoiceBase = bp.payments.reduce((acc, p) => {
+          const k = p.ktaRequest
+          const effective = k.isUpgrade && k.upgradeFromKtaId
+            ? (k.hargaBase || 0) - (prevBaseMap.get(k.upgradeFromKtaId) || 0)
+            : (k.hargaBase || 0)
+          return acc + effective
+        }, 0)
+        return sum + Math.max(0, invoiceBase - bp.totalNominal)
+      }, 0)
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -156,6 +187,8 @@ export async function GET(request: NextRequest) {
         growthRate,
         totalKTA,
         avgPerKTA,
+        porsiPersen,
+        porsiAmount,
         period: {
           start: currentRange.start,
           end: currentRange.end,
