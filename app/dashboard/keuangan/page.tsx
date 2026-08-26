@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { DollarSign, TrendingUp, Clock, RefreshCw, FileText, BadgePercent, Loader2, FileSpreadsheet } from 'lucide-react'
+import { DollarSign, TrendingUp, Clock, RefreshCw, FileText, Loader2, FileSpreadsheet } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { StatsGrid } from '@/components/dashboard/stats-card'
 import { PulseLogo } from '@/components/ui/loading-spinner'
@@ -203,7 +203,9 @@ export default function KeuanganPage() {
           title: 'Total Pendapatan',
           value: stats.totalRevenue,
           icon: DollarSign,
-          description: `Rp ${(stats.totalRevenue / 1000000).toFixed(0)} Juta`,
+          description: userRole === 'DAERAH'
+            ? `Porsi diskon ${stats.porsiPersen}% • Rp ${(stats.totalRevenue / 1000000).toFixed(0)} Juta`
+            : `Rp ${(stats.totalRevenue / 1000000).toFixed(0)} Juta`,
           color: 'blue' as const,
         },
         {
@@ -227,17 +229,6 @@ export default function KeuanganPage() {
           description: `Rp ${(stats.avgPerKTA / 1000).toFixed(0)} Rb per KTA`,
           color: 'purple' as const,
         },
-        ...(userRole === 'DAERAH'
-          ? [
-              {
-                title: 'Porsi BPD',
-                value: stats.porsiAmount || 0,
-                icon: BadgePercent,
-                description: `Diskon ${stats.porsiPersen}% • Rp ${((stats.porsiAmount || 0) / 1000000).toFixed(1)} Juta`,
-                color: 'green' as const,
-              },
-            ]
-          : []),
       ]
     : []
 
