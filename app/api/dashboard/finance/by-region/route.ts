@@ -2,35 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { resolveRange } from '@/lib/finance-period'
 
 export const dynamic = 'force-dynamic'
-
-export type PeriodFilter = '1month' | '3months' | '6months' | 'ytd'
-
-function getDateRange(filter: PeriodFilter): { start: Date, end: Date } {
-  const now = new Date()
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
-  let start: Date
-
-  switch (filter) {
-    case '1month':
-      start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      break
-    case '3months':
-      start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
-      break
-    case '6months':
-      start = new Date(now.getFullYear(), now.getMonth() - 6, 1)
-      break
-    case 'ytd':
-      start = new Date(now.getFullYear(), 0, 1)
-      break
-    default:
-      start = new Date(now.getFullYear(), 0, 1)
-  }
-
-  return { start, end }
-}
 
 export interface RegionFinanceData {
   daerahId: string
@@ -56,10 +30,9 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const period = (searchParams.get('period') || 'ytd') as PeriodFilter
     const limit = parseInt(searchParams.get('limit') || '5')
 
-    const { start, end } = getDateRange(period)
+    const { start, end } = resolveRange(searchParams)
 
     // DAERAH users only see their own daerah
     const scopeFilter = session.user.role === 'DAERAH' && session.user.daerahId

@@ -2,71 +2,57 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { resolveRange } from '@/lib/finance-period'
 
 export const dynamic = 'force-dynamic'
 
 export type PeriodFilter = '1month' | '3months' | '6months' | 'ytd'
 
-function getDateRange(filter: PeriodFilter): { start: Date, end: Date } {
-  const now = new Date()
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
-  let start: Date
+type GroupingMode = 'day' | 'week' | 'month'
 
-  switch (filter) {
-    case '1month':
-      start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      break
-    case '3months':
-      start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
-      break
-    case '6months':
-      start = new Date(now.getFullYear(), now.getMonth() - 6, 1)
-      break
-    case 'ytd':
-      start = new Date(now.getFullYear(), 0, 1)
-      break
-    default:
-      start = new Date(now.getFullYear(), 0, 1)
+// Pilih grouping berdasarkan mode period atau span tanggal custom
+function resolveGroupingMode(period: PeriodFilter, isCustom: boolean, start: Date, end: Date): GroupingMode {
+  if (isCustom) {
+    const spanDays = (end.getTime() - start.getTime()) / 86400000
+    if (spanDays <= 45) return 'day'
+    if (spanDays <= 180) return 'week'
+    return 'month'
   }
-
-  return { start, end }
+  if (period === '1month') return 'day'
+  if (period === '3months' || period === '6months') return 'week'
+  return 'month'
 }
 
-// Group data by day, week, or month based on period length
-function getGroupingKey(date: Date, filter: PeriodFilter): string {
+// Group data by day, week, or month
+function getGroupingKey(date: Date, mode: GroupingMode): string {
   const year = date.getFullYear()
-  const month = date.getMonth()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
 
-  if (filter === '1month') {
-    // Group by day
-    return `${year}-${String(month + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-  } else if (filter === '3months' || filter === '6months') {
-    // Group by week
+  if (mode === 'day') {
+    return `${year}-${month}-${String(date.getDate()).padStart(2, '0')}`
+  } else if (mode === 'week') {
     const weekNumber = Math.ceil(date.getDate() / 7)
-    return `${year}-${String(month + 1).padStart(2, '0')}-W${String(weekNumber).padStart(2, '0')}`
+    return `${year}-${month}-W${String(weekNumber).padStart(2, '0')}`
   } else {
-    // Group by month for YTD
-    return `${year}-${String(month + 1).padStart(2, '0')}`
+    return `${year}-${month}`
   }
 }
 
 // Format the label for display
-function formatLabel(key: string, filter: PeriodFilter): string {
-  if (filter === '1month') {
+function formatLabel(key: string, mode: GroupingMode): string {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
+  if (mode === 'day') {
     // Format: DD MMM
     const [year, month, day] = key.split('-')
-    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
     return `${parseInt(day)} ${months[parseInt(month) - 1]}`
-  } else if (filter === '3months' || filter === '6months') {
+  } else if (mode === 'week') {
     // Format: MMM W##
     const [year, month, week] = key.split('-')
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
     return `${months[parseInt(month) - 1]} ${week}`
   } else {
     // Format: MMM YYYY
     const [year, month] = key.split('-')
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
     return `${months[parseInt(month) - 1]} ${year}`
   }
 }
@@ -94,9 +80,8 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const period = (searchParams.get('period') || 'ytd') as PeriodFilter
-
-    const { start, end } = getDateRange(period)
+    const { start, end, period, isCustom } = resolveRange(searchParams)
+    const mode = resolveGroupingMode(period, isCustom, start, end)
 
     // Build where clause based on user role
     let whereClause: any = {
@@ -130,13 +115,13 @@ export async function GET(request: NextRequest) {
     // Initialize all dates in range with 0 values
     const currentDate = new Date(start)
     while (currentDate <= end) {
-      const key = getGroupingKey(currentDate, period)
+      const key = getGroupingKey(currentDate, mode)
       groupedData.set(key, { confirmed: 0, pending: 0 })
 
       // Move to next period
-      if (period === '1month') {
+      if (mode === 'day') {
         currentDate.setDate(currentDate.getDate() + 1)
-      } else if (period === '3months' || period === '6months') {
+      } else if (mode === 'week') {
         currentDate.setDate(currentDate.getDate() + 7)
       } else {
         currentDate.setMonth(currentDate.getMonth() + 1)
@@ -145,7 +130,7 @@ export async function GET(request: NextRequest) {
 
     // Aggregate data by period
     bulkPayments.forEach((payment) => {
-      const key = getGroupingKey(payment.createdAt, period)
+      const key = getGroupingKey(payment.createdAt, mode)
       const existing = groupedData.get(key) || { confirmed: 0, pending: 0 }
 
       if (payment.status === 'VERIFIED') {
@@ -160,12 +145,11 @@ export async function GET(request: NextRequest) {
     // Convert to array and format - match RevenueChart expected format
     const trendData = Array.from(groupedData.entries()).map(([date, values]) => ({
       date,
-      revenue: values.confirmed, // Use confirmed as revenue
-      invoices: 0, // Will be calculated if needed
+      label: formatLabel(date, mode),
+      confirmed: values.confirmed, // Use confirmed as revenue
+      pending: values.pending,
+      total: values.confirmed + values.pending,
     }))
-
-    // Calculate invoice counts (optional - can be added later if needed)
-    // For now, we can estimate or fetch actual invoice counts
 
     return NextResponse.json({
       success: true,

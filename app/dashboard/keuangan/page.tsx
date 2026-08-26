@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { DollarSign, TrendingUp, Clock, RefreshCw, FileText } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { DollarSign, TrendingUp, Clock, RefreshCw, FileText, BadgePercent, Loader2, FileSpreadsheet } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { StatsGrid } from '@/components/dashboard/stats-card'
 import { PulseLogo } from '@/components/ui/loading-spinner'
@@ -23,6 +26,8 @@ interface FinanceStats {
   growthRate: number
   totalKTA: number
   avgPerKTA: number
+  porsiPersen: number
+  porsiAmount: number
 }
 
 const PERIOD_FILTERS: { label: string; value: PeriodFilter }[] = [
@@ -40,15 +45,39 @@ export default function KeuanganPage() {
   // ADMIN, KEUANGAN, PUSAT, and DAERAH can access
   const isAuthorized = ['ADMIN', 'KEUANGAN', 'PUSAT', 'DAERAH'].includes(userRole)
 
-  const [period, setPeriod] = useState<PeriodFilter>('ytd')
+  const formatDateInput = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
+  const [activePeriod, setActivePeriod] = useState<PeriodFilter | ''>('ytd')
+  const [dateFrom, setDateFrom] = useState(() => formatDateInput(new Date(new Date().getFullYear(), 0, 1)))
+  const [dateTo, setDateTo] = useState(() => formatDateInput(new Date()))
   const [stats, setStats] = useState<FinanceStats | null>(null)
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([])
   const [regionData, setRegionData] = useState<RegionFinanceData[]>([])
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const hasFetchedRef = useRef(false)
+
+  const applyPreset = (value: PeriodFilter) => {
+    const now = new Date()
+    let from: Date
+    switch (value) {
+      case '1month': from = new Date(now.getFullYear(), now.getMonth() - 1, 1); break
+      case '3months': from = new Date(now.getFullYear(), now.getMonth() - 3, 1); break
+      case '6months': from = new Date(now.getFullYear(), now.getMonth() - 6, 1); break
+      default: from = new Date(now.getFullYear(), 0, 1)
+    }
+    setActivePeriod(value)
+    setDateFrom(formatDateInput(from))
+    setDateTo(formatDateInput(now))
+  }
 
   // Fetch all finance data
   const fetchFinanceData = async (showRefreshLoading = false) => {
@@ -57,10 +86,16 @@ export default function KeuanganPage() {
     }
 
     try {
+      const params = new URLSearchParams()
+      if (dateFrom && dateTo) {
+        params.append('start', dateFrom)
+        params.append('end', dateTo)
+      }
+
       const [statsRes, trendRes, regionRes] = await Promise.all([
-        fetch(`/api/dashboard/finance/stats?period=${period}`),
-        fetch(`/api/dashboard/finance/trend?period=${period}`),
-        fetch(`/api/dashboard/finance/by-region?period=${period}&limit=5`),
+        fetch(`/api/dashboard/finance/stats?${params}`),
+        fetch(`/api/dashboard/finance/trend?${params}`),
+        fetch(`/api/dashboard/finance/by-region?${params}&limit=5`),
       ])
 
       const [statsData, trendDataResult, regionDataResult] = await Promise.all([
@@ -96,19 +131,45 @@ export default function KeuanganPage() {
     }
   }, [sessionLoading, isAuthorized])
 
-  // Refetch when period changes
+  // Refetch when date range changes
   useEffect(() => {
     if (hasFetchedRef.current) {
       fetchFinanceData()
     }
-  }, [period])
+  }, [dateFrom, dateTo])
 
   const handleRefresh = () => {
     fetchFinanceData(true)
   }
 
-  const handlePeriodChange = (newPeriod: PeriodFilter) => {
-    setPeriod(newPeriod)
+  const handleExportExcel = async () => {
+    if (!dateFrom || !dateTo) return
+
+    try {
+      setExporting(true)
+      const params = new URLSearchParams()
+      params.append('start', dateFrom)
+      params.append('end', dateTo)
+
+      const res = await fetch(`/api/dashboard/finance/report/excel?${params}`)
+      if (!res.ok) {
+        throw new Error('Gagal generate Excel')
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `laporan-keuangan-${dateFrom}-${dateTo}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Export Excel error:', error)
+    } finally {
+      setExporting(false)
+    }
   }
 
   // Loading state
@@ -166,6 +227,17 @@ export default function KeuanganPage() {
           description: `Rp ${(stats.avgPerKTA / 1000).toFixed(0)} Rb per KTA`,
           color: 'purple' as const,
         },
+        ...(userRole === 'DAERAH'
+          ? [
+              {
+                title: 'Porsi BPD',
+                value: stats.porsiAmount || 0,
+                icon: BadgePercent,
+                description: `Diskon ${stats.porsiPersen}% • Rp ${((stats.porsiAmount || 0) / 1000000).toFixed(1)} Juta`,
+                color: 'green' as const,
+              },
+            ]
+          : []),
       ]
     : []
 
@@ -211,27 +283,69 @@ export default function KeuanganPage() {
         </div>
       </div>
 
-      {/* Period Filter */}
-      <div className="animate-slide-up-stagger stagger-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-slate-700 mr-2">Periode:</span>
-          {PERIOD_FILTERS.map((filter) => (
+      {/* Date Range Filter */}
+      <Card className="card-3d animate-slide-up-stagger stagger-2">
+        <CardContent className="pt-5">
+          <div className="flex flex-col lg:flex-row gap-4 lg:items-end">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-slate-700 mr-1">Periode:</span>
+              {PERIOD_FILTERS.map((filter) => (
+                <Button
+                  key={filter.value}
+                  onClick={() => applyPreset(filter.value)}
+                  variant={activePeriod === filter.value ? 'default' : 'outline'}
+                  size="sm"
+                  className={
+                    activePeriod === filter.value
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                  }
+                >
+                  {filter.label}
+                </Button>
+              ))}
+            </div>
+
+            <div className="flex items-end gap-2">
+              <div>
+                <Label htmlFor="date-from" className="text-xs text-slate-500">Dari</Label>
+                <Input
+                  id="date-from"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => { setDateFrom(e.target.value); setActivePeriod('') }}
+                  className="h-9 w-40"
+                />
+              </div>
+              <span className="text-slate-400 pb-2">—</span>
+              <div>
+                <Label htmlFor="date-to" className="text-xs text-slate-500">Sampai</Label>
+                <Input
+                  id="date-to"
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => { setDateTo(e.target.value); setActivePeriod('') }}
+                  className="h-9 w-40"
+                />
+              </div>
+            </div>
+
             <Button
-              key={filter.value}
-              onClick={() => handlePeriodChange(filter.value)}
-              variant={period === filter.value ? 'default' : 'outline'}
-              size="sm"
-              className={
-                period === filter.value
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'border-slate-300 text-slate-700 hover:bg-slate-100'
-              }
+              onClick={handleExportExcel}
+              disabled={exporting || !dateFrom || !dateTo}
+              variant="outline"
+              className="gap-2 border-blue-600 text-blue-700 hover:bg-blue-50"
             >
-              {filter.label}
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4" />
+              )}
+              Export Excel
             </Button>
-          ))}
-        </div>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Grid */}
       <div className="animate-slide-up-stagger stagger-3">
@@ -240,7 +354,7 @@ export default function KeuanganPage() {
 
       {/* Charts */}
       <div className="grid lg:grid-cols-2 gap-5 animate-slide-up-stagger stagger-4">
-        <RevenueTrendChart data={trendData} period={period} loading={loading} />
+        <RevenueTrendChart data={trendData} period={activePeriod === '' ? 'ytd' : activePeriod} loading={loading} />
         <PaymentStatusPieChart
           confirmedRevenue={stats?.confirmedRevenue || 0}
           pendingRevenue={stats?.pendingRevenue || 0}
