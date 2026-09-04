@@ -222,11 +222,11 @@ export default function KTAPage() {
       const a = document.createElement('a')
       a.href = url
 
-      // Generate filename with date range (use .csv extension)
+      // Generate filename with date range
       const dateStr = startDate && endDate
         ? `${startDate}_sd_${endDate}`
         : new Date().toISOString().split('T')[0]
-      a.download = `Data_Anggota_KTA_${dateStr}.csv`
+      a.download = `Data_Anggota_KTA_${dateStr}.xlsx`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
