@@ -52,8 +52,9 @@ export default function KeuanganPage() {
     return `${y}-${m}-${day}`
   }
 
-  const [activePeriod, setActivePeriod] = useState<PeriodFilter | ''>('ytd')
-  const [dateFrom, setDateFrom] = useState(() => formatDateInput(new Date(new Date().getFullYear(), 0, 1)))
+  const [activePeriod, setActivePeriod] = useState<PeriodFilter | ''>('')
+  const [isManual, setIsManual] = useState(false)
+  const [dateFrom, setDateFrom] = useState(() => formatDateInput(new Date()))
   const [dateTo, setDateTo] = useState(() => formatDateInput(new Date()))
   const [stats, setStats] = useState<FinanceStats | null>(null)
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([])
@@ -284,6 +285,7 @@ export default function KeuanganPage() {
                 <Button
                   key={filter.value}
                   onClick={() => applyPreset(filter.value)}
+                  disabled={isManual}
                   variant={activePeriod === filter.value ? 'default' : 'outline'}
                   size="sm"
                   className={
@@ -304,7 +306,7 @@ export default function KeuanganPage() {
                   id="date-from"
                   type="date"
                   value={dateFrom}
-                  onChange={(e) => { setDateFrom(e.target.value); setActivePeriod('') }}
+                  onChange={(e) => { setDateFrom(e.target.value); setActivePeriod(''); setIsManual(true) }}
                   className="h-9 w-40"
                 />
               </div>
@@ -315,7 +317,7 @@ export default function KeuanganPage() {
                   id="date-to"
                   type="date"
                   value={dateTo}
-                  onChange={(e) => { setDateTo(e.target.value); setActivePeriod('') }}
+                  onChange={(e) => { setDateTo(e.target.value); setActivePeriod(''); setIsManual(true) }}
                   className="h-9 w-40"
                 />
               </div>
