@@ -1,40 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+/**
+ * User yang sedang login, dari session NextAuth.
+ *
+ * Versi sebelumnya baca cookie `session-token` lalu `JSON.parse` hasil
+ * `Buffer.from(token, 'base64')` — tanpa verifikasi signature sama sekali.
+ * Jadi siapa pun bisa ngarang cookie berisi `{"role":"ADMIN"}` dan diterima.
+ * Sekarang ambil dari `getServerSession()`, yang verifikasi JWT-nya beneran.
+ */
+export async function GET() {
   try {
-    const sessionToken = request.cookies.get('session-token')?.value
+    const session = await getServerSession(authOptions)
 
-    if (!sessionToken) {
-      return NextResponse.json(
-        { error: 'No session found' },
-        { status: 401 }
-      )
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No session found' }, { status: 401 })
     }
 
-    // Decode the session token (base64 encoded JSON)
-    try {
-      const decoded = JSON.parse(Buffer.from(sessionToken, 'base64').toString())
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          user: {
-            id: decoded.id,
-            email: decoded.email,
-            name: decoded.name,
-            role: decoded.role,
-            daerah: decoded.daerah,
-          }
-        }
-      })
-    } catch (decodeError) {
-      return NextResponse.json(
-        { error: 'Invalid session' },
-        { status: 401 }
-      )
-    }
+    return NextResponse.json({
+      success: true,
+      data: { user: session.user },
+    })
   } catch (error) {
     console.error('Auth me error:', error)
     return NextResponse.json(

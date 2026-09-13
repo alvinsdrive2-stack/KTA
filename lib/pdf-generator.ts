@@ -8,6 +8,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import sharp from 'sharp'
 import { statSync } from 'fs'
+import { capitalizeEachWord, formatAlamatWithRW } from './kta-format'
 
 interface KTAData {
   id: string
@@ -21,26 +22,6 @@ interface KTAData {
   fotoData?: string  // base64 image data (client-side fetch)
 }
 
-// Helper function untuk capitalize each word
-function capitalizeEachWord(text: string): string {
-  return text
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
-// Helper function untuk format alamat dengan RT/RW uppercase
-function formatAlamatWithRW(alamat: string): string {
-  let formatted = capitalizeEachWord(alamat)
-  // Replace RT/RW variations with proper format
-  formatted = formatted.replace(/\b\/?rt\b/gi, '/RT')
-  formatted = formatted.replace(/\b\/?rw\b/gi, '/RW')
-  // Handle case without slash but with space after
-  formatted = formatted.replace(/\brt\b/gi, 'RT')
-  formatted = formatted.replace(/\brw\b/gi, 'RW')
-  return formatted
-}
 
 // Helper functions untuk format data (sama seperti kta-preview)
 function formatNama(nama: string): string {
