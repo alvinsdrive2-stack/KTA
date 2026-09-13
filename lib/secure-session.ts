@@ -30,7 +30,7 @@ export async function createSecureSession(user: {
     daerahId: user.daerahId
   }
 
-  const session = await new SignJWT(payload)
+  const session = await new SignJWT(payload as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(sessionExpiry)
@@ -45,7 +45,7 @@ export async function createSecureSession(user: {
 export async function verifySecureSession(token: string): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, secretKey)
-    return payload as SessionPayload
+    return payload as unknown as SessionPayload
   } catch (error) {
     return null
   }

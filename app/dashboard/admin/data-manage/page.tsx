@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency as formatCurrencyBase } from '@/lib/utils'
 import { useSession } from '@/hooks/useSession'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -499,15 +499,9 @@ export default function DataManagePage() {
     }
   }
 
-  // Format currency
-  const formatCurrency = (amount: number | null | undefined) => {
-    if (amount === null || amount === undefined) return '-'
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount)
-  }
+  // Null-safe wrapper: nilai kosong tampil '-', sisanya pakai format kanonik.
+  const formatCurrency = (amount: number | null | undefined) =>
+    amount === null || amount === undefined ? '-' : formatCurrencyBase(amount)
 
   // Format date
   const formatDate = (dateString: string | null) => {

@@ -8,6 +8,7 @@ interface SIKIData {
   subklasifikasi: string
   jenjang: string
   telp: string
+  telepon?: string  // SIKI kadang kirim "telepon", bukan "telp"
   email: string
   alamat: string
   tgl_daftar: string
@@ -15,6 +16,14 @@ interface SIKIData {
   fotoUrl?: string
   kodePropinsi?: string  // Added for province mapping
   namaProvinsi?: string  // Added for province name
+  klasifikasi_kualifikasi?: Array<{
+    jenjang?: string
+    subklasifikasi?: string
+    klasifikasi?: string
+    kualifikasi?: string
+    id_jabatan_kerja?: string
+    kode_jabker?: string
+  }>
 }
 
 interface SIKIResponse {

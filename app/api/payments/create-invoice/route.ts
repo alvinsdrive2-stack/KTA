@@ -24,10 +24,19 @@ export async function POST(request: NextRequest) {
     const userRole = session.user.role
     const isPusatOrAdmin = userRole === 'ADMIN' || userRole === 'KEUANGAN'
 
+    const userDaerahId = session.user.daerahId
+
+    if (!isPusatOrAdmin && !userDaerahId) {
+      return NextResponse.json(
+        { error: 'User tidak memiliki daerah yang ditugaskan' },
+        { status: 400 }
+      )
+    }
+
     const ktaRequests = await prisma.kTARequest.findMany({
       where: {
         id: { in: requestIds },
-        ...(isPusatOrAdmin ? {} : { daerahId: session.user.daerahId })
+        ...(isPusatOrAdmin ? {} : { daerahId: userDaerahId as string })
       }
     })
 
@@ -66,7 +75,7 @@ export async function POST(request: NextRequest) {
         totalJumlah: ktaRequests.length,
         totalNominal,
         status: isFree ? 'PAID' : 'PENDING',
-        daerahId: session.user.daerahId,
+        daerahId: userDaerahId ?? ktaRequests[0].daerahId,
         buktiPembayaranUrl: '', // Empty string for now, will be filled when payment proof uploaded
         submittedBy: session.user.id
       }

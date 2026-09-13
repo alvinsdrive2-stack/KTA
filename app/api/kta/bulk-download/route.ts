@@ -1,67 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { generateNomorKTA } from '@/lib/kta-numbering'
+import { getUploadRoot, keyToUrl } from '@/lib/upload-storage'
 import { KTAPDFGenerator } from '@/lib/pdf-generator'
 import { QRCodeGenerator } from '@/lib/qr-generator'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
-import * as archiver from 'archiver'
+import archiver from 'archiver'
 import { Readable } from 'stream'
 
 export const dynamic = 'force-dynamic'
-
-// Helper function to generate nomorKTA
-async function generateNomorKTA(daerahId: string, jenjang: string): Promise<string> {
-  // Determine jenjang category code based on jenjang level
-  // 1-3: Operator (03), 4-6: Teknisi (02), 7-9: Ahli (01)
-  const jenjangNum = parseInt(jenjang, 10)
-  let jenjangCode: string
-  let sequenceField: 'lastSequenceAhli' | 'lastSequenceTeknisi' | 'lastSequenceOperator'
-
-  if (jenjangNum >= 1 && jenjangNum <= 3) {
-    jenjangCode = '03' // Operator
-    sequenceField = 'lastSequenceOperator'
-  } else if (jenjangNum >= 4 && jenjangNum <= 6) {
-    jenjangCode = '02' // Teknisi
-    sequenceField = 'lastSequenceTeknisi'
-  } else if (jenjangNum >= 7 && jenjangNum <= 9) {
-    jenjangCode = '01' // Ahli
-    sequenceField = 'lastSequenceAhli'
-  } else {
-    throw new Error(`Invalid jenjang: ${jenjang}. Must be between 1-9.`)
-  }
-
-  // Get daerah with current sequence
-  const daerah = await prisma.daerah.findUnique({
-    where: { id: daerahId },
-    select: {
-      kodeDaerah: true,
-      lastSequenceAhli: true,
-      lastSequenceTeknisi: true,
-      lastSequenceOperator: true
-    }
-  })
-
-  if (!daerah) {
-    throw new Error('Daerah not found')
-  }
-
-  // Get current sequence and increment
-  const currentSequence = daerah[sequenceField]
-  const nextSequence = currentSequence + 1
-
-  // Update sequence in database
-  await prisma.daerah.update({
-    where: { id: daerahId },
-    data: { [sequenceField]: nextSequence }
-  })
-
-  // Generate sequence number (6 digits, padded with zeros)
-  const sequence = String(nextSequence).padStart(6, '0')
-
-  return `${daerah.kodeDaerah}.${jenjangCode}.${sequence}`
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -86,6 +36,7 @@ export async function POST(request: NextRequest) {
         nama: true,
         alamat: true,
         createdAt: true,
+        tanggalDaftar: true,
         qrCodePath: true,
         nomorKTA: true,
         jenjang: true,
@@ -166,7 +117,7 @@ export async function POST(request: NextRequest) {
             })
 
             // Create qr-codes directory if it doesn't exist
-            const qrDir = path.join(process.cwd(), 'public', 'qr-codes')
+            const qrDir = path.join(getUploadRoot(), 'qr-codes')
             await fs.mkdir(qrDir, { recursive: true })
 
             // Save QR code file
@@ -174,8 +125,8 @@ export async function POST(request: NextRequest) {
             const qrFilePath = path.join(qrDir, qrFileName)
             await fs.writeFile(qrFilePath, qrBuffer)
 
-            // Set qrCodePath to the public URL
-            qrCodePath = `/qr-codes/${qrFileName}`
+            // Set qrCodePath to the storage URL
+            qrCodePath = keyToUrl(`qr-codes/${qrFileName}`)
 
             // Update KTA with the qrCodePath
             await prisma.kTARequest.update({

@@ -15,8 +15,19 @@ screenshots
 playwright-report
 playwright/.cache
 coverage
-/generates/prisma
+/generated/prisma
 tsconfig.tsbuildinfo
+
+# Dump data dari Supabase - berisi PII anggota, jangan pernah di-commit
+supabase-dump/
+.playwright-mcp/
+
+# Upload file anggota (KTP, foto, bukti bayar) - data pribadi, jangan di-commit
+public/uploads/
+storage/
+
+# Sampah crash shell (Git Bash di Windows)
+bash.exe.stackdump
 
 # Generated QR codes
 public/qr-codes/*.png

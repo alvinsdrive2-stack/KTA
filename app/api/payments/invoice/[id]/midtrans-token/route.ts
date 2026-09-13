@@ -93,7 +93,7 @@ export async function POST(
 
     let orderId = ''
     let persisted = false
-    let snapResponse: SnapTokenResponse
+    let snapResponse: SnapTokenResponse | null = null
 
     for (let attempt = 0; attempt < 5; attempt++) {
       const lastOrder = await prisma.bulkPayment.findMany({
@@ -144,7 +144,7 @@ export async function POST(
       }
     }
 
-    if (!persisted || !orderId) {
+    if (!persisted || !orderId || !snapResponse) {
       throw new Error('Failed to allocate unique Midtrans order_id')
     }
 

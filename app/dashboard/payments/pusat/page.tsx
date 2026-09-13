@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
 import { usePaymentSelection } from '@/contexts/PaymentSelectionContext'
-import {getJenjangCategory} from '@/components/ui/jenjang-badge'
+import { getJenjangCategory, JENJANG_LABEL } from '@/lib/kta-upgrade'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { SortableHeader } from '@/components/ui/sortable-header'
 
@@ -391,7 +391,7 @@ export default function PusatPaymentPage() {
                           <span>•</span>
                           <span className="font-mono">{request.nik}</span>
                           <span>•</span>
-                          <span>Kualifikasi {getJenjangCategory(request.jenjang)}</span>
+                          <span>Kualifikasi {JENJANG_LABEL[getJenjangCategory(request.jenjang)]}</span>
                           {request.isUpgrade && request.upgradeFromKtaId && (
                             <>
                               <span>•</span>

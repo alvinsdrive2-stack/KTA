@@ -171,7 +171,7 @@ export default function UsersManagementPage() {
       if (data.success) {
         setUsers(data.data)
       } else {
-        setError(data.error || 'Gagal memuat data user')
+        setError((data as { error?: string }).error || 'Gagal memuat data user')
       }
     } catch (error) {
       setError('Terjadi kesalahan saat memuat data')

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Workbook } from 'exceljs'
-import { safeInvoiceFilename } from '@/lib/utils'
+import { safeInvoiceFilename, formatCurrency } from '@/lib/utils'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -13,14 +13,6 @@ const DARK = 'FF333333'
 const LIGHT = 'FFF5F7FA'
 const BORDER = 'FFD9D9D9'
 const WHITE = 'FFFFFFFF'
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0
-  }).format(amount)
-}
 
 const formatDate = (d: Date | string) => {
   return new Date(d).toLocaleDateString('id-ID', {
@@ -220,7 +212,8 @@ export async function GET(
     let logoPlaced = false
     try {
       const logoBuffer = readFileSync(join(process.cwd(), 'public', 'logo.png'))
-      const logoImg = wb.addImage({ buffer: logoBuffer, extension: 'png' })
+      // Cast tipe saja: deklarasi Buffer di exceljs beda versi dengan @types/node.
+      const logoImg = wb.addImage({ buffer: logoBuffer as any, extension: 'png' })
       ws.addImage(logoImg, {
         tl: { col: 5, row: 0 },
         ext: { width: 62, height: 62 }
@@ -258,7 +251,10 @@ export async function GET(
     row++ // spacer
 
     // INFO BOX - 2 kolom (kiri: Ditagihkan Kepada; kanan: Nomor Invoice & Tanggal) kayak PDF
-    const infoRows = [
+    const infoRows: Array<{
+      left?: { label: string; value?: string; bold?: boolean; big?: boolean; color?: string } | null
+      right?: { label: string; value?: string } | null
+    }> = [
       {
         left: { label: 'Ditagihkan Kepada:', bold: true, color: DARK },
         right: { label: 'Nomor Invoice:', value: invoice.invoiceNumber }
@@ -491,7 +487,7 @@ export async function GET(
     // Konversi ke buffer
     const buffer = await wb.xlsx.writeBuffer()
 
-    return new NextResponse(buffer as Buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${safeInvoiceFilename(invoice.invoiceNumber)}.xlsx"`,

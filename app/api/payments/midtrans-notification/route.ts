@@ -2,61 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyNotification, mapPaymentStatus } from '@/lib/midtrans'
 import { QRCodeGenerator } from '@/lib/qr-generator'
+import { generateNomorKTA } from '@/lib/kta-numbering'
 
 export const dynamic = 'force-dynamic'
-
-// Helper function to generate nomorKTA
-async function generateNomorKTA(daerahId: string, jenjang: string): Promise<string> {
-  const jenjangNum = parseInt(jenjang, 10)
-  let jenjangCode: string
-  let jenjangCategory: string
-  let sequenceField: 'lastSequenceAhli' | 'lastSequenceTeknisi' | 'lastSequenceOperator'
-
-  if (jenjangNum >= 1 && jenjangNum <= 3) {
-    jenjangCode = '03'
-    jenjangCategory = 'Operator'
-    sequenceField = 'lastSequenceOperator'
-  } else if (jenjangNum >= 4 && jenjangNum <= 6) {
-    jenjangCode = '02'
-    jenjangCategory = 'Teknisi/Analis'
-    sequenceField = 'lastSequenceTeknisi'
-  } else if (jenjangNum >= 7 && jenjangNum <= 9) {
-    jenjangCode = '01'
-    jenjangCategory = 'Ahli'
-    sequenceField = 'lastSequenceAhli'
-  } else {
-    throw new Error(`Invalid jenjang: ${jenjang}. Must be between 1-9.`)
-  }
-
-  const daerah = await prisma.daerah.findUnique({
-    where: { id: daerahId },
-    select: {
-      kodeDaerah: true,
-      lastSequenceAhli: true,
-      lastSequenceTeknisi: true,
-      lastSequenceOperator: true
-    }
-  })
-
-  if (!daerah) {
-    throw new Error('Daerah not found')
-  }
-
-  const currentSequence = daerah[sequenceField]
-  const nextSequence = currentSequence + 1
-
-  await prisma.daerah.update({
-    where: { id: daerahId },
-    data: { [sequenceField]: nextSequence }
-  })
-
-  const sequence = String(nextSequence).padStart(6, '0')
-  const nomorKTA = `${daerah.kodeDaerah}.${jenjangCode}.${sequence}`
-
-  console.log(`🎫 Generated nomorKTA: ${nomorKTA} (daerah=${daerah.kodeDaerah}, jenjang=${jenjang}, category=${jenjangCategory}, code=${jenjangCode}, sequence=${sequence})`)
-
-  return nomorKTA
-}
 
 // Helper function to prepare KTA for print
 async function prepareKTAForPrint(ktaId: string) {
@@ -72,7 +20,8 @@ async function prepareKTAForPrint(ktaId: string) {
         jenjang: true,
         nama: true,
         nik: true,
-        status: true
+        status: true,
+        qrCodePath: true
       }
     })
 

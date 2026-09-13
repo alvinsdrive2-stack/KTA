@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
 
         // Case 1: No idIzin - need to fetch from SIKI index
         if (!idIzin) {
-          idIzin = sikiIndex.get(kta.nik)
+          idIzin = sikiIndex.get(kta.nik) ?? null
           needIdIzinLookup = true
 
           if (!idIzin) {

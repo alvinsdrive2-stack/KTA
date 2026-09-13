@@ -94,7 +94,8 @@ export const authOptions: NextAuthOptions = {
           token.deviceToken as string | undefined
         )
         if (!valid) {
-          return null
+          // Tandai token invalid; dicek di callback session untuk memaksa logout.
+          return { ...token, invalid: true } as typeof token
         }
       }
       return token

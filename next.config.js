@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Build mandiri buat self-host: output-nya bawa dependency sendiri,
+  // nggak perlu bawa node_modules utuh ke server.
+  output: 'standalone',
   images: {
     remotePatterns: [
       {
@@ -7,12 +10,6 @@ const nextConfig = {
         hostname: '**',
       },
     ],
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
   env: {
     NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: process.env.MIDTRANS_CLIENT_KEY,

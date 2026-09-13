@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { saveUpload, keyToUrl } from '@/lib/upload-storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,23 +42,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invoice is not in PENDING status' }, { status: 400 })
     }
 
-    // Save payment proof file to public/uploads/payments/
-    const timestamp = Date.now()
-    const fileExtension = paymentProof.name.split('.').pop()
-    const fileName = `payment-proof-${timestamp}.${fileExtension}`
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'payments')
-
-    // Create directory if it doesn't exist
-    await mkdir(uploadDir, { recursive: true })
-
-    // Convert file to buffer and save
-    const bytes = await paymentProof.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const filePath = path.join(uploadDir, fileName)
-    await writeFile(filePath, buffer)
-
-    // Use URL path for accessing the file
-    const proofUrl = `/uploads/payments/${fileName}`
+    // Simpan bukti pembayaran lewat helper storage (di luar public/).
+    const proofKey = await saveUpload(paymentProof, 'payments', 'payment-proof')
+    const proofUrl = keyToUrl(proofKey)
 
     // Update bulk payment with proof URL and PAID status
     await prisma.bulkPayment.update({

@@ -192,7 +192,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if invoiceNumber already exists
-    const existingPayment = await prisma.payment.findUnique({
+    // Payment.invoiceNumber bukan @unique (yang unique cuma BulkPayment.invoiceNumber),
+    // jadi pakai findFirst, bukan findUnique.
+    const existingPayment = await prisma.payment.findFirst({
       where: { invoiceNumber },
     })
 

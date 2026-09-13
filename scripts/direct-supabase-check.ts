@@ -40,7 +40,11 @@ async function main() {
     await prisma.$connect()
 
     // Test query
-    const result = await prisma.$queryRaw`SELECT current_database(), current_user, inet_server_addr()`
+    const result = await prisma.$queryRaw`SELECT current_database(), current_user, inet_server_addr()` as Array<{
+      current_database: string
+      current_user: string
+      inet_server_addr: string | null
+    }>
     console.log('📊 Connection Info:')
     console.log(`  - Database: ${result[0].current_database}`)
     console.log(`  - User: ${result[0].current_user}`)

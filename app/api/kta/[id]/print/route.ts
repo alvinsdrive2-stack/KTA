@@ -19,10 +19,11 @@ export async function GET(
       select: {
         id: true,
         idIzin: true,
+        requestedBy: true,
         nik: true,
         nama: true,
         jabatanKerja: true,
-        subKlasifikasi: true,
+        subklasifikasi: true,
         jenjang: true,
         noTelp: true,
         email: true,
@@ -48,7 +49,7 @@ export async function GET(
     }
 
     // Check if user has access
-    if (session.user.role !== 'PUSAT' && session.user.role !== 'ADMIN' && ktaRequest.userId !== session.user.id) {
+    if (session.user.role !== 'PUSAT' && session.user.role !== 'ADMIN' && ktaRequest.requestedBy !== session.user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

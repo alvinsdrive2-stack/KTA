@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { generateInvoiceNumber } from '@/lib/invoice'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { saveUpload, keyToUrl } from '@/lib/upload-storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,10 +27,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify all requests belong to the user's daerah and are in correct status
+    const userDaerahId = session.user.daerahId
+    if (!userDaerahId) {
+      return NextResponse.json(
+        { error: 'User tidak memiliki daerah yang ditugaskan' },
+        { status: 400 }
+      )
+    }
+
     const ktaRequests = await prisma.kTARequest.findMany({
       where: {
         id: { in: requestIds },
-        daerahId: session.user.daerahId
+        daerahId: userDaerahId
       },
       include: {
         daerah: true,
@@ -57,20 +64,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Save payment proof file
-    const timestamp = Date.now()
-    const fileExtension = paymentProof.name.split('.').pop()
-    const fileName = `payment-proof-${timestamp}.${fileExtension}`
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'payments')
-
-    // Create directory if it doesn't exist
-    await mkdir(uploadDir, { recursive: true })
-
-    // Convert file to buffer and save
-    const bytes = await paymentProof.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const filePath = path.join(uploadDir, fileName)
-    await writeFile(filePath, buffer)
+    // Simpan bukti pembayaran lewat helper storage (di luar public/).
+    const proofUrl = keyToUrl(await saveUpload(paymentProof, 'payments', 'payment-proof'))
 
     // Calculate total amount from each request's hargaFinal
     const totalAmount = ktaRequests.reduce((sum, req) => sum + (req.hargaFinal || 0), 0)
@@ -91,7 +86,7 @@ export async function POST(request: NextRequest) {
         daerahId: session.user.daerahId!,
         totalJumlah: ktaRequests.length,
         totalNominal: totalAmount,
-        buktiPembayaranUrl: `/uploads/payments/${fileName}`,
+        buktiPembayaranUrl: proofUrl,
         status: 'PENDING',
         submittedBy: session.user.id
       }

@@ -429,6 +429,9 @@ export default function CreateManualPage() {
 
     try {
       // Upload files and get URLs
+      if (!ktpFile || !fotoFile) {
+        throw new Error('File KTP dan Foto wajib diupload')
+      }
       setUploadProgress(10)
       const ktpUrl = await uploadFile(ktpFile, 'ktp')
       setUploadProgress(50)
@@ -746,7 +749,7 @@ export default function CreateManualPage() {
                         </object>
                         <div className="text-center mt-1">
                           <p className="text-xs font-medium text-slate-700 truncate px-1">{ktpFile?.name}</p>
-                          <p className="text-xs text-slate-500">{(ktpFile?.size / 1024).toFixed(1)} KB</p>
+                          <p className="text-xs text-slate-500">{((ktpFile?.size ?? 0) / 1024).toFixed(1)} KB</p>
                         </div>
                       </div>
                     ) : (

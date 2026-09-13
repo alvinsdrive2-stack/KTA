@@ -13,7 +13,7 @@ import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
 import { useMidtransPayment } from '@/hooks/use-midtrans-payment'
 import { useSession } from '@/hooks/useSession'
-import { safeInvoiceFilename } from '@/lib/utils'
+import { safeInvoiceFilename, formatCurrency } from '@/lib/utils'
 
 interface Payment {
   id: string
@@ -274,13 +274,6 @@ export default function InvoiceDetailPage() {
     return badges[status] || { label: status, className: 'bg-gray-100 text-gray-800', icon: null }
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount)
-  }
 
   if (loading) {
     return (

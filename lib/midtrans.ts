@@ -1,3 +1,5 @@
+import type { PaymentStatus } from '@prisma/client'
+
 // Type definitions for Midtrans
 export interface MidtransTransactionDetails {
   order_id: string
@@ -126,22 +128,22 @@ export async function verifyNotification(notification: any): Promise<boolean> {
 /**
  * Map Midtrans payment status to our internal status
  */
-export function mapPaymentStatus(midtransStatus: string): string {
+export function mapPaymentStatus(midtransStatus: string): PaymentStatus {
   switch (midtransStatus) {
     case 'capture':
     case 'settlement':
       return 'PAID'
     case 'pending':
       return 'PENDING'
+    // Enum PaymentStatus cuma punya PENDING/PAID/VERIFIED/REJECTED.
+    // Status gagal/refund di bawah ini dipetakan ke REJECTED.
     case 'deny':
     case 'cancel':
     case 'expire':
     case 'failure':
-      return 'FAILED'
     case 'refund':
-      return 'REFUNDED'
     case 'partial_refund':
-      return 'PARTIALLY_REFUNDED'
+      return 'REJECTED'
     default:
       return 'PENDING'
   }
