@@ -48,6 +48,14 @@ export async function POST(request: NextRequest) {
     }
 
     const sikiData = sikiResponse.data
+
+    if (!sikiData) {
+      return NextResponse.json(
+        { error: 'Data SIKI tidak ditemukan. Periksa kembali ID Izin Anda.' },
+        { status: 400 }
+      )
+    }
+
     const klasifikasiKualifikasi = (sikiData as any).klasifikasi_kualifikasi?.[0]
 
     // Extract values from SIKI
@@ -55,11 +63,6 @@ export async function POST(request: NextRequest) {
     let kodeSubklasifikasi: string | null = null
     let jabatanKerja = sikiData.jabatan || 'N/A'
     let jenjang = sikiData.jenjang || ''
-
-    console.log('=== SIKI Data Debug ===')
-    console.log('Raw klasifikasiKualifikasi:', JSON.stringify(klasifikasiKualifikasi, null, 2))
-    console.log('sikiData.jabatan:', sikiData.jabatan)
-    console.log('sikiData.subklasifikasi:', sikiData.subklasifikasi)
 
     // Format 1: SIKI has klasifikasi_kualifikasi array
     if (klasifikasiKualifikasi) {
@@ -73,11 +76,6 @@ export async function POST(request: NextRequest) {
       idJabatanKerja = sikiData.jabatan || null
       kodeSubklasifikasi = sikiData.subklasifikasi || null
     }
-
-    console.log('Extracted values:')
-    console.log('- idJabatanKerja:', idJabatanKerja)
-    console.log('- kodeSubklasifikasi:', kodeSubklasifikasi)
-    console.log('- jenjang:', jenjang)
 
     // Fetch proper jabatan kerja name from new API
     let jabatanKerjaName = jabatanKerja
@@ -99,11 +97,6 @@ export async function POST(request: NextRequest) {
         subklasifikasiName = nameFromAPI
       }
     }
-
-    console.log('Final values:')
-    console.log('- jabatanKerjaName:', jabatanKerjaName)
-    console.log('- subklasifikasiName:', subklasifikasiName)
-    console.log('=====================')
 
     // Handle database operations for subklasifikasi
     let klasifikasiData = null

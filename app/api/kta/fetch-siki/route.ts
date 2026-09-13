@@ -26,9 +26,9 @@ export async function POST(request: NextRequest) {
     // Fetch data from SIKI API
     const sikiData = await sikiApi.getPekerjaByIdIzin(idIzin)
 
-    if (!sikiData || !sikiData.success) {
+    if (!sikiData || !sikiData.success || !sikiData.data) {
       return NextResponse.json(
-        { error: sikiData.message || 'Data tidak ditemukan di SIKI' },
+        { error: sikiData?.message || 'Data tidak ditemukan di SIKI' },
         { status: 400 }
       )
     }

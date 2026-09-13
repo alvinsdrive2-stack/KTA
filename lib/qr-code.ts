@@ -1,6 +1,7 @@
 import QRCode from 'qrcode'
 import path from 'path'
 import fs from 'fs/promises'
+import { getUploadRoot, keyToUrl } from './upload-storage'
 
 export interface QRCodeOptions {
   id: string
@@ -9,7 +10,7 @@ export interface QRCodeOptions {
 }
 
 export class QRCodeGenerator {
-  private static readonly uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'qr-codes')
+  private static readonly uploadsDir = path.join(getUploadRoot(), 'qr-codes')
 
   static async generateQRCode(options: QRCodeOptions): Promise<string> {
     const { id, verificationUrl, outputPath } = options
@@ -36,7 +37,7 @@ export class QRCodeGenerator {
       await QRCode.toFile(filePath, verificationUrl, qrOptions)
 
       // Return relative path for database storage
-      return `/uploads/qr-codes/${filename}`
+      return keyToUrl(`qr-codes/${filename}`)
     } catch (error) {
       console.error('QR Code generation error:', error)
       throw new Error('Failed to generate QR code')

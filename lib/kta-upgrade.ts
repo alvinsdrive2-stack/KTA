@@ -12,10 +12,31 @@ export interface UpgradeCheckResult {
   reason?: string
 }
 
-export function getJenjangCategory(jenjang: number): string {
-  if (jenjang <= 3) return 'OPERATOR'  // 1-3
-  if (jenjang <= 6) return 'TEKNISI'   // 4-6
-  return 'AHLI'                        // 7-9
+export type JenjangCategory = 'OPERATOR' | 'TEKNISI' | 'AHLI'
+
+/** Label tampilan buat tiap kategori — dipakai UI, bukan buat perbandingan. */
+export const JENJANG_LABEL: Record<JenjangCategory, string> = {
+  OPERATOR: 'Operator',
+  TEKNISI: 'Teknisi/Analis',
+  AHLI: 'Ahli',
+}
+
+/**
+ * Kategori jenjang dari angka 1-9.
+ *
+ * Satu-satunya sumber: sebelumnya ada dua versi terpisah (`lib/kta-upgrade` dan
+ * `components/ui/jenjang-badge`) yang balikin label beda — satu 'TEKNISI', satu
+ * 'Teknisi/Analis' — jadi dua halaman nampilin "Kualifikasi" dengan tulisan
+ * berbeda buat data yang sama. Sekarang yang ini yang dipakai dua-duanya.
+ *
+ * Catatan: input yang nggak bisa diparse jatuh ke 'AHLI', sama seperti perilaku
+ * dua versi lama. Sengaja dipertahankan biar nggak ngubah hasil yang udah jalan.
+ */
+export function getJenjangCategory(jenjang: number | string): JenjangCategory {
+  const jenjangNum = typeof jenjang === 'string' ? parseInt(jenjang, 10) : jenjang
+  if (jenjangNum <= 3) return 'OPERATOR' // 1-3
+  if (jenjangNum <= 6) return 'TEKNISI' // 4-6
+  return 'AHLI' // 7-9
 }
 
 export async function checkUpgradeScenario(

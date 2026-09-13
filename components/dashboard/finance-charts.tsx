@@ -39,8 +39,9 @@ export type PeriodFilter = '1month' | '3months' | '6months' | 'ytd'
 const CONFIRMED_COLOR = '#22c55e'
 const PENDING_COLOR = '#f59446'
 
-// Format currency
-function formatCurrency(amount: number): string {
+// Format singkat buat sumbu/label chart — beda dari formatCurrency di @/lib/utils
+// yang nulis nilai penuh. Dikasih nama sendiri biar bedanya kelihatan.
+function formatCurrencyShort(amount: number): string {
   if (amount >= 1000000000) {
     return `Rp ${(amount / 1000000000).toFixed(1)} Miliar`
   } else if (amount >= 1000000) {
@@ -59,7 +60,7 @@ function CustomLineTooltip({ active, payload }: any) {
         <p className="text-sm font-semibold text-slate-900 mb-2">{payload[0].payload.label}</p>
         {payload.map((entry: any, index: number) => (
           <p key={index} className="text-sm" style={{ color: entry.color }}>
-            {entry.name}: {formatCurrency(entry.value)}
+            {entry.name}: {formatCurrencyShort(entry.value)}
           </p>
         ))}
       </div>
@@ -75,7 +76,7 @@ function CustomPieTooltip({ active, payload }: any) {
     return (
       <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-3">
         <p className="text-sm font-semibold text-slate-900 mb-1">{data.name}</p>
-        <p className="text-sm text-slate-600">{formatCurrency(data.value)}</p>
+        <p className="text-sm text-slate-600">{formatCurrencyShort(data.value)}</p>
         <p className="text-xs text-slate-500">{data.payload.percentage}%</p>
       </div>
     )
@@ -252,7 +253,7 @@ export function PaymentStatusPieChart({
               outerRadius={100}
               paddingAngle={5}
               dataKey="value"
-              label={({ name, percentage }) => `${name}: ${percentage}%`}
+              label={({ name, percentage }: { name?: string; percentage?: number }) => `${name ?? ''}: ${percentage ?? 0}%`}
               labelLine={false}
               fontSize={12}
             >
@@ -269,14 +270,14 @@ export function PaymentStatusPieChart({
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CONFIRMED_COLOR }}></div>
               <span className="text-slate-700">Terkonfirmasi</span>
             </div>
-            <span className="font-semibold text-slate-900">{formatCurrency(confirmedRevenue)}</span>
+            <span className="font-semibold text-slate-900">{formatCurrencyShort(confirmedRevenue)}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: PENDING_COLOR }}></div>
               <span className="text-slate-700">Pending</span>
             </div>
-            <span className="font-semibold text-slate-900">{formatCurrency(pendingRevenue)}</span>
+            <span className="font-semibold text-slate-900">{formatCurrencyShort(pendingRevenue)}</span>
           </div>
         </div>
       </CardContent>
@@ -359,13 +360,13 @@ export function TopRegionsCard({
                     </div>
                   </td>
                   <td className="text-right py-3 px-4 text-sm text-green-600 font-medium">
-                    {formatCurrency(region.confirmedRevenue)}
+                    {formatCurrencyShort(region.confirmedRevenue)}
                   </td>
                   <td className="text-right py-3 px-4 text-sm text-orange-600 font-medium">
-                    {formatCurrency(region.pendingRevenue)}
+                    {formatCurrencyShort(region.pendingRevenue)}
                   </td>
                   <td className="text-right py-3 px-4 text-sm font-semibold text-slate-900">
-                    {formatCurrency(region.totalRevenue)}
+                    {formatCurrencyShort(region.totalRevenue)}
                   </td>
                 </tr>
               ))}

@@ -12,6 +12,12 @@ export const dynamic = 'force-dynamic'
  * Example Vercel Cron: "0 0 1 * *" or use external cron service
  */
 export async function GET(request: NextRequest) {
+  // Vercel Cron mengirim header: Authorization: Bearer <CRON_SECRET>
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret || request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     console.log('========================================')
     console.log('CRON: Checking Expired KTAs')

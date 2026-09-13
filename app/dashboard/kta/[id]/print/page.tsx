@@ -146,7 +146,7 @@ export default function KTAPrintPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm opacity-90">No. Anggota</p>
-                  <p className="font-mono text-lg">{params.id.slice(-8).toUpperCase()}</p>
+                  <p className="font-mono text-lg">{String(params.id).slice(-8).toUpperCase()}</p>
                 </div>
               </div>
             </div>

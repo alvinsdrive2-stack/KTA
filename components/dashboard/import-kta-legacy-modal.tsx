@@ -158,7 +158,7 @@ export function ImportKtaLegacyModal({ open, onOpenChange, onSuccess }: ImportKt
       }
 
       setPreviewData(data.data)
-      setSelectedRows(new Set(data.data.preview.map(r => r.no)))
+      setSelectedRows(new Set(data.data.preview.map((r: { no: number }) => r.no)))
       setStep('preview')
     } catch (error) {
       setParseError({

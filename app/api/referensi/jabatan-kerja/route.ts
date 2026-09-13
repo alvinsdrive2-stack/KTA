@@ -72,27 +72,3 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// GET /api/referensi/jabatan-kerja/subklasifikasi - Get unique subklasifikasi list
-export async function GET_SUBKLASIFIKASI() {
-  try {
-    const subklasifikasiList = await prisma.jabatanKerja.findMany({
-      distinct: ['subklasifikasi'],
-      select: {
-        subklasifikasi: true,
-        klasifikasi: true,
-      },
-      orderBy: { subklasifikasi: 'asc' },
-    })
-
-    return NextResponse.json({
-      success: true,
-      data: subklasifikasiList,
-    })
-  } catch (error) {
-    console.error('Error fetching subklasifikasi:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}

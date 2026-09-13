@@ -73,7 +73,7 @@ export async function POST(
 
     // Format 1: SIKI has klasifikasi_kualifikasi array
     if (klasifikasiKualifikasi) {
-      idJabatanKerja = klasifikasiKualifikasi.jabatan_kerja || null
+      idJabatanKerja = klasifikasiKualifikasi.id_jabatan_kerja || null
       kodeSubklasifikasi = klasifikasiKualifikasi.subklasifikasi || null
       const idKlasifikasi = klasifikasiKualifikasi.klasifikasi
       jenjang = klasifikasiKualifikasi.jenjang || jenjang

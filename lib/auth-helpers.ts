@@ -1,13 +1,14 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "./auth"
-import { redirect } from "next/navigation"
 import { NextRequest } from "next/server"
 
 export async function authMiddleware(request?: NextRequest) {
   const session = await getServerSession(authOptions)
 
   if (!session) {
-    redirect('/auth/login')
+    // Route handler API: balikin null supaya caller balas 401.
+    // Sebelumnya pakai redirect() yang melempar NEXT_REDIRECT,
+    // jadi request tanpa session dapat 307 HTML, bukan JSON 401.
     return null
   }
 
@@ -18,6 +19,7 @@ export async function authMiddleware(request?: NextRequest) {
       name: session.user.name || "",
       role: session.user.role || "",
       daerahId: session.user.daerahId || null,
+      daerah: session.user.daerah || null,
     },
   }
 }

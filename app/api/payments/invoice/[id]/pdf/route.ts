@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { safeInvoiceFilename } from '@/lib/utils'
+import { safeInvoiceFilename, formatCurrency } from '@/lib/utils'
 
 export async function GET(
   request: NextRequest,
@@ -125,15 +125,6 @@ export async function GET(
     const margin = 56.7 // 2cm in points
     const contentWidth = width - (2 * margin)
     const lineHeight = 16
-
-    // Helper function to format currency
-    const formatCurrency = (amount: number) => {
-      return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0
-      }).format(amount)
-    }
 
     // Helper function to format date
     const formatDate = (date: Date | string) => {
@@ -691,7 +682,7 @@ export async function GET(
     const pdfBytes = await pdfDoc.save()
 
     // Return PDF
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(new Uint8Array(pdfBytes), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="${safeInvoiceFilename(invoice.invoiceNumber)}.pdf"`,

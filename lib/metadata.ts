@@ -22,7 +22,7 @@ export function generateTitleFromPath(path: string): string {
       }
       return seg
     })
-    .filter(Boolean)
+    .filter((seg): seg is string => Boolean(seg))
 
   if (cleanSegments.length === 0) {
     return 'Detail'
@@ -58,7 +58,6 @@ export function generateTitleFromPath(path: string): string {
     'verify': 'Verifikasi',
     'qr': 'QR Code',
     'kta-preview': 'Preview KTA',
-    'waiting-approval': 'Menunggu Persetujuan',
   }
 
   const titles = cleanSegments.map(seg => {

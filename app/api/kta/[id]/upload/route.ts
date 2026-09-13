@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { saveUpload, keyToUrl } from '@/lib/upload-storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,29 +41,46 @@ export async function POST(
       )
     }
 
-    // For now, just save the file info. In production, you'd upload to cloud storage
-    const fileName = `${params.id}-${type}-${Date.now()}.${file.type.split('/')[1]}`
-    const fileUrl = `/uploads/${fileName}`
+    // Simpan filenya beneran ke disk, baru catat URL-nya.
+    let fileUrl: string
+    try {
+      const key = await saveUpload(file, 'documents', `${params.id}-${type}`)
+      fileUrl = keyToUrl(key)
+    } catch (uploadError) {
+      return NextResponse.json(
+        { error: uploadError instanceof Error ? uploadError.message : 'Upload gagal' },
+        { status: 400 }
+      )
+    }
 
-    // Update KTA request with file URL
-    const updateData: any = {}
+    const updateData: Record<string, string> = {}
     if (type === 'ktp') {
       updateData.ktpUrl = fileUrl
     } else if (type === 'foto') {
       updateData.fotoUrl = fileUrl
     }
 
-    const ktaRequest = await prisma.kTARequest.update({
-      where: {
-        id: params.id,
-        userId: session.user.id,
-      },
-      data: updateData,
+    const existingRequest = await prisma.kTARequest.findUnique({
+      where: { id: params.id },
+      select: { id: true, requestedBy: true },
     })
 
-    // TODO: Actually save the file to storage
-    // const buffer = Buffer.from(await file.arrayBuffer())
-    // await fs.writeFile(`./public${fileUrl}`, buffer)
+    if (!existingRequest) {
+      return NextResponse.json({ error: 'KTA request not found' }, { status: 404 })
+    }
+
+    if (
+      existingRequest.requestedBy !== session.user.id &&
+      session.user.role !== 'ADMIN' &&
+      session.user.role !== 'PUSAT'
+    ) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const ktaRequest = await prisma.kTARequest.update({
+      where: { id: params.id },
+      data: updateData,
+    })
 
     return NextResponse.json({
       success: true,

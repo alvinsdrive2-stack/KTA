@@ -16,17 +16,20 @@ export async function POST(
 
     // Check if KTA request exists and belongs to user
     const ktaRequest = await prisma.kTARequest.findUnique({
-      where: {
-        id: params.id,
-        userId: session.user.id,
-      },
-      include: {
-        payment: true,
-      },
+      where: { id: params.id },
+      include: { payments: true },
     })
 
     if (!ktaRequest) {
       return NextResponse.json({ error: 'KTA request not found' }, { status: 404 })
+    }
+
+    if (
+      ktaRequest.requestedBy !== session.user.id &&
+      session.user.role !== 'ADMIN' &&
+      session.user.role !== 'PUSAT'
+    ) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Validate requirements
@@ -37,7 +40,10 @@ export async function POST(
       )
     }
 
-    if (!ktaRequest.payment || ktaRequest.payment.status !== 'PAID') {
+    const paidPayment = ktaRequest.payments.find(
+      (p) => p.statusPembayaran === 'PAID' || p.statusPembayaran === 'VERIFIED'
+    )
+    if (!paidPayment) {
       return NextResponse.json(
         { error: 'Payment is required' },
         { status: 400 }
@@ -48,7 +54,7 @@ export async function POST(
     const updatedRequest = await prisma.kTARequest.update({
       where: { id: params.id },
       data: {
-        status: 'WAITING_APPROVAL',
+        status: 'READY_FOR_PUSAT',
       },
     })
 

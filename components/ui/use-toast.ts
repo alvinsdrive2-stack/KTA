@@ -113,9 +113,9 @@ function addToRemoveQueue(toastId: string) {
   toastTimeouts.set(toastId, timeout)
 }
 
-const listeners: Array<(state: any) => void> = []
+const listeners: Array<(state: { toasts: ToastProps[] }) => void> = []
 
-let memoryState: any = { toasts: [] }
+let memoryState: { toasts: ToastProps[] } = { toasts: [] }
 
 function dispatch(action: any) {
   memoryState = reducer(memoryState, action)

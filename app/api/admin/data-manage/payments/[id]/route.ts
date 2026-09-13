@@ -141,7 +141,7 @@ export async function PATCH(
 
     // Check if invoiceNumber is being changed and already exists
     if (invoiceNumber && invoiceNumber !== existingPayment.invoiceNumber) {
-      const invoiceExists = await prisma.payment.findUnique({
+      const invoiceExists = await prisma.payment.findFirst({
         where: { invoiceNumber },
       })
 

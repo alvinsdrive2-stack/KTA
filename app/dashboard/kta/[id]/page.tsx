@@ -640,7 +640,7 @@ export default function KTADetailPage() {
                       variant="outline"
                       size="sm"
                       className="border-amber-300 text-amber-700 hover:bg-amber-50"
-                      onClick={() => window.open(kta.ktpUrl, '_blank')}
+                      onClick={() => kta.ktpUrl && window.open(kta.ktpUrl, '_blank')}
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       Lihat

@@ -108,6 +108,7 @@ export async function openSnapPopup(
       payment_type: '',
       transaction_time: '',
       transaction_status: 'error',
+      transaction_id: '',
       fraud_status: ''
     })
   }

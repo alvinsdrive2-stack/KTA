@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { formatDateKey, formatDateKeyMonth } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -259,19 +260,6 @@ export async function GET(request: NextRequest) {
 }
 
 // Format date as YYYY-MM-DD using local timezone (not UTC)
-function formatDateKey(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-// Format date as YYYY-MM for monthly grouping
-function formatDateKeyMonth(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  return `${year}-${month}`
-}
 
 function formatDate(dateString: string, period: string): string {
   const date = new Date(dateString)

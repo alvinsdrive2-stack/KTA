@@ -200,7 +200,7 @@ export function ImportKtaModal({ open, onOpenChange, onSuccess }: ImportKtaModal
 
       setPreviewData(data.data)
       // Select all valid rows by default
-      setSelectedRows(new Set(data.data.preview.map(r => r.no)))
+      setSelectedRows(new Set(data.data.preview.map((r: { no: number }) => r.no)))
       setStep('preview')
     } catch (error) {
       setParseError({
