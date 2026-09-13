@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { capitalizeEachWord, formatAlamatWithRW } from '@/lib/kta-format'
 
 // Dummy data untuk testing
 const dummyData = {
@@ -115,26 +116,6 @@ export default function KTAPreviewPage() {
   const [showFront, setShowFront] = useState(true)
   const [data, setData] = useState(dummyData)
 
-  // Helper function untuk capitalize each word
-  const capitalizeEachWord = (text: string) => {
-    return text
-      .toLowerCase()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ')
-  }
-
-  // Helper function untuk format alamat dengan RT/RW uppercase
-  const formatAlamatWithRW = (alamat: string) => {
-    let formatted = capitalizeEachWord(alamat)
-    // Replace RT/RW variations with proper format
-    formatted = formatted.replace(/\b\/?rt\b/gi, '/RT')
-    formatted = formatted.replace(/\b\/?rw\b/gi, '/RW')
-    // Handle case without slash but with space after
-    formatted = formatted.replace(/\brt\b/gi, 'RT')
-    formatted = formatted.replace(/\brw\b/gi, 'RW')
-    return formatted
-  }
 
   const alamatLines = formatAlamat(data.alamat)
   const formattedNama = formatNama(data.nama)

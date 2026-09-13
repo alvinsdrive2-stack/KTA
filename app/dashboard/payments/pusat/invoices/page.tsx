@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { SortableHeader } from '@/components/ui/sortable-header'
+import { getPaymentStatusBadge as getStatusBadge } from '@/lib/status-badges'
 
 interface BulkPayment {
   id: string
@@ -50,31 +51,6 @@ export default function PusatInvoicesHistoryPage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const badges: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
-      PENDING: {
-        label: 'Menunggu Pembayaran',
-        className: 'bg-amber-100 text-amber-800 border-amber-200',
-        icon: <Clock className="h-3 w-3" />
-      },
-      PAID: {
-        label: 'Menunggu Verifikasi',
-        className: 'bg-blue-100 text-blue-800 border-blue-200',
-        icon: <Clock className="h-3 w-3" />
-      },
-      VERIFIED: {
-        label: 'Terverifikasi',
-        className: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-        icon: <CheckCircle className="h-3 w-3" />
-      },
-      REJECTED: {
-        label: 'Ditolak',
-        className: 'bg-red-100 text-red-800 border-red-200',
-        icon: <XCircle className="h-3 w-3" />
-      },
-    }
-    return badges[status] || { label: status, className: 'bg-gray-100 text-gray-800', icon: null }
-  }
 
   // Filter invoices based on search term
   const filteredInvoices = invoices.filter((invoice) =>

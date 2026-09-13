@@ -16,6 +16,7 @@ import { usePaymentSelection } from '@/contexts/PaymentSelectionContext'
 import { getJenjangCategory, JENJANG_LABEL } from '@/lib/kta-upgrade'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { SortableHeader } from '@/components/ui/sortable-header'
+import { getKtaStatusBadge as getStatusBadge } from '@/lib/status-badges'
 interface KTARequest {
   id: string
   idIzin: string
@@ -177,16 +178,6 @@ export default function DaerahPaymentPage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const badges: Record<string, { label: string; className: string }> = {
-      DRAFT: { label: 'Draft', className: 'bg-gray-100 text-gray-800 border-gray-200' },
-      FETCHED_FROM_SIKI: { label: 'Diambil dari SIKI', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-      EDITED: { label: 'Edited', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-      WAITING_PAYMENT: { label: 'Menunggu Pembayaran', className: 'bg-orange-100 text-orange-800 border-orange-200' },
-      UPGRADE_PENDING: { label: 'Upgrade - Menunggu Pembayaran', className: 'bg-purple-100 text-purple-800 border-purple-200' },
-    }
-    return badges[status] || { label: status, className: 'bg-gray-100 text-gray-800' }
-  }
 
   const getBulkPaymentStatusBadge = (status: string) => {
     const badges: Record<string, { label: string; className: string; icon: React.ReactNode }> = {

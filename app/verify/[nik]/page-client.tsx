@@ -6,6 +6,7 @@ import { MapPin, Award, Phone, Mail, IdCard, CheckCircle2, Briefcase } from 'luc
 import { MapZoomIntro } from '@/components/verification/map-zoom-intro'
 import { getDaerahLogoUrl } from '@/lib/daerah-logo'
 import { JenjangBadge } from '@/components/ui/jenjang-badge'
+import { capitalizeEachWord, formatAlamatWithRW } from '@/lib/kta-format'
 
 interface KTAData {
   nomorKTA: string
@@ -50,18 +51,6 @@ export function VerifyKTAPageClient({ ktaData }: VerifyKTAPageClientProps) {
     kualifikasiImage = '/kualifikasi/ahli.png'
   }
 
-  const capitalizeEachWord = (text: string) => {
-    return text.toLowerCase().split(' ').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
-  }
-
-  const formatAlamatWithRW = (alamat: string) => {
-    let formatted = capitalizeEachWord(alamat)
-    formatted = formatted.replace(/\b\/?rt\b/gi, '/RT')
-    formatted = formatted.replace(/\b\/?rw\b/gi, '/RW')
-    formatted = formatted.replace(/\brt\b/gi, 'RT')
-    formatted = formatted.replace(/\brw\b/gi, 'RW')
-    return formatted
-  }
 
   return (
     <>
