@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { appUrl, isEmailConfigured, sendMail, renderSetPasswordEmail } from '@/lib/email'
+import { createPasswordResetToken, SET_PASSWORD_TOKEN_TTL_MINUTES } from '@/lib/password-reset'
 
 export const dynamic = 'force-dynamic'
 
@@ -114,10 +117,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, email, password, role, daerahId } = body
 
-    // Validation
-    if (!name || !email || !password || !role) {
+    // Validation — password nggak wajib lagi, user bikin sendiri lewat link.
+    if (!name || !email || !role) {
       return NextResponse.json(
-        { success: false, error: 'Nama, email, password, dan role harus diisi' },
+        { success: false, error: 'Nama, email, dan role harus diisi' },
         { status: 400 }
       )
     }
@@ -142,9 +145,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Hash password using bcryptjs
+    // Kalau admin tetap ngisi password, itu yang dipakai. Kalau nggak, bikin
+    // password acak 32 byte yang nggak pernah dikasih ke siapa pun — akunnya
+    // cuma bisa dipakai setelah user bikin password sendiri lewat link email.
+    const initialPassword = password || randomBytes(32).toString('hex')
+
     const bcrypt = require('bcryptjs')
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(initialPassword, 10)
 
     // Create user
     const newUser = await prisma.user.create({
@@ -154,6 +161,8 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         role,
         daerahId,
+        // Password awal dari admin -> user wajib ganti saat login pertama.
+        mustChangePassword: true,
       },
       select: {
         id: true,
@@ -171,6 +180,31 @@ export async function POST(request: NextRequest) {
         createdAt: true,
       },
     })
+
+    // Kabarin user-nya kalau email dikonfigurasi. Kegagalan kirim TIDAK boleh
+    // bikin pembuatan akun dianggap gagal — akunnya udah jadi di DB.
+    //
+    // Yang dikirim LINK buat bikin password sendiri, bukan password. Token
+    // mentahnya cuma ada di email ini; yang masuk DB cuma hash-nya.
+    if (isEmailConfigured()) {
+      try {
+        const { rawToken } = await createPasswordResetToken(
+          newUser.id,
+          SET_PASSWORD_TOKEN_TTL_MINUTES
+        )
+        const { subject, html } = renderSetPasswordEmail({
+          name: newUser.name,
+          email: newUser.email,
+          setPasswordUrl: appUrl(`/auth/reset-password?token=${rawToken}`),
+          expiresMinutes: SET_PASSWORD_TOKEN_TTL_MINUTES,
+        })
+        await sendMail({ to: newUser.email, subject, html })
+      } catch (mailError) {
+        console.error('Create user: gagal kirim link set password', mailError)
+      }
+    } else {
+      console.warn('Create user: SMTP belum dikonfigurasi, link set password dilewati')
+    }
 
     return NextResponse.json({ success: true, data: newUser }, { status: 201 })
   } catch (error) {

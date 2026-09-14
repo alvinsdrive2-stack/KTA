@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
-import { generateInvoiceNumber } from '@/lib/invoice'
+import { generateInvoiceNumber, computeHargaBaseSnapshot } from '@/lib/invoice'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,15 +44,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Some KTA requests not found' }, { status: 404 })
     }
 
+    // Daerah pemilik request. ADMIN/KEUANGAN nggak punya daerahId sendiri, jadi
+    // ikutin daerah request-nya — bukan lookup pakai id kosong.
+    const invoiceDaerahId = userDaerahId ?? ktaRequests[0].daerahId
+
+    // Diskon dibekukan di sini: kalau diskon daerah berubah setelah invoice
+    // terbit, invoice ini tetap pakai angka ini.
+    const daerahInfo = await prisma.daerah.findUnique({
+      where: { id: invoiceDaerahId },
+      select: { diskonPersen: true }
+    })
+    const diskonPersen = daerahInfo?.diskonPersen ?? 0
+
     // Calculate total
     const totalNominal = ktaRequests.reduce((sum, req) => sum + (req.hargaFinal || 0), 0)
 
+    // Harga dasar per baris (upgrade = selisih jenjang) buat snapshot invoice.
+    const { totalHargaBase, baseById } = await computeHargaBaseSnapshot(ktaRequests)
+
     // Diskon >=100% => gratis, auto-marked as PAID (manual payment / tanpa bayar)
-    const daerahInfo = await prisma.daerah.findUnique({
-      where: { id: session.user.daerahId || '' },
-      select: { diskonPersen: true }
-    })
-    const isFree = (daerahInfo?.diskonPersen || 0) >= 100
+    const isFree = diskonPersen >= 100
 
     // Generate invoice number: INV/KTA-GATENSI/[yymm]/[urut]
     const invoiceNumber = await generateInvoiceNumber()
@@ -63,7 +74,7 @@ export async function POST(request: NextRequest) {
       totalNominal,
       status: isFree ? 'PAID' : 'PENDING',
       isFree,
-      daerahId: session.user.daerahId,
+      daerahId: invoiceDaerahId,
       buktiPembayaranUrl: '',
       submittedBy: session.user.id,
     })
@@ -74,8 +85,12 @@ export async function POST(request: NextRequest) {
         invoiceNumber,
         totalJumlah: ktaRequests.length,
         totalNominal,
+        // Snapshot harga: invoice jadi catatan tetap, nggak ikut kalau diskon
+        // daerah atau harga dasar berubah belakangan.
+        totalHargaBase,
+        diskonPersen,
         status: isFree ? 'PAID' : 'PENDING',
-        daerahId: userDaerahId ?? ktaRequests[0].daerahId,
+        daerahId: invoiceDaerahId,
         buktiPembayaranUrl: '', // Empty string for now, will be filled when payment proof uploaded
         submittedBy: session.user.id
       }
@@ -90,6 +105,7 @@ export async function POST(request: NextRequest) {
           invoiceNumber,
           rekeningTujuan: 'BTN KC Jakarta Kuningan - 00001.01.30.000986.9 - a.n. Gabungan Ahli Teknik Nasional Indonesia',
           jumlah: req.hargaFinal || 0,
+          hargaBaseSnapshot: baseById[req.id] ?? 0,
           statusPembayaran: isFree ? 'PAID' : 'PENDING',
           paidAt: isFree ? new Date() : null
         }

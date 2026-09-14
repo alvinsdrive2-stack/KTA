@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { isEmailConfigured, sendMail, renderPasswordResetByAdminEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -135,6 +136,8 @@ export async function PATCH(
     if (password) {
       const bcrypt = require('bcryptjs')
       updateData.password = await bcrypt.hash(password, 10)
+      // Admin nge-set password baru -> user wajib ganti sendiri saat login.
+      updateData.mustChangePassword = true
     }
 
     const updatedUser = await prisma.user.update({
@@ -157,6 +160,20 @@ export async function PATCH(
         updatedAt: true,
       },
     })
+
+    // Admin set password baru -> kabarin user-nya pakai password itu.
+    if (password && isEmailConfigured()) {
+      try {
+        const { subject, html } = renderPasswordResetByAdminEmail({
+          name: updatedUser.name,
+          email: updatedUser.email,
+          password,
+        })
+        await sendMail({ to: updatedUser.email, subject, html })
+      } catch (mailError) {
+        console.error('Update user: gagal kirim email reset password', mailError)
+      }
+    }
 
     return NextResponse.json({ success: true, data: updatedUser })
   } catch (error) {

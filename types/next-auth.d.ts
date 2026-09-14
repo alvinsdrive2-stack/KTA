@@ -11,6 +11,7 @@ declare module "next-auth" {
         kodeDaerah: string
         namaDaerah: string
       } | null
+      mustChangePassword?: boolean
     } & DefaultSession["user"]
   }
 
@@ -22,6 +23,7 @@ declare module "next-auth" {
       kodeDaerah: string
       namaDaerah: string
     } | null
+    mustChangePassword?: boolean
   }
 }
 
@@ -34,5 +36,6 @@ declare module "next-auth/jwt" {
       kodeDaerah: string
       namaDaerah: string
     } | null
+    mustChangePassword?: boolean
   }
 }

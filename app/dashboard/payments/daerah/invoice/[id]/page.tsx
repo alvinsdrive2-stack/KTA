@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { useMidtransPayment } from '@/hooks/use-midtrans-payment'
 import { useSession } from '@/hooks/useSession'
 import { safeInvoiceFilename, formatCurrency } from '@/lib/utils'
+import { resolveInvoiceAmounts, lineHargaBase } from '@/lib/invoice'
 
 interface Payment {
   id: string
@@ -35,6 +36,8 @@ interface Payment {
     } | null
   }
   jumlah: number
+  /** Harga sebelum diskon saat invoice dibuat */
+  hargaBaseSnapshot?: number | null
   statusPembayaran: string
 }
 
@@ -43,6 +46,10 @@ interface BulkPayment {
   invoiceNumber: string
   totalJumlah: number
   totalNominal: number
+  /** Total harga sebelum diskon saat invoice dibuat */
+  totalHargaBase?: number | null
+  /** Diskon daerah (%) saat invoice dibuat */
+  diskonPersen?: number | null
   buktiPembayaranUrl: string
   status: string
   createdAt: string
@@ -302,24 +309,20 @@ export default function InvoiceDetailPage() {
 
   const statusBadge = getStatusBadge(invoice.status)
 
-  // Calculate effective harga for each payment
-  const paymentsWithHarga = invoice.payments.map(p => {
-    if (p.ktaRequest.isUpgrade && p.ktaRequest.previousKta) {
-      return {
-        ...p,
-        effectiveHarga: (p.ktaRequest.hargaBase || 0) - p.ktaRequest.previousKta.hargaBase
-      }
-    }
-    return {
-      ...p,
-      effectiveHarga: p.ktaRequest.hargaBase || 0
-    }
-  })
+  // Harga baris pakai snapshot dari Payment kalau ada — invoice nggak ikut
+  // berubah kalau harga dasar atau diskon daerah berubah belakangan.
+  const paymentsWithHarga = invoice.payments.map(p => ({
+    ...p,
+    effectiveHarga: lineHargaBase(p, p.ktaRequest.previousKta?.hargaBase)
+  }))
 
-  const totalHargaBase = paymentsWithHarga.reduce((sum, p) => sum + p.effectiveHarga, 0)
-  const diskon = invoice.daerah.diskonPersen || 0
-  const diskonAmount = Math.floor(totalHargaBase * diskon / 100)
-  const totalTagihan = totalHargaBase - diskonAmount
+  // Satu sumber buat semua angka duit, sama kayak PDF/Excel/Midtrans.
+  const {
+    totalHargaBase,
+    diskonPersen: diskon,
+    diskonAmount,
+    totalTagihan
+  } = resolveInvoiceAmounts(invoice, paymentsWithHarga)
   const isPending = invoice.status === 'PENDING'
 
   return (

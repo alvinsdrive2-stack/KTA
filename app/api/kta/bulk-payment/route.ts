@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
-import { generateInvoiceNumber } from '@/lib/invoice'
+import { generateInvoiceNumber, computeHargaBaseSnapshot } from '@/lib/invoice'
 import { saveUpload, keyToUrl } from '@/lib/upload-storage'
 
 export const dynamic = 'force-dynamic'
@@ -70,6 +70,11 @@ export async function POST(request: NextRequest) {
     // Calculate total amount from each request's hargaFinal
     const totalAmount = ktaRequests.reduce((sum, req) => sum + (req.hargaFinal || 0), 0)
 
+    // Snapshot harga saat invoice dibuat — invoice jadi catatan tetap, nggak
+    // ikut berubah kalau diskon daerah berubah belakangan.
+    const diskonPersen = ktaRequests[0].daerah?.diskonPersen ?? 0
+    const { totalHargaBase, baseById } = await computeHargaBaseSnapshot(ktaRequests)
+
     if (totalAmount === 0) {
       return NextResponse.json({
         error: 'Harga untuk KTA belum ditetapkan. Silakan hubungi administrator.'
@@ -86,6 +91,8 @@ export async function POST(request: NextRequest) {
         daerahId: session.user.daerahId!,
         totalJumlah: ktaRequests.length,
         totalNominal: totalAmount,
+        totalHargaBase,
+        diskonPersen,
         buktiPembayaranUrl: proofUrl,
         status: 'PENDING',
         submittedBy: session.user.id
@@ -99,6 +106,7 @@ export async function POST(request: NextRequest) {
           ktaRequestId: request.id,
           bulkPaymentId: bulkPayment.id,
           jumlah: request.hargaFinal || 0, // Use hargaFinal from each request
+          hargaBaseSnapshot: baseById[request.id] ?? 0,
           statusPembayaran: 'PENDING',
           invoiceNumber,
           rekeningTujuan: 'BTN KC Jakarta Kuningan - 00001.01.30.000986.9 - a.n. Gabungan Ahli Teknik Nasional Indonesia'

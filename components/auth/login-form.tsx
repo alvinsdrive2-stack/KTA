@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -134,9 +135,12 @@ export function LoginForm() {
           />
           <span className="text-gray-600">Ingat saya</span>
         </label>
-        <a href="#" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
+        <Link
+          href="/auth/forgot-password"
+          className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+        >
           Lupa password?
-        </a>
+        </Link>
       </div>
 
       <Button

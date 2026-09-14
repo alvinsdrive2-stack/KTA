@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { resolveInvoiceAmounts } from '@/lib/invoice'
 import {
   generateSnapToken,
   type SnapTokenResponse,
@@ -62,16 +63,23 @@ export async function POST(
       return NextResponse.json({ error: 'Invoice already paid' }, { status: 400 })
     }
 
-    // Calculate total from hargaFinal (already includes upgrade pricing and discount)
-    const totalTagihan = bulkPayment.payments.reduce(
-      (sum, p) => sum + (p.ktaRequest.hargaFinal || 0),
-      0
+    // Yang ditagih = snapshot invoice (Payment.jumlah / BulkPayment.totalNominal),
+    // BUKAN hargaFinal yang dibaca ulang saat bayar. Kalau harga atau diskon
+    // berubah setelah invoice terbit, yang ditagih tetap angka di invoice itu.
+    const { totalTagihan } = resolveInvoiceAmounts(
+      bulkPayment,
+      bulkPayment.payments.map((p) => ({
+        // totalTagihan diambil dari totalNominal/jumlah, jadi harga dasar baris
+        // nggak kepakai di sini — cukup diisi snapshot-nya biar nggak menebak.
+        effectiveHarga: p.hargaBaseSnapshot ?? 0,
+        jumlah: p.jumlah
+      }))
     )
 
-    // Build item details using hargaFinal (already has correct pricing for upgrades)
+    // Item details ikut snapshot juga, biar jumlahnya pas sama gross_amount.
     const itemDetails: MidtransItemDetails[] = bulkPayment.payments.map((payment, index) => ({
       id: payment.ktaRequest.idIzin || `kta-${index + 1}`,
-      price: Math.floor(payment.ktaRequest.hargaFinal || 0),
+      price: Math.floor(payment.jumlah || 0),
       quantity: 1,
       name: `KTA - ${payment.ktaRequest.nama}`.substring(0, 50)
     }))

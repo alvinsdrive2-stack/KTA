@@ -30,6 +30,7 @@ export const authOptions: NextAuthOptions = {
           }
         })
 
+
         if (!user) {
           return null
         }
@@ -68,6 +69,7 @@ export const authOptions: NextAuthOptions = {
             namaDaerah: user.daerah.namaDaerah,
           } : null,
           deviceToken,
+          mustChangePassword: user.mustChangePassword,
         }
       }
     })
@@ -86,6 +88,7 @@ export const authOptions: NextAuthOptions = {
         token.name = user.name
         token.email = user.email
         token.deviceToken = (user as any).deviceToken
+        token.mustChangePassword = (user as any).mustChangePassword
       } else {
         // Request selanjutnya: pastikan session ini masih device aktif.
         // Jika user login di device lain, session ini sudah di-evict -> logout.
@@ -109,7 +112,8 @@ export const authOptions: NextAuthOptions = {
           email: token.email,
           role: token.role,
           daerahId: token.daerahId,
-          daerah: token.daerah
+          daerah: token.daerah,
+          mustChangePassword: token.mustChangePassword
         }
       }
       return session

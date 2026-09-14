@@ -4,6 +4,7 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { safeInvoiceFilename, formatCurrency } from '@/lib/utils'
+import { resolveInvoiceAmounts, lineHargaBase } from '@/lib/invoice'
 
 export async function GET(
   request: NextRequest,
@@ -91,10 +92,9 @@ export async function GET(
         ? previousKtas[p.ktaRequest.upgradeFromKtaId]
         : null
 
-      let effectiveHarga = p.ktaRequest.hargaBase || 0
-      if (p.ktaRequest.isUpgrade && prevData) {
-        effectiveHarga = (p.ktaRequest.hargaBase || 0) - prevData.hargaBase
-      }
+      // Snapshot harga dari Payment lebih diutamakan — baris invoice nggak ikut
+      // berubah kalau harga dasar diedit belakangan.
+      const effectiveHarga = lineHargaBase(p, prevData?.hargaBase)
 
       return {
         ...p,
@@ -455,12 +455,15 @@ export async function GET(
     const centerX = margin + sectionWidth + 10
     const rightX = margin + (sectionWidth * 2) + 20
 
-    // Calculate from effectiveHarga
-    const totalHargaBase = paymentsWithPrev.reduce((sum, p) => sum + p.effectiveHarga, 0)
-    const diskon = invoice.daerah.diskonPersen || 0
-    const diskonAmount = Math.floor(totalHargaBase * diskon / 100)
-    const totalTagihan = totalHargaBase - diskonAmount
-    const isFree = diskon >= 100
+    // Satu sumber buat semua angka duit: snapshot saat invoice dibuat, bukan
+    // diskon yang berlaku hari ini.
+    const {
+      totalHargaBase,
+      diskonPersen: diskon,
+      diskonAmount,
+      totalTagihan,
+      isFree
+    } = resolveInvoiceAmounts(invoice, paymentsWithPrev)
 
     // LEFT - Metode Pembayaran (Midtrans)
     const statusLabel: Record<string, string> = {
