@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
+    "db:migrate": "tsx scripts/migrate.ts",
     "db:seed-provinces": "tsx prisma/seed-provinces.ts",
     "db:seed-daerah": "tsx prisma/seed-daerah.ts",
     "db:seed-jabatan-kerja": "tsx prisma/seed-jabatan-kerja.ts",

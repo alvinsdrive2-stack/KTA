@@ -1,30 +1,42 @@
 -- Token lupa password (fitur "Lupa password?" di halaman login).
 -- Yang disimpan cuma hash-nya; token mentah cuma ada di link email.
-CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
-  "id"        TEXT NOT NULL,
-  "userId"    TEXT NOT NULL,
-  "tokenHash" TEXT NOT NULL,
-  "expiresAt" TIMESTAMP(3) NOT NULL,
-  "usedAt"    TIMESTAMP(3),
-  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--
+-- MySQL, bukan PostgreSQL. Bedanya dari versi sebelumnya:
+--   * `TEXT` -> VARCHAR(191). MySQL nggak bisa bikin PRIMARY KEY / UNIQUE INDEX
+--     di atas TEXT tanpa panjang kunci; Prisma sendiri map String ke VARCHAR(191).
+--   * TIMESTAMP(3) -> DATETIME(3), ini yang dipakai Prisma buat DateTime di MySQL.
+--   * Identifier pakai backtick, bukan kutip ganda.
+--   * Tabelnya di-create TANPA charset/collation eksplisit. Kalau dipaksa, ada
+--     kemungkinan beda dari `users`.`id` dan MySQL nolak foreign key-nya dengan
+--     "Referencing column and referenced column in foreign key constraint are
+--     incompatible". Ikut default database = dijamin cocok.
+--
+-- DDL-nya polos tanpa penjaga: MySQL nggak punya `CREATE INDEX IF NOT EXISTS`
+-- (itu cuma ada di MariaDB). Idempotency-nya di `scripts/migrate.ts` — perintah
+-- yang gagal dengan kode "sudah ada" (1050 tabel / 1061 index / 1826 nama FK)
+-- dihitung skip. Jalanin lewat `npm run db:migrate`.
 
-  CONSTRAINT "password_reset_tokens_pkey" PRIMARY KEY ("id")
+CREATE TABLE `password_reset_tokens` (
+  `id`        VARCHAR(191) NOT NULL,
+  `userId`    VARCHAR(191) NOT NULL,
+  `tokenHash` VARCHAR(191) NOT NULL,
+  `expiresAt` DATETIME(3)  NOT NULL,
+  `usedAt`    DATETIME(3)  NULL,
+  `createdAt` DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "password_reset_tokens_tokenHash_key"
-  ON "password_reset_tokens" ("tokenHash");
+-- Satu hash cuma boleh muncul sekali.
+CREATE UNIQUE INDEX `password_reset_tokens_tokenHash_key`
+  ON `password_reset_tokens` (`tokenHash`);
 
-CREATE INDEX IF NOT EXISTS "password_reset_tokens_userId_fkey"
-  ON "password_reset_tokens" ("userId");
+-- Index buat kolom foreign key. MySQL bikin ini otomatis kalau kurang, tapi
+-- namanya nggak bakal sesuai nama yang dipakai Prisma — jadi dibikin eksplisit.
+CREATE INDEX `password_reset_tokens_userId_fkey`
+  ON `password_reset_tokens` (`userId`);
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'password_reset_tokens_userId_fkey'
-  ) THEN
-    ALTER TABLE "password_reset_tokens"
-      ADD CONSTRAINT "password_reset_tokens_userId_fkey"
-      FOREIGN KEY ("userId") REFERENCES "users"("id")
-      ON DELETE CASCADE ON UPDATE CASCADE;
-  END IF;
-END $$;
+-- Hapus user -> token-nya ikut kehapus.
+ALTER TABLE `password_reset_tokens`
+  ADD CONSTRAINT `password_reset_tokens_userId_fkey`
+  FOREIGN KEY (`userId`) REFERENCES `users`(`id`)
+  ON DELETE CASCADE ON UPDATE CASCADE;
