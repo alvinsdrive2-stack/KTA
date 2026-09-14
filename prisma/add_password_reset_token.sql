@@ -6,10 +6,18 @@
 --     di atas TEXT tanpa panjang kunci; Prisma sendiri map String ke VARCHAR(191).
 --   * TIMESTAMP(3) -> DATETIME(3), ini yang dipakai Prisma buat DateTime di MySQL.
 --   * Identifier pakai backtick, bukan kutip ganda.
---   * Tabelnya di-create TANPA charset/collation eksplisit. Kalau dipaksa, ada
---     kemungkinan beda dari `users`.`id` dan MySQL nolak foreign key-nya dengan
---     "Referencing column and referenced column in foreign key constraint are
---     incompatible". Ikut default database = dijamin cocok.
+--   * Tabelnya di-create TANPA charset/collation eksplisit — ikut default
+--     database. Ini KELIHATAN aman tapi ternyata nggak: tabel-tabel lama di
+--     database ini dibikin dengan `COLLATE utf8mb4_unicode_ci` eksplisit,
+--     sementara default database-nya beda (MySQL 8 = utf8mb4_0900_ai_ci). Jadi
+--     `password_reset_tokens`.`userId` nggak sekolasi dengan `users`.`id` dan
+--     MySQL nolak FK-nya: error 3780 "Referencing column and referenced column
+--     in foreign key constraint are incompatible".
+--
+--     Yang nyelesain `scripts/migrate.ts`: sebelum bikin FK, kolom anaknya
+--     disamain dulu ke definisi kolom induk hasil baca information_schema.
+--     Ditulis di SQL nggak bisa, karena collation-nya harus dibaca dari
+--     database dulu, bukan ditulis mati di file.
 --
 -- DDL-nya polos tanpa penjaga: MySQL nggak punya `CREATE INDEX IF NOT EXISTS`
 -- (itu cuma ada di MariaDB). Idempotency-nya di `scripts/migrate.ts` — perintah

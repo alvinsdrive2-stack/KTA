@@ -81,6 +81,102 @@ function ringkas(sql: string): string {
   return baris.length > 76 ? `${baris.slice(0, 73)}...` : baris
 }
 
+/**
+ * Pola `ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY (...) REFERENCES ...`.
+ * Dipakai buat ngenalin perintah bikin FK, biar kolomnya bisa dirapikan dulu.
+ */
+const POLA_FK =
+  /^ALTER\s+TABLE\s+`?(\w+)`?\s+ADD\s+CONSTRAINT\s+`?(\w+)`?\s+FOREIGN\s+KEY\s*\(\s*`?(\w+)`?\s*\)\s*REFERENCES\s+`?(\w+)`?\s*\(\s*`?(\w+)`?\s*\)/i
+
+type DefinisiKolom = {
+  COLUMN_TYPE: string
+  IS_NULLABLE: string
+  COLUMN_DEFAULT: string | null
+  COLUMN_COMMENT: string
+  CHARACTER_SET_NAME: string | null
+  COLLATION_NAME: string | null
+}
+
+async function definisiKolom(tabel: string, kolom: string): Promise<DefinisiKolom | null> {
+  const rows = await prisma.$queryRawUnsafe<DefinisiKolom[]>(
+    `SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMN_COMMENT,
+            CHARACTER_SET_NAME, COLLATION_NAME
+       FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ?
+        AND COLUMN_NAME = ?`,
+    tabel,
+    kolom
+  )
+  return rows[0] ?? null
+}
+
+/**
+ * MySQL nolak foreign key kalau kolom anak dan kolom induk beda tipe atau beda
+ * charset/collation — kode 3780, "Referencing column and referenced column in
+ * foreign key constraint are incompatible".
+ *
+ * Kejadian beneran: tabel-tabel lama di database ini dibikin dengan
+ * `COLLATE utf8mb4_unicode_ci` eksplisit, sementara tabel baru yang di-create
+ * tanpa charset ikut default database (`utf8mb4_0900_ai_ci` di MySQL 8). FK-nya
+ * ditolak walaupun dua-duanya kelihatan sama-sama VARCHAR(191).
+ *
+ * Jadi sebelum FK-nya dibikin, kolom anaknya disamain dulu ke definisi kolom
+ * induknya — dibaca dari information_schema, bukan ditebak dari konvensi.
+ * Kalau udah sama, nggak ngapa-ngapain.
+ */
+async function rapikanKolomFk(sql: string): Promise<void> {
+  const cocok = POLA_FK.exec(sql.trim())
+  if (!cocok) return
+
+  const [, tabelAnak, namaFk, kolomAnak, tabelInduk, kolomInduk] = cocok
+
+  const anak = await definisiKolom(tabelAnak, kolomAnak)
+  const induk = await definisiKolom(tabelInduk, kolomInduk)
+
+  if (!anak || !induk) {
+    console.log(
+      `  ! ${tabelAnak}.${kolomAnak} atau ${tabelInduk}.${kolomInduk} nggak ketemu — FK dibikin apa adanya`
+    )
+    return
+  }
+
+  if (
+    anak.COLUMN_TYPE === induk.COLUMN_TYPE &&
+    anak.CHARACTER_SET_NAME === induk.CHARACTER_SET_NAME &&
+    anak.COLLATION_NAME === induk.COLLATION_NAME
+  ) {
+    return
+  }
+
+  // MODIFY nulis ulang definisi kolomnya, jadi DEFAULT dan COMMENT ikut hilang
+  // kalau nggak dibawa. Dua-duanya di luar kebutuhan migrasi ini — jadi kalau
+  // ketemu, mending berhenti daripada ngerusak kolom yang nggak dipahami.
+  if (anak.COLUMN_DEFAULT !== null || anak.COLUMN_COMMENT !== '') {
+    throw new Error(
+      `Kolom ${tabelAnak}.${kolomAnak} punya DEFAULT/COMMENT yang bakal hilang kalau disamain. ` +
+        `Samain manual dulu:\n` +
+        `  ALTER TABLE \`${tabelAnak}\` MODIFY \`${kolomAnak}\` ${induk.COLUMN_TYPE}` +
+        `${induk.CHARACTER_SET_NAME ? ` CHARACTER SET ${induk.CHARACTER_SET_NAME} COLLATE ${induk.COLLATION_NAME}` : ''} ...`
+    )
+  }
+
+  const charset = induk.CHARACTER_SET_NAME
+    ? ` CHARACTER SET ${induk.CHARACTER_SET_NAME} COLLATE ${induk.COLLATION_NAME}`
+    : ''
+  const nullability = anak.IS_NULLABLE === 'YES' ? 'NULL' : 'NOT NULL'
+
+  console.log(
+    `  ~ ${tabelAnak}.${kolomAnak} disamain ke ${tabelInduk}.${kolomInduk} buat FK \`${namaFk}\`` +
+      `\n    dari : ${anak.COLUMN_TYPE}${anak.COLLATION_NAME ? ` ${anak.COLLATION_NAME}` : ''}` +
+      `\n    jadi : ${induk.COLUMN_TYPE}${induk.COLLATION_NAME ? ` ${induk.COLLATION_NAME}` : ''}`
+  )
+
+  await prisma.$executeRawUnsafe(
+    `ALTER TABLE \`${tabelAnak}\` MODIFY \`${kolomAnak}\` ${induk.COLUMN_TYPE}${charset} ${nullability}`
+  )
+}
+
 type Hasil = { dijalankan: number; dilewati: number }
 
 async function jalaninFile(nama: string, dry: boolean): Promise<Hasil> {
@@ -106,6 +202,7 @@ async function jalaninFile(nama: string, dry: boolean): Promise<Hasil> {
     }
 
     try {
+      await rapikanKolomFk(sql)
       await prisma.$executeRawUnsafe(sql)
       dijalankan++
       console.log(`  ✓ ${ringkas(sql)}`)
