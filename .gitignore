@@ -4,7 +4,6 @@ node_modules
 .env.local.*
 .env.backup
 .env.production
-.env.example
 .claude
 .env
 dist

@@ -46,14 +46,13 @@ function canAccess(role: string, pathname: string): boolean {
   return allowedRoles.includes(role)
 }
 
-async function getUserRole(request: NextRequest): Promise<string | null> {
+async function getTokenInfo(request: NextRequest) {
   try {
     // Decode JWT langsung dari cookie — tanpa fetch HTTP ke diri sendiri.
     // Fetch ke domain publik dari dalam server bikin SSL loop (ERR_SSL_WRONG_VERSION_NUMBER).
-    const token = await getToken({ req: request })
-    return (token?.role as string) || null
+    return await getToken({ req: request })
   } catch (error) {
-    console.error('Error getting user role:', error)
+    console.error('Error getting user token:', error)
     return null
   }
 }
@@ -94,12 +93,18 @@ export async function middleware(request: NextRequest) {
   }
 
   // Get user role
-  const role = await getUserRole(request)
+  const token = await getTokenInfo(request)
+  const role = (token?.role as string) || null
 
   // If no role found and trying to access dashboard, redirect to login
   if (!role && pathname.startsWith('/dashboard')) {
     const loginUrl = new URL('/auth/login', request.url)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Password masih dari admin (akun baru / habis direset) -> wajib ganti dulu.
+  if (token?.mustChangePassword && pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/auth/change-password', request.url))
   }
 
   // Check if user can access this route

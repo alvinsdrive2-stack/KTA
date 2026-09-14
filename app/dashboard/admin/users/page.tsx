@@ -415,11 +415,11 @@ export default function UsersManagementPage() {
 
   // Create user
   const handleCreate = async () => {
-    if (!formData.name || !formData.email || !formData.password || !formData.role) {
+    if (!formData.name || !formData.email || !formData.role) {
       toast({
         variant: 'destructive',
         title: 'Validasi Error',
-        description: 'Nama, email, password, dan role harus diisi',
+        description: 'Nama, email, dan role harus diisi',
       })
       return
     }
@@ -903,14 +903,21 @@ export default function UsersManagementPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-password">Password</Label>
+              <Label htmlFor="create-password">
+                Password Awal{' '}
+                <span className="text-slate-400 font-normal">(opsional)</span>
+              </Label>
               <Input
                 id="create-password"
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Masukkan password"
+                placeholder="Kosongkan saja"
               />
+              <p className="text-xs text-slate-500">
+                User dapat email berisi link untuk bikin password sendiri. Isi kolom ini
+                cuma kalau mau kasih password awal secara manual.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="create-role">Role</Label>

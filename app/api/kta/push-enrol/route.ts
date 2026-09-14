@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
-import { generateInvoiceNumber } from '@/lib/invoice'
+import { generateInvoiceNumber, computeHargaBaseSnapshot } from '@/lib/invoice'
 
 export const dynamic = 'force-dynamic'
 
@@ -79,6 +79,10 @@ export async function POST(request: NextRequest) {
     for (const [daerahId, group] of Object.entries(groupedByDaerah)) {
       const totalAmount = group.requests.reduce((sum, req) => sum + (req.hargaFinal || 0), 0)
 
+      // Snapshot harga saat invoice dibuat — invoice jadi catatan tetap.
+      const diskonPersen = group.daerah?.diskonPersen ?? 0
+      const { totalHargaBase, baseById } = await computeHargaBaseSnapshot(group.requests)
+
       if (totalAmount === 0) {
         return NextResponse.json({
           error: 'Harga untuk KTA belum ditetapkan. Silakan hubungi administrator.'
@@ -95,6 +99,8 @@ export async function POST(request: NextRequest) {
           daerahId,
           totalJumlah: group.requests.length,
           totalNominal: totalAmount,
+          totalHargaBase,
+          diskonPersen,
           buktiPembayaranUrl: '', // Empty for enrol push
           status: 'PAID',
           submittedBy: session.user.id,
@@ -112,6 +118,7 @@ export async function POST(request: NextRequest) {
             ktaRequestId: request.id,
             bulkPaymentId: bulkPayment.id,
             jumlah: request.hargaFinal || 0,
+            hargaBaseSnapshot: baseById[request.id] ?? 0,
             statusPembayaran: 'PAID',
             invoiceNumber,
             rekeningTujuan: 'BTN KC Jakarta Kuningan - 00001.01.30.000986.9 - a.n. Gabungan Ahli Teknik Nasional Indonesia'

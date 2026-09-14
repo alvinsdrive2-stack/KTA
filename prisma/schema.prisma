@@ -15,6 +15,9 @@ model User {
   password              String
   role                  UserRole      @default(DAERAH)
   isActive              Boolean       @default(true)
+  /// true = password masih dari admin, user wajib ganti saat login pertama.
+  /// Di-set true saat admin bikin user atau reset password.
+  mustChangePassword    Boolean       @default(false)
   ktpUrl                String?
   fotoUrl               String?
   createdAt             DateTime      @default(now())
@@ -24,6 +27,7 @@ model User {
   bulkPaymentsVerified  BulkPayment[] @relation("BulkPaymentVerifiedBy")
   ktaRequests           KTARequest[]
   sessions              Session[]
+  passwordResetTokens   PasswordResetToken[]
   daerah                Daerah?       @relation(fields: [daerahId], references: [id])
 
   @@index([daerahId], map: "users_daerahId_fkey")
@@ -39,6 +43,22 @@ model Session {
 
   @@index([userId], map: "sessions_userId_fkey")
   @@map("sessions")
+}
+
+// Token lupa password. Yang disimpan cuma HASH-nya (sha256) — token mentah cuma
+// ada di link email. Satu kali pakai: `usedAt` diisi begitu berhasil dipakai.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  /// sha256 dari token mentah. Token mentah nggak pernah disimpan di DB.
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "password_reset_tokens_userId_fkey")
+  @@map("password_reset_tokens")
 }
 
 // Batas jumlah device aktif per role. Dikelola admin (halaman role-settings).
@@ -171,6 +191,9 @@ model Payment {
   invoiceNumber    String
   rekeningTujuan   String
   jumlah           Int
+  /// Harga sebelum diskon saat invoice dibuat. Dibekukan biar baris invoice
+  /// nggak ikut berubah kalau harga dasar diedit belakangan.
+  hargaBaseSnapshot Int?
   buktiBayarLink   String?
   statusPembayaran PaymentStatus @default(PENDING)
   paidAt           DateTime?
@@ -191,6 +214,12 @@ model BulkPayment {
   daerahId              String
   totalJumlah           Int
   totalNominal          Int
+  /// Total harga sebelum diskon saat invoice dibuat. Invoice tetap pakai angka
+  /// ini walau harga dasar berubah belakangan.
+  totalHargaBase        Int?
+  /// Diskon daerah (%) saat invoice dibuat. Dibekukan — diskon yang berlaku
+  /// sekarang nggak boleh ngerubah invoice yang sudah terbit.
+  diskonPersen          Int?
   buktiPembayaranUrl    String
   status                PaymentStatus @default(PENDING)
   verifiedBy            String?
