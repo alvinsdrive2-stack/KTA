@@ -4,6 +4,7 @@ import { KTAPDFGenerator } from '@/lib/pdf-generator'
 import { QRCodeGenerator } from '@/lib/qr-generator'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { generateNomorKTA } from '@/lib/kta-numbering'
+import { readUpload, contentTypeFor } from '@/lib/upload-storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -159,31 +160,45 @@ export async function GET(
     }
 
     // Prepare data for PDF generation
-    // Fetch photo directly from SIKI URL (no caching)
+    // Fetch photo directly from storage or SIKI URL (no caching)
     let fotoData = ktaRequest.fotoData || undefined
 
-    if (!fotoData && ktaRequest.fotoUrl && ktaRequest.fotoUrl.startsWith('http')) {
-      // Fetch directly from SIKI API URL
-      try {
-        console.log(`📸 Fetching photo directly from SIKI: ${ktaRequest.fotoUrl}`)
-        const response = await fetch(ktaRequest.fotoUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          },
-        })
-
-        if (response.ok) {
-          const arrayBuffer = await response.arrayBuffer()
-          const buffer = Buffer.from(arrayBuffer)
-          const contentType = response.headers.get('content-type') || 'image/jpeg'
-          const mimeType = contentType.split(';')[0].trim()
-          fotoData = `data:${mimeType};base64,${buffer.toString('base64')}`
-          console.log(`✅ Fetched photo from SIKI for ${ktaRequest.nama}`)
-        } else {
-          console.log(`⚠️ SIKI fetch failed: ${response.status}`)
+    if (!fotoData && ktaRequest.fotoUrl) {
+      if (ktaRequest.fotoUrl.startsWith('/uploads/') || ktaRequest.fotoUrl.startsWith('uploads/')) {
+        try {
+          const key = ktaRequest.fotoUrl.replace(/^\/?uploads\//, '')
+          const buffer = await readUpload(key)
+          if (buffer) {
+            const mimeType = contentTypeFor(key)
+            fotoData = `data:${mimeType};base64,${buffer.toString('base64')}`
+            console.log(`✅ Loaded local upload photo for ${ktaRequest.nama}`)
+          }
+        } catch (err) {
+          console.log(`⚠️ Failed reading local upload photo:`, err instanceof Error ? err.message : 'Unknown')
         }
-      } catch (error) {
-        console.log(`⚠️ SIKI fetch error:`, error instanceof Error ? error.message : 'Unknown')
+      } else if (ktaRequest.fotoUrl.startsWith('http')) {
+        // Fetch directly from SIKI API URL
+        try {
+          console.log(`📸 Fetching photo directly from SIKI: ${ktaRequest.fotoUrl}`)
+          const response = await fetch(ktaRequest.fotoUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
+          })
+
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer()
+            const buffer = Buffer.from(arrayBuffer)
+            const contentType = response.headers.get('content-type') || 'image/jpeg'
+            const mimeType = contentType.split(';')[0].trim()
+            fotoData = `data:${mimeType};base64,${buffer.toString('base64')}`
+            console.log(`✅ Fetched photo from SIKI for ${ktaRequest.nama}`)
+          } else {
+            console.log(`⚠️ SIKI fetch failed: ${response.status}`)
+          }
+        } catch (error) {
+          console.log(`⚠️ SIKI fetch error:`, error instanceof Error ? error.message : 'Unknown')
+        }
       }
     }
 

@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { readUpload, contentTypeFor } from '@/lib/upload-storage'
 
 export const dynamic = 'force-dynamic'
@@ -20,15 +18,6 @@ export async function GET(
   { params }: { params: { path: string[] } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
     const key = params.path.join('/')
 
     // readUpload() sudah nolak key yang keluar dari root (path traversal).
@@ -41,9 +30,7 @@ export async function GET(
     return new NextResponse(new Uint8Array(file), {
       headers: {
         'Content-Type': contentTypeFor(key),
-        // `private` — file ini data pribadi anggota, jangan sampai disimpan
-        // di cache publik atau proxy.
-        'Cache-Control': 'private, max-age=3600',
+        'Cache-Control': 'public, max-age=31536000, immutable',
       },
     })
   } catch (error) {
