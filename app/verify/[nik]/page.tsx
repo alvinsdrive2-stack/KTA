@@ -24,7 +24,6 @@ async function getKTADataByNIK(nik: string) {
         email: true,
         createdAt: true,
         jenjang: true,
-        jabatanKerja: true,
         status: true,
         fotoUrl: true,
         daerah: {
@@ -87,7 +86,6 @@ async function getKTADataByNIK(nik: string) {
       kodeDaerah: ktaRequest.daerah?.kodeDaerah || '',
       kualifikasi,
       jenjang: ktaRequest.jenjang,
-      jabatanKerja: ktaRequest.jabatanKerja,
       fotoUrl: ktaRequest.fotoUrl,
     }
   } catch (error) {

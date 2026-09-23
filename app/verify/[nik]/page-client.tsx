@@ -19,7 +19,6 @@ interface KTAData {
   kodeDaerah: string
   kualifikasi: string
   jenjang: string
-  jabatanKerja?: string | null
   fotoUrl?: string | null
 }
 
@@ -180,16 +179,6 @@ export function VerifyKTAPageClient({ ktaData }: VerifyKTAPageClientProps) {
                         <p className="text-sm font-semibold text-slate-900 dark:text-white">{ktaData.kualifikasi}</p>
                       </div>
                     </div>
-
-                    {ktaData.jabatanKerja && (
-                      <div className="text-center p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 mb-3">
-                        <div className="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center mx-auto mb-2 overflow-hidden">
-                          <img src="/jabatankerja.png" alt="Jabatan Kerja" className="w-14 h-14 object-contain" />
-                        </div>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Jabatan Kerja</p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{ktaData.jabatanKerja}</p>
-                      </div>
-                    )}
 
                     <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/40 rounded-lg border border-emerald-200 dark:border-emerald-800 p-4">
                       <div className="flex items-center justify-between gap-4">
