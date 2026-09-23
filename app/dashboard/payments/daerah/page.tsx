@@ -142,16 +142,24 @@ export default function DaerahPaymentPage() {
     try {
       setLoading(true)
 
-      // Only fetch KTAs that need payment (DRAFT, FETCHED_FROM_SIKI, EDITED, WAITING_PAYMENT, UPGRADE_PENDING)
+      // Status yang masih bisa/tetap perlu dibayar:
+      // - DRAFT          : belum pernah dibuat invoice
+      // - REJECTED       : invoice ditolak Keuangan, atau approval Pusat ditolak
+      // - UPGRADE_PENDING: permohonan upgrade yang belum dibayar
       const params = new URLSearchParams()
-      const payableStatuses = ['DRAFT']
+      const payableStatuses = ['DRAFT', 'REJECTED', 'UPGRADE_PENDING']
       payableStatuses.forEach(status => params.append('status', status))
+      // Ambil semua, bukan cuma halaman pertama — daftar ini dipakai buat
+      // milih banyak KTA sekaligus, jadi paginasi default (10) bikin sisanya
+      // nggak kelihatan.
+      params.append('limit', '1000')
 
       const response = await fetch(`/api/kta/list?${params}`)
       const data = await response.json()
 
       if (data.success) {
-        // Filter out already paid ones and show only those needing payment
+        // KTA yang invoice-nya masih jalan (belum diverifikasi/ditolak) nggak
+        // boleh ditagih dua kali. REJECTED sengaja lolos di sini.
         const payable = data.data.filter((kta: KTARequest) =>
           !["WAITING_PAYMENT", "APPROVED_BY_PUSAT", "READY_TO_PRINT", "PRINTED", "READY_FOR_PUSAT"].includes(kta.status)
         )

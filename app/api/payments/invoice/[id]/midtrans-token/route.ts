@@ -4,6 +4,7 @@ import { authMiddleware } from '@/lib/auth-helpers'
 import { resolveInvoiceAmounts } from '@/lib/invoice'
 import {
   generateSnapToken,
+  resolveEnabledPayments,
   type SnapTokenResponse,
   type MidtransItemDetails,
   type MidtransCustomerDetails,
@@ -157,7 +158,10 @@ export async function POST(
           gross_amount: totalTagihan
         },
         item_details: itemDetails,
-        customer_details: customerDetails
+        customer_details: customerDetails,
+        // >= Rp 500.000 cuma VA bank; di bawahnya boleh QRIS/e-wallet juga.
+        // Dikunci di server biar nggak bisa dilewatin dari sisi client.
+        enabled_payments: resolveEnabledPayments(totalTagihan)
       }
 
       console.log('Creating new Midtrans transaction:', orderId)
