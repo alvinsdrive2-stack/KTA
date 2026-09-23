@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { generateNomorKTA } from '@/lib/kta-numbering'
-import { getUploadRoot, keyToUrl } from '@/lib/upload-storage'
+import { getUploadRoot, keyToUrl, readUpload, contentTypeFor } from '@/lib/upload-storage'
 import { KTAPDFGenerator } from '@/lib/pdf-generator'
 import { QRCodeGenerator } from '@/lib/qr-generator'
 import * as fs from 'fs/promises'
@@ -138,31 +138,45 @@ export async function POST(request: NextRequest) {
           }
 
           // Prepare data for PDF generation
-          // Fetch photo directly from SIKI URL (same as single KTA download)
+          // Fetch photo directly from storage or URL (same as single KTA download)
           let fotoData = kta.fotoData || undefined
 
-          if (!fotoData && kta.fotoUrl && kta.fotoUrl.startsWith('http')) {
-            // Fetch directly from URL (no proxy)
-            try {
-              console.log(`📸 Fetching photo directly from URL: ${kta.fotoUrl}`)
-              const response = await fetch(kta.fotoUrl, {
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                },
-              })
-
-              if (response.ok) {
-                const arrayBuffer = await response.arrayBuffer()
-                const buffer = Buffer.from(arrayBuffer)
-                const contentType = response.headers.get('content-type') || 'image/jpeg'
-                const mimeType = contentType.split(';')[0].trim()
-                fotoData = `data:${mimeType};base64,${buffer.toString('base64')}`
-                console.log(`✅ Fetched photo for ${kta.nama}`)
-              } else {
-                console.log(`⚠️ Photo fetch failed for ${kta.nama}: ${response.status}`)
+          if (!fotoData && kta.fotoUrl) {
+            if (kta.fotoUrl.startsWith('/uploads/') || kta.fotoUrl.startsWith('uploads/')) {
+              try {
+                const key = kta.fotoUrl.replace(/^\/?uploads\//, '')
+                const buffer = await readUpload(key)
+                if (buffer) {
+                  const mimeType = contentTypeFor(key)
+                  fotoData = `data:${mimeType};base64,${buffer.toString('base64')}`
+                  console.log(`✅ Loaded local upload photo for ${kta.nama}`)
+                }
+              } catch (err) {
+                console.log(`⚠️ Failed reading local upload photo for ${kta.nama}:`, err instanceof Error ? err.message : 'Unknown')
               }
-            } catch (error) {
-              console.log(`⚠️ Photo fetch error for ${kta.nama}:`, error instanceof Error ? error.message : 'Unknown')
+            } else if (kta.fotoUrl.startsWith('http')) {
+              // Fetch directly from URL (no proxy)
+              try {
+                console.log(`📸 Fetching photo directly from URL: ${kta.fotoUrl}`)
+                const response = await fetch(kta.fotoUrl, {
+                  headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                  },
+                })
+
+                if (response.ok) {
+                  const arrayBuffer = await response.arrayBuffer()
+                  const buffer = Buffer.from(arrayBuffer)
+                  const contentType = response.headers.get('content-type') || 'image/jpeg'
+                  const mimeType = contentType.split(';')[0].trim()
+                  fotoData = `data:${mimeType};base64,${buffer.toString('base64')}`
+                  console.log(`✅ Fetched photo for ${kta.nama}`)
+                } else {
+                  console.log(`⚠️ Photo fetch failed for ${kta.nama}: ${response.status}`)
+                }
+              } catch (error) {
+                console.log(`⚠️ Photo fetch error for ${kta.nama}:`, error instanceof Error ? error.message : 'Unknown')
+              }
             }
           }
 

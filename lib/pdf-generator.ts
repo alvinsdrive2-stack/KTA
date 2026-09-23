@@ -9,6 +9,7 @@ import path from 'path'
 import sharp from 'sharp'
 import { statSync } from 'fs'
 import { capitalizeEachWord, formatAlamatWithRW } from './kta-format'
+import { readUpload } from './upload-storage'
 
 interface KTAData {
   id: string
@@ -561,9 +562,15 @@ export class KTAPDFGenerator {
           console.log('✅ Base64 decoded')
         } else if (ktaData.fotoUrl && !ktaData.fotoUrl.startsWith('http')) {
           console.log('⏳ Reading local photo file...')
-          // Only fetch local files - skip external URLs (geo-blocked, etc)
-          const imagePath = path.join(process.cwd(), 'public', ktaData.fotoUrl)
-          imageBytes = await fs.readFile(imagePath)
+          // Foto hasil upload anggota disimpan di `storage/uploads/` (di luar
+          // `public/`) dan di DB cuma dicatat sebagai `/uploads/<key>`. Baca
+          // lewat readUpload() biar key-nya di-resolve ke root yang bener.
+          const key = ktaData.fotoUrl.replace(/^\/?uploads\//, '')
+          const fileBuffer = await readUpload(key)
+          if (!fileBuffer) {
+            throw new Error(`Foto nggak ketemu di storage: ${ktaData.fotoUrl}`)
+          }
+          imageBytes = fileBuffer
           console.log('✅ Photo file read')
         } else {
           // Skip external URLs - they will be geo-blocked on server
