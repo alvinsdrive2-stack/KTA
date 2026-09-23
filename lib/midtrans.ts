@@ -41,6 +41,7 @@ export const QRIS_MAX_AMOUNT = 500_000
 
 /** Metode yang cuma boleh dipakai di bawah ambang batas. */
 const NON_VA_PAYMENTS = [
+  'other_qris',
   'qris',
   'gopay',
   'shopeepay',
@@ -59,6 +60,7 @@ const VA_PAYMENTS = [
   'bri_va',
   'cimb_va',
   'permata_va',
+  'echannel',
   'other_va',
 ]
 
