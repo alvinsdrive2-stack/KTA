@@ -106,7 +106,9 @@ const navSections: NavSection[] = [
         title: 'Konfirmasi',
         href: '/dashboard/payments',
         icon: Confirmicon,
-        roles: ['PUSAT', 'ADMIN', 'KEUANGAN'],
+        // Konfirmasi pembayaran cuma buat Keuangan. BPP dan Admin nggak ikut —
+        // halaman /dashboard/payments juga nolak role di luar ini.
+        roles: ['KEUANGAN'],
         badge: null,
       },
       {
