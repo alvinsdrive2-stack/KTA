@@ -109,10 +109,33 @@ export async function POST(request: NextRequest) {
 
     // Backward compat: legacy order_id format was {invoiceNumber}-{timestamp}
     if (!bulkPayment) {
-      const invoiceNumber = order_id.replace(/-\d{13}$/, '')
+      // Timestamp di order_id lama itu detik (10 digit), bukan 13 digit
+      // milidetik. Dua-duanya dicoba biar order lama tetap ketemu.
+      const invoiceNumber = order_id.replace(/-\d{10,13}$/, '')
       console.log(`Not found by order_id, trying legacy invoiceNumber: "${invoiceNumber}"`)
       bulkPayment = await prisma.bulkPayment.findUnique({
         where: { invoiceNumber },
+        include: {
+          payments: true,
+          submittedByUser: {
+            select: {
+              role: true
+            }
+          }
+        }
+      })
+    }
+
+    // Jaring terakhir: cocokkan lewat transaction_id Midtrans.
+    //
+    // Ini buat baris yang order_id-nya ketuker (pernah kejadian: invoice 001
+    // nyimpen order_id milik transaksi lain, jadi webhook nggak nemu apa-apa
+    // padahal transaksinya ada). transaction_id nggak pernah kita generate
+    // sendiri — dia dikasih Midtrans dan unik per transaksi.
+    if (!bulkPayment && transaction_id) {
+      console.log(`Not found by order_id/invoiceNumber, trying midtransTransactionId: "${transaction_id}"`)
+      bulkPayment = await prisma.bulkPayment.findFirst({
+        where: { midtransTransactionId: transaction_id },
         include: {
           payments: true,
           submittedByUser: {
