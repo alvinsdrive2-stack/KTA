@@ -1,109 +1,181 @@
 import { prisma } from '../lib/prisma'
 
-// Mapping data dari user (BPD -> Last KTA Number)
-// Format: XX.YY.ZZZZZZ
-// XX = kode daerah/provinsi
-// YY = 01 (Ahli), 02 (Teknisi), 03 (Operator)
-// ZZZZZZ = 6 digit sequence
+/**
+ * Set lastSequence KTA per daerah dari "nomor kta terakhir.docx".
+ *
+ * String nomor di bawah disalin persis dari doc (word/document.xml), sequence
+ * diparse oleh kode — bukan ketik manual — biar salah ketik angka ketahuan.
+ *
+ * Aturan main:
+ * - Update HANYA NAIK: max(nilai DB, nilai doc). Nggak pernah nurunin, karena
+ *   nurunin sequence = risiko nomor KTA ganda.
+ * - Daerah yang nggak ketemu di DB di-skip + dilaporin, nggak dibikin baru.
+ * - Daerah yang nggak ada di doc (mis. Sumut, Riau, Bengkulu, dst.) nggak
+ *   disentuh sama sekali.
+ *
+ * Anomali di doc, dan keputusan buat masing-masing (jangan diubah diam-diam):
+ * - Lampung, Ahli tertulis "18.02.000067": segmen .02 itu jatah Teknisi, tapi
+ *   labelnya Ahli. Diambil angkanya aja: Ahli=67, Teknisi=68. Script ngasih
+ *   warning tiap segmen nggak cocok, tapi angka tetap dipakai.
+ * - NTB Teknisi tertulis "52.02.0008 60" kepotong dua run di XML: digabung 860.
+ * - Kalsel Operator tertulis "63.02.000001" (segmen .02): angka 1 buat Operator.
+ * - Papua Operator tertulis "94.02.000000": 0, nggak ngubah apa-apa.
+ * - Maluku (81), Sulbar (76), Sulut (71): semua "00", belum ada nomor — nggak
+ *   masuk mapping, nggak disentuh.
+ * - Kode Papua ngikutin fix_kode_daerah_papua.sql: Papua=94, Papua Barat=91,
+ *   Papua Barat Daya=92.
+ * - Pusat nomornya 99.x tapi barisnya kode '00' — ngikutin mapping lama file ini.
+ * - K3 (98.x): baris kode '98'. Kalau belum ada di DB bakal ke-skip + kelapor.
+ *
+ * Pakai:
+ *   npm run db:kta-sequences              tulis ke DB
+ *   npm run db:kta-sequences -- --dry-run cuma tampilin diff, nggak nulis
+ */
 
-interface KTASequence {
-  kodePropinsi: string
-  namaBPD: string
-  lastKTAAhli: string      // Format: XX.01.ZZZZZZ
-  lastKTATeknisi: string   // Format: XX.02.ZZZZZZ
-  lastKTAOperator: string  // Format: XX.03.ZZZZZZ
+interface SequenceEntry {
+  kode: string
+  /** Kode yang muncul di segmen pertama nomor (beda dari `kode` cuma buat Pusat). */
+  kodeDiNomor?: string
+  nama: string
+  ahli: string
+  teknisi: string
+  operator: string
 }
 
-const KTA_MAPPING: KTASequence[] = [
-  { kodePropinsi: '11', namaBPD: 'ACEH', lastKTAAhli: '11.01.000042', lastKTATeknisi: '11.02.000136', lastKTAOperator: '11.03.000002' },
-  { kodePropinsi: '13', namaBPD: 'SUMATERA BARAT', lastKTAAhli: '13.01.000030', lastKTATeknisi: '13.02.000127', lastKTAOperator: '13.03.000002' },
-  { kodePropinsi: '15', namaBPD: 'JAMBI', lastKTAAhli: '15.01.000004', lastKTATeknisi: '15.02.000034', lastKTAOperator: '15.02.000000' }, // Operator di data tertulis 15.02.000000 (mungkin typo, should be 15.03)
-  { kodePropinsi: '16', namaBPD: 'SUMATERA SELATAN', lastKTAAhli: '16.01.000134', lastKTATeknisi: '16.02.000630', lastKTAOperator: '16.03.000007' },
-  { kodePropinsi: '18', namaBPD: 'LAMPUNG', lastKTAAhli: '18.01.000022', lastKTATeknisi: '18.02.000064', lastKTAOperator: '18.03.000001' },
-  { kodePropinsi: '19', namaBPD: 'BANGKA BELITUNG', lastKTAAhli: '19.01.000065', lastKTATeknisi: '19.02.000149', lastKTAOperator: '19.03.000036' },
-  { kodePropinsi: '21', namaBPD: 'KEPRI', lastKTAAhli: '21.01.000040', lastKTATeknisi: '21.02.000235', lastKTAOperator: '21.01.000000' }, // Operator di data tertulis 21.01.000000 (typo)
-  { kodePropinsi: '31', namaBPD: 'DKI JAKARTA', lastKTAAhli: '31.01.000221', lastKTATeknisi: '31.02.000401', lastKTAOperator: '31.03.000012' },
-  { kodePropinsi: '32', namaBPD: 'JAWA BARAT', lastKTAAhli: '32.01.000239', lastKTATeknisi: '32.02.000753', lastKTAOperator: '32.03.000063' },
-  { kodePropinsi: '33', namaBPD: 'JAWA TENGAH', lastKTAAhli: '33.01.000398', lastKTATeknisi: '33.02.001287', lastKTAOperator: '33.03.000015' },
-  { kodePropinsi: '35', namaBPD: 'JAWA TIMUR', lastKTAAhli: '35.01.000190', lastKTATeknisi: '35.02.001120', lastKTAOperator: '35.03.000029' },
-  { kodePropinsi: '34', namaBPD: 'DI YOGYAKARTA', lastKTAAhli: '34.01.000033', lastKTATeknisi: '34.02.000183', lastKTAOperator: '34.03.000003' },
-  { kodePropinsi: '36', namaBPD: 'BANTEN', lastKTAAhli: '36.01.000039', lastKTATeknisi: '36.02.000246', lastKTAOperator: '36.03.000012' },
-  { kodePropinsi: '51', namaBPD: 'BALI', lastKTAAhli: '51.01.000128', lastKTATeknisi: '51.02.000539', lastKTAOperator: '51.03.000076' },
-  { kodePropinsi: '52', namaBPD: 'NTB', lastKTAAhli: '52.01.000121', lastKTATeknisi: '52.02.000664', lastKTAOperator: '52.01.000000' }, // Operator di data tertulis 52.01.000000 (typo)
-  { kodePropinsi: '53', namaBPD: 'NTT', lastKTAAhli: '53.01.000154', lastKTATeknisi: '53.02.000309', lastKTAOperator: '53.03.000005' },
-  { kodePropinsi: '61', namaBPD: 'KALIMANTAN BARAT', lastKTAAhli: '61.01.000041', lastKTATeknisi: '61.02.000461', lastKTAOperator: '61.03.000015' },
-  { kodePropinsi: '62', namaBPD: 'KALIMANTAN TENGAH', lastKTAAhli: '62.03.000000', lastKTATeknisi: '62.02.000008', lastKTAOperator: '62.03.000004' }, // Ahli di data tertulis 62.03.000000 (typo)
-  { kodePropinsi: '63', namaBPD: 'KALIMANTAN SELATAN', lastKTAAhli: '63.01.000212', lastKTATeknisi: '63.02.000283', lastKTAOperator: '63.03.000001' },
-  { kodePropinsi: '64', namaBPD: 'KALIMANTAN TIMUR', lastKTAAhli: '64.01.000185', lastKTATeknisi: '64.02.000966', lastKTAOperator: '64.02.000000' }, // Operator di data tertulis 64.02.000000 (typo)
-  { kodePropinsi: '72', namaBPD: 'SULAWESI TENGAH', lastKTAAhli: '72.01.000028', lastKTATeknisi: '72.02.000091', lastKTAOperator: '72.02.000000' }, // Operator di data tertulis 72.02.000000 (typo)
-  { kodePropinsi: '73', namaBPD: 'SULAWESI SELATAN', lastKTAAhli: '73.01.000172', lastKTATeknisi: '73.02.000369', lastKTAOperator: '73.02.000000' }, // Operator di data tertulis 73.02.000000 (typo)
-  { kodePropinsi: '75', namaBPD: 'GORONTALO', lastKTAAhli: '75.01.000000', lastKTATeknisi: '75.02.000004', lastKTAOperator: '75.03.000000' },
-  { kodePropinsi: '81', namaBPD: 'MALUKU', lastKTAAhli: '81.01.000000', lastKTATeknisi: '81.02.000000', lastKTAOperator: '81.03.000000' },
-  { kodePropinsi: '91', namaBPD: 'PAPUA', lastKTAAhli: '91.01.000029', lastKTATeknisi: '91.02.000274', lastKTAOperator: '91.03.000000' },
-  { kodePropinsi: '92', namaBPD: 'PAPUA BARAT', lastKTAAhli: '92.01.000023', lastKTATeknisi: '92.02.000248', lastKTAOperator: '92.03.000000' },
-  { kodePropinsi: '00', namaBPD: 'PUSAT', lastKTAAhli: '99.01.001957', lastKTATeknisi: '99.02.002446', lastKTAOperator: '99.03.000329' }, // kodePropinsi for Pusat is '00', not '99'
+const DARI_DOC: SequenceEntry[] = [
+  { kode: '11', nama: 'Aceh', ahli: '11.01.000086', teknisi: '11.02.000137', operator: '11.03.000000' },
+  { kode: '15', nama: 'Jambi', ahli: '15.01.000004', teknisi: '15.02.000036', operator: '15.03.000000' },
+  { kode: '13', nama: 'Sumatera Barat', ahli: '13.01.000033', teknisi: '13.02.000130', operator: '13.03.000000' },
+  { kode: '16', nama: 'Sumatera Selatan', ahli: '16.01.000156', teknisi: '16.02.000731', operator: '16.03.000013' },
+  // Ahli tertulis 18.02.000067 di doc (segmen .02, harusnya .01) — angka 67 dipakai, lihat warning.
+  { kode: '18', nama: 'Lampung', ahli: '18.02.000067', teknisi: '18.02.000068', operator: '18.03.000015' },
+  { kode: '19', nama: 'Bangka Belitung', ahli: '19.01.000076', teknisi: '19.02.000163', operator: '19.03.000037' },
+  { kode: '21', nama: 'Kepri', ahli: '21.01.000047', teknisi: '21.02.000254', operator: '21.03.000001' },
+  { kode: '31', nama: 'DKI Jakarta', ahli: '31.01.000253', teknisi: '31.02.000442', operator: '31.03.000030' },
+  { kode: '32', nama: 'Jawa Barat', ahli: '32.01.000263', teknisi: '32.02.000925', operator: '32.03.000065' },
+  { kode: '33', nama: 'Jawa Tengah', ahli: '33.01.000409', teknisi: '33.02.001460', operator: '33.03.000016' },
+  { kode: '34', nama: 'DI Yogyakarta', ahli: '34.01.000035', teknisi: '34.02.000194', operator: '34.03.000003' },
+  { kode: '35', nama: 'Jawa Timur', ahli: '35.01.000213', teknisi: '35.02.001374', operator: '35.03.000033' },
+  { kode: '36', nama: 'Banten', ahli: '36.01.000045', teknisi: '36.02.000267', operator: '36.03.000012' },
+  { kode: '52', nama: 'NTB', ahli: '52.01.000141', teknisi: '52.02.000860', operator: '52.03.000000' },
+  { kode: '53', nama: 'NTT', ahli: '53.01.000177', teknisi: '53.02.000312', operator: '53.03.000005' },
+  { kode: '61', nama: 'Kalimantan Barat', ahli: '61.01.000117', teknisi: '61.02.000639', operator: '61.03.000015' },
+  { kode: '62', nama: 'Kalimantan Tengah', ahli: '62.01.000000', teknisi: '62.02.000008', operator: '62.03.000004' },
+  // Operator tertulis 63.02.000001 di doc (segmen .02, harusnya .03) — angka 1 dipakai, lihat warning.
+  { kode: '63', nama: 'Kalimantan Selatan', ahli: '63.01.000220', teknisi: '63.02.000285', operator: '63.02.000001' },
+  { kode: '64', nama: 'Kalimantan Timur', ahli: '64.01.000203', teknisi: '64.02.000986', operator: '00' },
+  { kode: '72', nama: 'Sulawesi Tengah', ahli: '72.01.000029', teknisi: '72.02.000108', operator: '00' },
+  { kode: '73', nama: 'Sulawesi Selatan', ahli: '73.01.000183', teknisi: '73.02.000382', operator: '73.03.000001' },
+  { kode: '75', nama: 'Gorontalo', ahli: '75.01.000000', teknisi: '75.02.000004', operator: '75.03.000000' },
+  { kode: '51', nama: 'Bali', ahli: '51.01.000144', teknisi: '51.02.000595', operator: '51.03.000072' },
+  { kode: '91', nama: 'Papua Barat', ahli: '91.01.000037', teknisi: '91.02.000356', operator: '91.03.000000' },
+  // Operator tertulis 94.02.000000 di doc (segmen .02, harusnya .03) — 0, nggak ngubah apa-apa.
+  { kode: '94', nama: 'Papua', ahli: '94.01.000035', teknisi: '94.02.000270', operator: '94.02.000000' },
+  { kode: '92', nama: 'Papua Barat Daya', ahli: '92.01.000001', teknisi: '92.02.000003', operator: '00' },
+  { kode: '00', kodeDiNomor: '99', nama: 'Pusat', ahli: '99.01.002391', teknisi: '99.02.002963', operator: '99.03.000564' },
+  { kode: '98', nama: 'K3', ahli: '98.01.000011', teknisi: '98.02.000006', operator: '98.03.000056' },
 ]
 
-// Extract sequence number from KTA number
-// e.g., "11.01.000042" -> 42
-function extractSequence(ktaNumber: string): number {
-  const parts = ktaNumber.split('.')
-  if (parts.length !== 3) {
-    throw new Error(`Invalid KTA format: ${ktaNumber}`)
-  }
-  return parseInt(parts[2], 10)
+// Segmen jenjang yang bener: 01 = Ahli, 02 = Teknisi, 03 = Operator.
+const KODE_JENJANG: Record<'ahli' | 'teknisi' | 'operator', string> = {
+  ahli: '01',
+  teknisi: '02',
+  operator: '03',
 }
 
+/**
+ * Parse "XX.YY.ZZZZZZ" jadi sequence. "00" artinya belum ada nomor -> 0.
+ * Segmen yang nggak cocok cuma di-warning, nggak digagalin — keputusannya
+ * udah dicatat di header file ini.
+ */
+function ambilSequence(
+  nomor: string,
+  entry: SequenceEntry,
+  jenjang: 'ahli' | 'teknisi' | 'operator',
+): number {
+  const s = nomor.trim()
+  if (s === '00' || s === '0' || s === '') return 0
+  const cocok = s.match(/^(\d{2})\.(\d{2})\.(\d{6})$/)
+  if (!cocok) {
+    throw new Error(`format nomor nggak dikenal: "${nomor}" (${entry.nama} ${jenjang})`)
+  }
+  const kodeHarapan = entry.kodeDiNomor ?? entry.kode
+  if (cocok[1] !== kodeHarapan || cocok[2] !== KODE_JENJANG[jenjang]) {
+    console.log(
+      `   ⚠️  segmen nggak cocok di doc: "${s}" buat ${entry.nama} ${jenjang} ` +
+      `(harapan ${kodeHarapan}.${KODE_JENJANG[jenjang]}.xxxxxx) — angka tetap dipakai`,
+    )
+  }
+  return parseInt(cocok[3], 10)
+}
+
+const DRY_RUN = process.argv.includes('--dry-run')
+
 async function main() {
-  console.log('🚀 Starting KTA sequence setup...\n')
+  console.log('🚀 Update lastSequence KTA dari "nomor kta terakhir.docx"\n')
+  if (DRY_RUN) console.log('MODE DRY-RUN: cuma tampilin diff, nggak ada yang ditulis ke DB\n')
 
-  let successCount = 0
-  let skipCount = 0
-  let errorCount = 0
+  let sukses = 0
+  let tetap = 0
+  let skip = 0
+  let gagal = 0
 
-  for (const mapping of KTA_MAPPING) {
+  for (const entry of DARI_DOC) {
     try {
-      // Find daerah by kode propinsi
+      const ahli = ambilSequence(entry.ahli, entry, 'ahli')
+      const teknisi = ambilSequence(entry.teknisi, entry, 'teknisi')
+      const operator = ambilSequence(entry.operator, entry, 'operator')
+
       const daerah = await prisma.daerah.findFirst({
-        where: { kodePropinsi: mapping.kodePropinsi }
+        where: { OR: [{ kodeDaerah: entry.kode }, { kodePropinsi: entry.kode }] },
       })
 
       if (!daerah) {
-        console.log(`⚠️  SKIP: No daerah found for kode propinsi ${mapping.kodePropinsi} (${mapping.namaBPD})`)
-        skipCount++
+        console.log(`⏭️  SKIP ${entry.kode} ${entry.nama}: nggak ada di tabel daerah (bikin manual dulu kalau perlu)`)
+        skip++
         continue
       }
 
-      // Extract sequence numbers
-      const lastSequenceAhli = extractSequence(mapping.lastKTAAhli)
-      const lastSequenceTeknisi = extractSequence(mapping.lastKTATeknisi)
-      const lastSequenceOperator = extractSequence(mapping.lastKTAOperator)
+      const baru = {
+        lastSequenceAhli: Math.max(daerah.lastSequenceAhli, ahli),
+        lastSequenceTeknisi: Math.max(daerah.lastSequenceTeknisi, teknisi),
+        lastSequenceOperator: Math.max(daerah.lastSequenceOperator, operator),
+      }
 
-      // Update daerah
-      await prisma.daerah.update({
-        where: { id: daerah.id },
-        data: {
-          lastSequenceAhli,
-          lastSequenceTeknisi,
-          lastSequenceOperator,
-        }
-      })
+      const berubah =
+        baru.lastSequenceAhli !== daerah.lastSequenceAhli ||
+        baru.lastSequenceTeknisi !== daerah.lastSequenceTeknisi ||
+        baru.lastSequenceOperator !== daerah.lastSequenceOperator
 
-      console.log(`✅ ${daerah.namaDaerah} (${daerah.kodeDaerah}):`)
-      console.log(`   Ahli: ${lastSequenceAhli} | Teknisi: ${lastSequenceTeknisi} | Operator: ${lastSequenceOperator}`)
-      successCount++
+      if (!berubah) {
+        console.log(`➖ ${daerah.namaDaerah} (${daerah.kodeDaerah}): DB udah >= doc, nggak disentuh`)
+        tetap++
+        continue
+      }
 
+      if (!DRY_RUN) {
+        await prisma.daerah.update({ where: { id: daerah.id }, data: baru })
+      }
+
+      console.log(
+        `${DRY_RUN ? '🔍 [dry-run] ' : '✅ '}${daerah.namaDaerah} (${daerah.kodeDaerah}):\n` +
+        `   Ahli:     ${daerah.lastSequenceAhli} -> ${baru.lastSequenceAhli}\n` +
+        `   Teknisi:  ${daerah.lastSequenceTeknisi} -> ${baru.lastSequenceTeknisi}\n` +
+        `   Operator: ${daerah.lastSequenceOperator} -> ${baru.lastSequenceOperator}`,
+      )
+      sukses++
     } catch (error) {
-      console.error(`❌ ERROR processing ${mapping.namaBPD}:`, error)
-      errorCount++
+      console.error(`❌ ERROR ${entry.nama}:`, error)
+      gagal++
     }
   }
 
   console.log('\n' + '='.repeat(60))
   console.log('📊 SUMMARY:')
-  console.log(`   ✅ Success: ${successCount}`)
-  console.log(`   ⚠️  Skipped: ${skipCount}`)
-  console.log(`   ❌ Errors:  ${errorCount}`)
+  console.log(`   ✅ Diupdate: ${sukses}${DRY_RUN ? ' (dry-run, belum ditulis)' : ''}`)
+  console.log(`   ➖ Tetap (DB udah >= doc): ${tetap}`)
+  console.log(`   ⏭️  Skip (daerah nggak ada): ${skip}`)
+  console.log(`   ❌ Error: ${gagal}`)
   console.log('='.repeat(60))
 }
 
