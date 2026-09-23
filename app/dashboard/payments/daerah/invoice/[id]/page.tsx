@@ -15,6 +15,7 @@ import { useMidtransPayment } from '@/hooks/use-midtrans-payment'
 import { useSession } from '@/hooks/useSession'
 import { safeInvoiceFilename, formatCurrency } from '@/lib/utils'
 import { resolveInvoiceAmounts, lineHargaBase } from '@/lib/invoice'
+import { QRIS_MAX_AMOUNT } from '@/lib/midtrans'
 
 interface Payment {
   id: string
@@ -325,6 +326,9 @@ export default function InvoiceDetailPage() {
   } = resolveInvoiceAmounts(invoice, paymentsWithHarga)
   const isPending = invoice.status === 'PENDING'
 
+  // Samain sama aturan di server (lib/midtrans.ts): >= Rp 500.000 cuma VA bank.
+  const vaOnly = totalTagihan >= QRIS_MAX_AMOUNT
+
   return (
     <div className="space-y-5 max-w-4xl mx-auto pb-20">
       {/* Header */}
@@ -494,7 +498,11 @@ export default function InvoiceDetailPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-slate-900">Pembayaran Online</h3>
-                      <p className="text-sm text-slate-600">Bayar dengan QRIS, GoPay, OVO, Bank Transfer, dll</p>
+                      <p className="text-sm text-slate-600">
+                        {vaOnly
+                          ? 'Nominal di atas Rp 500.000 — bayar lewat Virtual Account bank'
+                          : 'Bayar dengan QRIS, GoPay, OVO, Bank Transfer, dll'}
+                      </p>
                     </div>
                   </div>
                   <Button

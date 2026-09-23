@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { KTAStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { generateInvoiceNumber, computeHargaBaseSnapshot } from '@/lib/invoice'
@@ -33,15 +34,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Cuma KTA yang emang masih di tahap pembayaran yang boleh ditagih. Tanpa
+    // ini, KTA yang udah kelar (READY_TO_PRINT/PRINTED) bisa dibuatin invoice
+    // baru — nagih dua kali buat kartu yang sama.
+    const PAYABLE_STATUSES: KTAStatus[] = ['DRAFT', 'REJECTED', 'UPGRADE_PENDING']
     const ktaRequests = await prisma.kTARequest.findMany({
       where: {
         id: { in: requestIds },
+        status: { in: PAYABLE_STATUSES },
         ...(isPusatOrAdmin ? {} : { daerahId: userDaerahId as string })
       }
     })
 
     if (ktaRequests.length !== requestIds.length) {
-      return NextResponse.json({ error: 'Some KTA requests not found' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Sebagian KTA tidak ditemukan atau statusnya tidak bisa ditagih lagi' },
+        { status: 400 }
+      )
     }
 
     // Daerah pemilik request. ADMIN/KEUANGAN nggak punya daerahId sendiri, jadi

@@ -27,6 +27,57 @@ export interface MidtransTransaction {
   credit_card?: {
     secure?: boolean
   }
+  /** Batasi metode bayar yang muncul di Snap. Lihat `resolveEnabledPayments`. */
+  enabled_payments?: string[]
+}
+
+/**
+ * Ambang batas nominal buat boleh pakai QRIS / e-wallet.
+ *
+ * Di atas (dan pas) angka ini, cuma Virtual Account bank yang diizinkan —
+ * limit QRIS per transaksi bikin pembayaran gede rawan gagal di tengah jalan.
+ */
+export const QRIS_MAX_AMOUNT = 500_000
+
+/** Metode yang cuma boleh dipakai di bawah ambang batas. */
+const NON_VA_PAYMENTS = [
+  'qris',
+  'gopay',
+  'shopeepay',
+  'akulaku',
+  'kredivo',
+  'bca_klikpay',
+  'bri_epay',
+  'cimb_clicks',
+  'danamon_online',
+]
+
+/** Semua channel Virtual Account bank yang didukung Midtrans Snap. */
+const VA_PAYMENTS = [
+  'bca_va',
+  'bni_va',
+  'bri_va',
+  'cimb_va',
+  'permata_va',
+  'other_va',
+]
+
+/**
+ * Tentukan metode bayar yang ditampilkan Snap berdasarkan nominal tagihan.
+ *
+ * Dipakai di server saat bikin token, jadi batasannya nggak bisa dilewatin
+ * dari sisi client.
+ *
+ * @param amount total tagihan dalam rupiah (bukan sen)
+ */
+export function resolveEnabledPayments(amount: number): string[] {
+  // Nominal nggak valid / nol → serahkan ke default Midtrans, jangan dikunci
+  // ke satu metode gara-gara data yang salah.
+  if (!Number.isFinite(amount) || amount <= 0) return []
+
+  if (amount >= QRIS_MAX_AMOUNT) return [...VA_PAYMENTS]
+
+  return [...VA_PAYMENTS, ...NON_VA_PAYMENTS]
 }
 
 export interface SnapTokenResponse {

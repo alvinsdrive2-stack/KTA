@@ -52,15 +52,17 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check if all requests are in correct status for payment
-    const invalidRequests = ktaRequests.filter(req => {
-      // Should not have existing payment
-      return req.payments && req.payments.length > 0
-    })
+    // Yang nggak boleh ditagih ulang cuma KTA yang payment-nya masih jalan
+    // (PENDING/PAID/VERIFIED). Payment berstatus REJECTED dianggap batal —
+    // tanpa ini, KTA yang invoice-nya pernah ditolak nggak akan pernah bisa
+    // diajukan pembayaran lagi karena jejak payment-nya nyangkut selamanya.
+    const invalidRequests = ktaRequests.filter(req =>
+      req.payments?.some(p => p.statusPembayaran !== 'REJECTED')
+    )
 
     if (invalidRequests.length > 0) {
       return NextResponse.json({
-        error: 'Some requests already have payments'
+        error: 'Sebagian KTA sudah punya pembayaran yang masih berjalan'
       }, { status: 400 })
     }
 
