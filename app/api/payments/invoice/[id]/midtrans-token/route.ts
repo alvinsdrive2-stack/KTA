@@ -99,27 +99,58 @@ export async function POST(
     const orderPrefix = `KTA_GATENSI_${yy}${mm}_`
     const ts = Math.floor(Date.now() / 1000)
 
+    // Ambil semua order_id bulan ini, hitung sequence tertinggi dari ANGKA-nya.
+    //
+    // Dulu ini `orderBy: midtransOrderId desc, take: 1` — sort string, jadi
+    // urutannya salah begitu lewat 9: "KTA_..._010" dianggap lebih kecil dari
+    // "KTA_..._009" karena '1' < '9'. Akibatnya sequence bisa balik ke angka
+    // yang udah kepakai.
+    const orderBulanIni = await prisma.bulkPayment.findMany({
+      where: { midtransOrderId: { startsWith: orderPrefix } },
+      select: { midtransOrderId: true }
+    })
+    let seqTertinggi = 0
+    for (const o of orderBulanIni) {
+      const n = parseInt((o.midtransOrderId || '').split('-')[0].split('_').pop() || '0', 10)
+      if (Number.isFinite(n) && n > seqTertinggi) seqTertinggi = n
+    }
+
     let orderId = ''
-    let persisted = false
     let snapResponse: SnapTokenResponse | null = null
 
+    // Klaim order_id di DB DULU, baru panggil Midtrans.
+    //
+    // Urutan sebaliknya (panggil Midtrans dulu, simpan belakangan) bikin
+    // transaksi ada di Midtrans tapi nggak tercatat di sini kalau prosesnya
+    // mati di antaranya. Webhook-nya lalu 404 terus karena nggak nemu
+    // order_id-nya — duit masuk, KTA nggak pernah terbit.
+    //
+    // Yang diklaim cuma kolom midtransOrderId; token diisi setelah Midtrans
+    // balas. Kalau panggilan ke Midtrans gagal, klaimnya dilepas lagi biar
+    // nggak ada order_id nyangkut tanpa transaksi.
     for (let attempt = 0; attempt < 5; attempt++) {
-      const lastOrder = await prisma.bulkPayment.findMany({
-        where: { midtransOrderId: { startsWith: orderPrefix } },
-        orderBy: { midtransOrderId: 'desc' },
-        take: 1,
-        select: { midtransOrderId: true }
-      })
+      const kandidat = `${orderPrefix}${String(seqTertinggi + 1 + attempt).padStart(3, '0')}-${ts}`
 
-      let seq = 1
-      if (lastOrder.length > 0 && lastOrder[0].midtransOrderId) {
-        const lastSeq = parseInt(lastOrder[0].midtransOrderId.split('-')[0].split('_').pop() || '0', 10)
-        seq = lastSeq + 1
+      try {
+        await prisma.bulkPayment.update({
+          where: { id: params.id },
+          data: { midtransOrderId: kandidat }
+        })
+      } catch (err: any) {
+        // P2002 = order_id ini udah dipakai baris lain, coba nomor berikutnya
+        if (err?.code === 'P2002') continue
+        throw err
       }
 
-      orderId = `${orderPrefix}${String(seq).padStart(3, '0')}-${ts}`
+      orderId = kandidat
+      break
+    }
 
-      // Build transaction
+    if (!orderId) {
+      throw new Error('Failed to allocate unique Midtrans order_id')
+    }
+
+    try {
       const transaction: MidtransTransaction = {
         transaction_details: {
           order_id: orderId,
@@ -130,30 +161,30 @@ export async function POST(
       }
 
       console.log('Creating new Midtrans transaction:', orderId)
-
       snapResponse = await generateSnapToken(transaction)
-
-      // Persist midtransOrderId so the sequence is not reused
-      try {
-        await prisma.bulkPayment.update({
-          where: { id: params.id },
-          data: {
-            midtransToken: snapResponse.token,
-            midtransRedirectUrl: snapResponse.redirect_url,
-            midtransOrderId: orderId
-          }
-        })
-        persisted = true
-        break
-      } catch (err: any) {
-        // Unique constraint violation -> retry with next sequence
-        if (err?.code === 'P2002') continue
-        throw err
-      }
+    } catch (err) {
+      // Midtrans nolak / nggak kebales — lepas klaimnya biar nggak ada
+      // order_id yang nyangkut tanpa transaksi.
+      await prisma.bulkPayment.update({
+        where: { id: params.id },
+        data: { midtransOrderId: null }
+      }).catch(() => {})
+      throw err
     }
 
-    if (!persisted || !orderId || !snapResponse) {
-      throw new Error('Failed to allocate unique Midtrans order_id')
+    // Token disimpan setelah transaksi jadi. Kalau langkah ini gagal, order_id
+    // tetap keklaim dan webhook masih bisa nemu barisnya — jadi lebih aman
+    // daripada kegagalan di sisi Midtrans.
+    try {
+      await prisma.bulkPayment.update({
+        where: { id: params.id },
+        data: {
+          midtransToken: snapResponse.token,
+          midtransRedirectUrl: snapResponse.redirect_url
+        }
+      })
+    } catch (err) {
+      console.error('Gagal simpan token Midtrans (order_id tetap keklaim):', orderId, err)
     }
 
     return NextResponse.json({
