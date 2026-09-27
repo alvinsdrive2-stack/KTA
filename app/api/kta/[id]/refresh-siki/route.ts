@@ -11,19 +11,34 @@ const isLocalUpload = (value: string | null | undefined): value is string =>
   typeof value === 'string' && value.length > 0 && !value.startsWith('http')
 
 /**
- * Putuskan nilai ktpUrl/fotoUrl akhir untuk satu field dokumen.
+ * Putuskan nilai `ktpUrl` akhir.
  *
  * - SIKI nggak kirim apa-apa (null/undefined) -> pertahankan nilai lama.
  * - Nilai lama hasil upload manual -> tetap dipakai, abaikan URL SIKI.
  * - Nilai lama masih URL SIKI / kosong -> terima URL baru dari SIKI.
  */
-function resolveDocumentUrl(
+function resolveKtpUrl(
   current: string | null,
   incoming: string | null | undefined
 ): string | null {
   if (!incoming) return current
   if (isLocalUpload(current)) return current
   return incoming
+}
+
+/**
+ * Putuskan nilai `fotoUrl` akhir.
+ *
+ * Beda dari KTP: foto sering berganti di SIKI, jadi URL baru selalu menang —
+ * termasuk kalau yang lama hasil upload manual. Yang tetap dijaga cuma kasus
+ * SIKI balikin null; itu artinya datanya nggak ada di respons, bukan berarti
+ * fotonya dihapus, jadi nilai lama dipertahankan.
+ */
+function resolveFotoUrl(
+  current: string | null,
+  incoming: string | null | undefined
+): string | null {
+  return incoming || current
 }
 
 export async function POST(
@@ -196,21 +211,19 @@ export async function POST(
         noTelp: noTelp,
         email: sikiData.data?.email || '',
         alamat: sikiData.data?.alamat || '',
-        // Dokumen hasil upload manual dipertahankan; URL SIKI cuma nge-update
-        // kalau kolomnya masih kosong atau masih nunjuk ke SIKI.
-        ktpUrl: resolveDocumentUrl(ktaRequest.ktpUrl, sikiData.data?.ktpUrl),
-        fotoUrl: resolveDocumentUrl(ktaRequest.fotoUrl, sikiData.data?.fotoUrl),
+        // KTP hasil upload manual dipertahankan; URL SIKI cuma nge-update kalau
+        // kolomnya masih kosong atau masih nunjuk ke SIKI. Foto selalu ikut SIKI
+        // selama responsnya nggak null — lihat resolveFotoUrl().
+        ktpUrl: resolveKtpUrl(ktaRequest.ktpUrl, sikiData.data?.ktpUrl),
+        fotoUrl: resolveFotoUrl(ktaRequest.fotoUrl, sikiData.data?.fotoUrl),
       },
     })
 
     // Laporkan field dokumen yang nggak ikut berubah, biar UI bisa kasih tahu
     // anggota bahwa url SIKI beda tapi dokumen manualnya dipertahankan.
     const skippedDocuments: string[] = []
-    if (ktaRequest.ktpUrl && resolveDocumentUrl(ktaRequest.ktpUrl, sikiData.data?.ktpUrl) !== sikiData.data?.ktpUrl) {
+    if (ktaRequest.ktpUrl && resolveKtpUrl(ktaRequest.ktpUrl, sikiData.data?.ktpUrl) !== sikiData.data?.ktpUrl) {
       skippedDocuments.push('KTP')
-    }
-    if (ktaRequest.fotoUrl && resolveDocumentUrl(ktaRequest.fotoUrl, sikiData.data?.fotoUrl) !== sikiData.data?.fotoUrl) {
-      skippedDocuments.push('Foto')
     }
 
     return NextResponse.json({
