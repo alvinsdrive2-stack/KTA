@@ -26,6 +26,13 @@ const routeAccessMap: Record<string, string[]> = {
   '/dashboard/keuangan': ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
   '/dashboard/daerah': ['PUSAT', 'ADMIN','KEUANGAN'],
   '/dashboard/daerah/[id]': ['PUSAT', 'ADMIN','KEUANGAN'],
+
+  // Permohonan perubahan KTA — cuma BPP yang ngajuin, cuma Keuangan yang mutus.
+  // Pencocokannya exact, jadi '/dashboard/keuangan' di atas nggak "menelan"
+  // dua key di bawah ini.
+  '/dashboard/kta/perubahan': ['PUSAT'],
+  '/dashboard/keuangan/perubahan': ['KEUANGAN'],
+  '/dashboard/keuangan/perubahan/[id]': ['KEUANGAN'],
 }
 
 function matchRoute(pathname: string, pattern: string): boolean {

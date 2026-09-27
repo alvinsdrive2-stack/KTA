@@ -3,7 +3,7 @@
  *
  * Defines which roles can access which routes
  *
- * Roles: DAERAH, PUSAT, ADMIN
+ * Roles: DAERAH, PUSAT, ADMIN, KEUANGAN
  *
  * @param allowedRoles - Array of roles that can access this route
  * @param useForbiddenPage - If true, redirect to /forbidden instead of redirectPath
@@ -12,7 +12,7 @@
 
 export interface RouteAccess {
   path: string
-  allowedRoles: ('DAERAH' | 'PUSAT' | 'ADMIN')[]
+  allowedRoles: ('DAERAH' | 'PUSAT' | 'ADMIN' | 'KEUANGAN')[]
   useForbiddenPage?: boolean  // If true, redirect to /forbidden when access denied
   redirectPath?: string
 }
@@ -68,6 +68,13 @@ export const routeAccessMap: RouteAccess[] = [
   {
     path: '/dashboard/kta/[id]/print',
     allowedRoles: ['DAERAH', 'PUSAT', 'ADMIN'],
+  },
+  {
+    // BPP ngajuin permohonan perubahan data KTA. Halamannya sendiri juga nolak
+    // role selain PUSAT — ini lapis pertama, bukan satu-satunya.
+    path: '/dashboard/kta/perubahan',
+    allowedRoles: ['PUSAT'],
+    useForbiddenPage: true,
   },
 
   // ==================== PAYMENTS - DAERAH (DAERAH+PUSAT+ADMIN can view) ====================
@@ -141,6 +148,20 @@ export const routeAccessMap: RouteAccess[] = [
   {
     path: '/dashboard/keuangan',
     allowedRoles: ['PUSAT', 'ADMIN'],
+    useForbiddenPage: true,
+  },
+  {
+    // Konfirmasi permohonan perubahan KTA. Cuma Keuangan yang memutus.
+    // Urutannya penting: '/dashboard/keuangan/perubahan' harus dicek SEBELUM
+    // '/dashboard/keuangan', karena find() balikin match pertama dan path yang
+    // lebih spesifik bakal ketemu lebih dulu.
+    path: '/dashboard/keuangan/perubahan',
+    allowedRoles: ['KEUANGAN'],
+    useForbiddenPage: true,
+  },
+  {
+    path: '/dashboard/keuangan/perubahan/[id]',
+    allowedRoles: ['KEUANGAN'],
     useForbiddenPage: true,
   },
 

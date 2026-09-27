@@ -26,6 +26,8 @@ model User {
   bulkPaymentsSubmitted BulkPayment[] @relation("BulkPaymentSubmittedBy")
   bulkPaymentsVerified  BulkPayment[] @relation("BulkPaymentVerifiedBy")
   ktaRequests           KTARequest[]
+  changeRequestsRequested KTAChangeRequest[] @relation("ChangeRequestRequestedBy")
+  changeRequestsReviewed  KTAChangeRequest[] @relation("ChangeRequestReviewedBy")
   sessions              Session[]
   passwordResetTokens   PasswordResetToken[]
   daerah                Daerah?       @relation(fields: [daerahId], references: [id])
@@ -158,6 +160,7 @@ model KTARequest {
   hargaUpgrade       Int?
   approvals          Approval[]
   documents          KTADocument[]
+  changeRequests     KTAChangeRequest[]
   daerah             Daerah          @relation(fields: [daerahId], references: [id])
   requestedByUser    User            @relation(fields: [requestedBy], references: [id])
   klasifikasi        Subklasifikasi? @relation(fields: [subklasifikasiId], references: [id])
@@ -183,6 +186,50 @@ model KTADocument {
 
   @@index([ktaRequestId], map: "kta_documents_ktaRequestId_fkey")
   @@map("kta_documents")
+}
+
+/// Permohonan perubahan data KTA yang diajukan BPP (role PUSAT) dan dikonfirmasi
+/// Keuangan. Satu baris = satu field. `oldValue` dan `sikiValue` sengaja
+/// disimpan sebagai snapshot: Keuangan mengonfirmasi nilai saat pengajuan
+/// dibuat, bukan nilai KTA yang mungkin sudah berubah belakangan.
+model KTAChangeRequest {
+  id            String         @id @default(cuid())
+  ktaRequestId  String
+  requestedBy   String
+  /// Nama kolom KTARequest yang diubah, salah satu dari whitelist di
+  /// lib/kta-change-request.ts. Bukan input bebas — divalidasi di route.
+  fieldName     String
+  oldValue      String?        @db.Text
+  newValue      String         @db.Text
+  /// Alasan BPP mengajukan perubahan ini.
+  reason        String         @db.Text
+  /// Bukti permohonan (surat/scan), bentuknya `/uploads/...`.
+  buktiUrl      String
+  /// ID Izin opsional yang dipakai BPP buat narik pembanding dari SIKI.
+  idIzinInput   String?
+  /// Nilai SIKI saat pengajuan dibuat, buat ditampilin ke Keuangan tanpa
+  /// fetch ulang (URL SIKI sering ke-block dari server).
+  sikiValue     String?        @db.Text
+  status        ChangeStatus   @default(PENDING)
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  /// Alasan penolakan dari Keuangan.
+  catatan       String?        @db.Text
+  appliedAt     DateTime?
+  /// Hasil penerapan: field apa yang di-update, dan catatan kalau refresh SIKI
+  /// dilewati atau gagal.
+  appliedResult String?        @db.Text
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  ktaRequest    KTARequest     @relation(fields: [ktaRequestId], references: [id], onDelete: Cascade)
+  requestedByUser User         @relation("ChangeRequestRequestedBy", fields: [requestedBy], references: [id])
+  reviewedByUser  User?        @relation("ChangeRequestReviewedBy", fields: [reviewedBy], references: [id])
+
+  @@index([ktaRequestId], map: "kta_change_requests_ktaRequestId_fkey")
+  @@index([requestedBy], map: "kta_change_requests_requestedBy_fkey")
+  @@index([reviewedBy], map: "kta_change_requests_reviewedBy_fkey")
+  @@index([status], map: "kta_change_requests_status_idx")
+  @@map("kta_change_requests")
 }
 
 model Payment {
@@ -350,4 +397,14 @@ enum ApprovalStatus {
   APPROVED
   REJECTED
   REVISION
+}
+
+/// Status permohonan perubahan KTA.
+/// PENDING  - diajukan BPP, nunggu konfirmasi Keuangan
+/// APPROVED - diterima, perubahannya sudah diterapkan ke KTARequest
+/// REJECTED - ditolak Keuangan, `catatan` wajib berisi alasannya
+enum ChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
