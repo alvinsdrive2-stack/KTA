@@ -4,6 +4,28 @@ import { authMiddleware } from '@/lib/auth-helpers'
 
 export const dynamic = 'force-dynamic'
 
+// URL dokumen bisa berupa path lokal (`/uploads/...` dari upload manual) atau
+// URL absolut ke SIKI. Yang lokal harus menang: kalau SIKI kebalikin null atau
+// URL lama, jangan timpa dokumen yang udah di-upload anggota.
+const isLocalUpload = (value: string | null | undefined): value is string =>
+  typeof value === 'string' && value.length > 0 && !value.startsWith('http')
+
+/**
+ * Putuskan nilai ktpUrl/fotoUrl akhir untuk satu field dokumen.
+ *
+ * - SIKI nggak kirim apa-apa (null/undefined) -> pertahankan nilai lama.
+ * - Nilai lama hasil upload manual -> tetap dipakai, abaikan URL SIKI.
+ * - Nilai lama masih URL SIKI / kosong -> terima URL baru dari SIKI.
+ */
+function resolveDocumentUrl(
+  current: string | null,
+  incoming: string | null | undefined
+): string | null {
+  if (!incoming) return current
+  if (isLocalUpload(current)) return current
+  return incoming
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -174,15 +196,28 @@ export async function POST(
         noTelp: noTelp,
         email: sikiData.data?.email || '',
         alamat: sikiData.data?.alamat || '',
-        ktpUrl: sikiData.data?.ktpUrl,
-        fotoUrl: sikiData.data?.fotoUrl,
+        // Dokumen hasil upload manual dipertahankan; URL SIKI cuma nge-update
+        // kalau kolomnya masih kosong atau masih nunjuk ke SIKI.
+        ktpUrl: resolveDocumentUrl(ktaRequest.ktpUrl, sikiData.data?.ktpUrl),
+        fotoUrl: resolveDocumentUrl(ktaRequest.fotoUrl, sikiData.data?.fotoUrl),
       },
     })
+
+    // Laporkan field dokumen yang nggak ikut berubah, biar UI bisa kasih tahu
+    // anggota bahwa url SIKI beda tapi dokumen manualnya dipertahankan.
+    const skippedDocuments: string[] = []
+    if (ktaRequest.ktpUrl && resolveDocumentUrl(ktaRequest.ktpUrl, sikiData.data?.ktpUrl) !== sikiData.data?.ktpUrl) {
+      skippedDocuments.push('KTP')
+    }
+    if (ktaRequest.fotoUrl && resolveDocumentUrl(ktaRequest.fotoUrl, sikiData.data?.fotoUrl) !== sikiData.data?.fotoUrl) {
+      skippedDocuments.push('Foto')
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Data SIKI berhasil diperbarui',
       data: updatedKTA,
+      ...(skippedDocuments.length > 0 ? { skippedDocuments } : {}),
     })
   } catch (error) {
     console.error('Refresh SIKI error:', error)

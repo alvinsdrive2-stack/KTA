@@ -202,10 +202,13 @@ export default function KTADetailPage() {
       const result = await response.json()
 
       if (response.ok && result.success) {
+        const skipped: string[] = result.skippedDocuments || []
         toast({
           variant: 'success',
           title: 'Data Berhasil Diupdate',
-          description: 'Data KTA telah diperbarui dengan data terbaru dari SIKI'
+          description: skipped.length > 0
+            ? `Data KTA diperbarui. ${skipped.join(' dan ')} tetap pakai hasil upload manual, bukan URL SIKI.`
+            : 'Data KTA telah diperbarui dengan data terbaru dari SIKI'
         })
         fetchKTADetail(kta.id)
       } else {
