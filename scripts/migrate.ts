@@ -29,6 +29,7 @@ const MIGRATIONS = [
   'add_must_change_password.sql',
   'add_invoice_price_snapshot.sql',
   'add_password_reset_token.sql',
+  'add_kta_change_request.sql',
 ]
 
 /**
@@ -257,6 +258,14 @@ const HARUS_ADA: Array<{ label: string; sql: string }> = [
   {
     label: 'FK password_reset_tokens -> users',
     sql: "SELECT COUNT(*) AS ada FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'password_reset_tokens' AND CONSTRAINT_TYPE = 'FOREIGN KEY'",
+  },
+  {
+    label: 'tabel kta_change_requests',
+    sql: "SELECT COUNT(*) AS ada FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'kta_change_requests'",
+  },
+  {
+    label: 'FK kta_change_requests -> kta_requests',
+    sql: "SELECT COUNT(*) AS ada FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'kta_change_requests' AND CONSTRAINT_TYPE = 'FOREIGN KEY'",
   },
 ]
 

@@ -15,7 +15,8 @@ import {
   CheckCircleIcon as Confirmicon,
   UserCog,
   Database,
-  Smartphone
+  Smartphone,
+  FilePenLine
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useSession } from '@/hooks/useSession'
@@ -68,6 +69,15 @@ const navSections: NavSection[] = [
         icon: Download,
         roles: ['DAERAH', 'PUSAT', 'ADMIN','KEUANGAN'],
         badge: null,
+      },
+      {
+        // BPP ngajuin perubahan data KTA dari sini. Halamannya sendiri nolak
+        // role selain PUSAT, jadi jangan ditampilin ke role lain.
+        title: 'Perubahan KTA',
+        href: '/dashboard/kta/perubahan',
+        icon: FilePenLine,
+        roles: ['PUSAT'],
+        badge: null,
       }
     ]
   },
@@ -108,6 +118,14 @@ const navSections: NavSection[] = [
         icon: Confirmicon,
         // Konfirmasi pembayaran cuma buat Keuangan. BPP dan Admin nggak ikut —
         // halaman /dashboard/payments juga nolak role di luar ini.
+        roles: ['KEUANGAN'],
+        badge: null,
+      },
+      {
+        // Permohonan perubahan data KTA dari BPP, diputus di sini.
+        title: 'Konfirmasi Perubahan',
+        href: '/dashboard/keuangan/perubahan',
+        icon: FilePenLine,
         roles: ['KEUANGAN'],
         badge: null,
       },
