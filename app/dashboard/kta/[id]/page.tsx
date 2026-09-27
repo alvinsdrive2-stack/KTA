@@ -137,7 +137,12 @@ export default function KTADetailPage() {
         { key: 'telp', label: 'No. Telepon', altKey: 'noTelp' },
         { key: 'email', label: 'Email' },
         { key: 'alamat', label: 'Alamat' },
-        { key: 'klasifikasi.subklasifikasi', label: 'Subklasifikasi' }
+        { key: 'klasifikasi.subklasifikasi', label: 'Subklasifikasi' },
+        // Dokumen ikut dibandingin. Tanpa dua baris ini, perubahan foto doang
+        // bikin `changes` kosong -> modal nggak muncul -> endpoint update nggak
+        // pernah dipanggil, jadi refresh kelihatan "nggak jalan".
+        { key: 'fotoUrl', label: 'Foto', isDocument: true },
+        { key: 'ktpUrl', label: 'KTP', isDocument: true }
       ]
 
       fieldsToCompare.forEach(field => {
@@ -161,7 +166,7 @@ export default function KTADetailPage() {
         }
 
         if (oldValue !== newValue && oldValue?.toString() !== newValue?.toString()) {
-          changes[field.label] = { old: oldValue, new: newValue }
+          changes[field.label] = { old: oldValue, new: newValue, isDocument: !!field.isDocument }
         }
       })
 
@@ -1102,16 +1107,54 @@ export default function KTADetailPage() {
               {sikiChanges?.changes && Object.entries(sikiChanges.changes).map(([field, values]: [string, any]) => (
                 <div key={field} className="border border-slate-200 rounded-lg p-3">
                   <p className="font-semibold text-sm text-slate-700 mb-2">{field}</p>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-xs text-red-600 font-medium mb-1">Data Lama:</p>
-                      <p className="text-slate-600 bg-red-50 p-2 rounded">{values.old || '-'}</p>
+                  {values.isDocument ? (
+                    // URL SIKI panjangnya ratusan karakter, jadi jangan ditulis
+                    // mentah. Foto ditampilin sebagai thumbnail biar bisa dinilai
+                    // langsung; KTP biasanya PDF, cukup keterangan teks.
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-xs text-red-600 font-medium mb-1">Data Lama:</p>
+                        {values.old && field === 'Foto' ? (
+                          <img
+                            src={values.old}
+                            alt="Foto lama"
+                            className="w-full h-32 object-cover rounded bg-red-50"
+                          />
+                        ) : (
+                          <p className="text-slate-600 bg-red-50 p-2 rounded">
+                            {values.old ? 'Ada file di sistem' : 'Belum ada'}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-green-600 font-medium mb-1">Data Baru (SIKI):</p>
+                        {values.new && field === 'Foto' ? (
+                          <img
+                            src={values.new}
+                            alt="Foto baru dari SIKI"
+                            className="w-full h-32 object-cover rounded bg-green-50"
+                          />
+                        ) : (
+                          <p className="text-slate-600 bg-green-50 p-2 rounded">
+                            {values.new
+                              ? (field === 'Foto' ? 'Ada file baru dari SIKI' : 'File baru dari SIKI akan dipakai')
+                              : 'SIKI nggak kirim, data lama dipertahankan'}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-green-600 font-medium mb-1">Data Baru (SIKI):</p>
-                      <p className="text-slate-600 bg-green-50 p-2 rounded">{values.new || '-'}</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-xs text-red-600 font-medium mb-1">Data Lama:</p>
+                        <p className="text-slate-600 bg-red-50 p-2 rounded">{values.old || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-green-600 font-medium mb-1">Data Baru (SIKI):</p>
+                        <p className="text-slate-600 bg-green-50 p-2 rounded">{values.new || '-'}</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>
