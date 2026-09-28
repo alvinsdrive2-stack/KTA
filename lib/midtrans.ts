@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import type { PaymentStatus } from '@prisma/client'
 
 // Type definitions for Midtrans
@@ -87,11 +88,26 @@ export interface SnapTokenResponse {
   redirect_url: string
 }
 
-// Initialize Midtrans Snap API
-let snapApi: any = null
+/**
+ * Bentuk minimal Snap dari midtrans-client yang dipakai di sini — paket itu
+ * nggak nyertakan deklarasi tipe, jadi method-nya didaftar manual.
+ */
+interface SnapApi {
+  createTransaction(transaction: MidtransTransaction): Promise<{ token: string; redirect_url: string }>
+  transaction: {
+    status(orderId: string): Promise<Record<string, unknown>>
+    notification(payload: Record<string, unknown>): Promise<{ order_id?: string; transaction_status?: string }>
+  }
+}
 
-function getSnapApi(): any {
+// Initialize Midtrans Snap API
+let snapApi: SnapApi | null = null
+
+function getSnapApi(): SnapApi {
   if (!snapApi) {
+    // Lazy require disengaja: midtrans-client cuma CJS dan cukup di-load saat
+    // pertama kali dipakai, jangan ikut module init.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const midtransClient = require('midtrans-client')
 
     const isProduction = process.env.MIDTRANS_ENVIRONMENT === 'production'
@@ -100,7 +116,7 @@ function getSnapApi(): any {
       isProduction,
       serverKey: process.env.MIDTRANS_SERVER_KEY || '',
       clientKey: process.env.MIDTRANS_CLIENT_KEY || '',
-    })
+    }) as SnapApi
 
     console.log('Midtrans Snap API initialized:', {
       isProduction,
@@ -144,7 +160,7 @@ export async function generateSnapToken(
 /**
  * Get transaction status from Midtrans
  */
-export async function getTransactionStatus(orderId: string): Promise<any> {
+export async function getTransactionStatus(orderId: string): Promise<Record<string, unknown>> {
   try {
     const snap = getSnapApi()
     const status = await snap.transaction.status(orderId)
@@ -156,15 +172,86 @@ export async function getTransactionStatus(orderId: string): Promise<any> {
 }
 
 /**
- * Verify Midtrans notification signature
+ * Verifikasi `signature_key` notifikasi Midtrans.
+ *
+ * Midtrans mengirim `signature_key` = SHA512 dari
+ * `order_id + status_code + gross_amount + ServerKey` (digabung apa adanya,
+ * tanpa pemisah). Bandingkan hash dari data notifikasi dengan nilai yang
+ * dikirim; kalau beda, notifikasi bukan dari Midtrans.
+ *
+ * CATATAN PENTING: `snap.transaction.notification()` dari midtrans-client
+ * BUKAN verifikasi signature — method itu cuma ambil `transaction_id` lalu
+ * query status transaksi ke API Midtrans. Memakainya sebagai penentu
+ * keabsahan berarti siapa pun yang tahu `order_id` bisa POST notifikasi
+ * palsu `settlement` dan KTA-nya langsung terbit tanpa bayar.
  */
-export async function verifyNotification(notification: any): Promise<boolean> {
+export function verifyNotificationSignature(notification: Record<string, unknown>): boolean {
+  const serverKey = process.env.MIDTRANS_SERVER_KEY
+  if (!serverKey) {
+    console.error('MIDTRANS_SERVER_KEY nggak di-set — notifikasi ditolak')
+    return false
+  }
+
+  const orderId = notification.order_id
+  const statusCode = notification.status_code
+  const grossAmount = notification.gross_amount
+  const signatureKey = notification.signature_key
+
+  // Semua komponen wajib ada. Tanpa ini hash-nya nggak bisa dihitung, dan
+  // notifikasi yang nggak bawa signature harus ditolak, bukan diloloskan.
+  if (
+    typeof orderId !== 'string' ||
+    (typeof statusCode !== 'string' && typeof statusCode !== 'number') ||
+    (typeof grossAmount !== 'string' && typeof grossAmount !== 'number') ||
+    typeof signatureKey !== 'string'
+  ) {
+    console.error('Notifikasi Midtrans nggak lengkap: field signature wajib ada', {
+      hasOrderId: orderId != null,
+      hasStatusCode: statusCode != null,
+      hasGrossAmount: grossAmount != null,
+      hasSignatureKey: signatureKey != null,
+    })
+    return false
+  }
+
+  const raw = `${orderId}${statusCode}${grossAmount}${serverKey}`
+  const expected = crypto.createHash('sha512').update(raw).digest('hex')
+
+  const expectedBuf = Buffer.from(expected, 'utf8')
+  const actualBuf = Buffer.from(signatureKey, 'utf8')
+
+  // Panjang beda bikin timingSafeEqual melempar, jadi dicek dulu.
+  if (expectedBuf.length !== actualBuf.length) {
+    console.error('Signature notifikasi Midtrans nggak cocok (panjang beda)')
+    return false
+  }
+
+  if (!crypto.timingSafeEqual(expectedBuf, actualBuf)) {
+    console.error('Signature notifikasi Midtrans nggak cocok')
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Verifikasi notifikasi Midtrans secara utuh — signature dulu, baru tanya
+ * status transaksi ke Midtrans sebagai lapis kedua.
+ *
+ * Lapis kedua berguna buat memastikan transaksi memang ada di sisi Midtrans,
+ * tapi yang menentukan keabsahan tetap signature. Urutannya sengaja: request
+ * dengan signature palsu ditolak tanpa perlu memanggil API Midtrans.
+ */
+export async function verifyNotification(notification: Record<string, unknown>): Promise<boolean> {
+  if (!verifyNotificationSignature(notification)) {
+    return false
+  }
+
   try {
     const snap = getSnapApi()
 
-    // Midtrans library handles signature verification
-    // If the notification signature is invalid, this will throw an error
-    const verifiedNotification = snap.transaction.notification(notification)
+    // Cocokkan juga ke Midtrans: transaksi harus benar-benar ada di sana.
+    const verifiedNotification = await snap.transaction.notification(notification)
 
     console.log('Notification verified successfully:', {
       orderId: verifiedNotification.order_id,

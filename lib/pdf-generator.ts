@@ -19,10 +19,35 @@ interface KTAData {
   createdAt: Date
   tanggalDaftar: Date
   qrCodePath: string
+  /** Dipakai buat bikin ulang QR kalau file/link yang tersimpan nggak ketemu. */
+  nik?: string
   fotoUrl?: string
   fotoData?: string  // base64 image data (client-side fetch)
 }
 
+
+/**
+ * Baca file QR dari disk.
+ *
+ * File upload disimpan di `getUploadRoot()` (= `storage/uploads`), BUKAN di
+ * `public/` — lihat penjelasan di `lib/upload-storage.ts`. Yang tersimpan di
+ * kolom `qrCodePath` bentuknya URL (`/uploads/qr-codes/qr-<nik>.png`), jadi
+ * prefix `uploads/` dibuang dulu sebelum jadi key.
+ *
+ * Fallback ke `public/` dipertahankan buat jaga-jaga kalau masih ada baris lama
+ * yang nyimpen path gaya itu.
+ */
+async function readLocalQrFile(qrCodePath: string): Promise<Buffer | null> {
+  const key = qrCodePath.replace(/^\/?uploads\//, '')
+  const fromStorage = await readUpload(key)
+  if (fromStorage) return fromStorage
+
+  try {
+    return await fs.readFile(path.join(process.cwd(), 'public', qrCodePath))
+  } catch {
+    return null
+  }
+}
 
 // Helper functions untuk format data (sama seperti kta-preview)
 function formatNama(nama: string): string {
@@ -54,9 +79,13 @@ function formatNama(nama: string): string {
 
   if ((abbreviated + ' ' + lastWord).length <= maxChars) {
     abbreviated += ' ' + lastWord
+    return abbreviated
   }
 
-  return abbreviated
+  // Nama belakang nggak boleh hilang diam-diam. Kalau singkatan + nama belakang
+  // tetap kepanjangan, potong paksa dengan elipsis — jelek tapi lengkap,
+  // bukan rapi tapi datanya kurang.
+  return (abbreviated + ' ' + lastWord).slice(0, maxChars - 3) + '...'
 }
 
 function formatAlamat(alamat: string): string[] {
@@ -87,7 +116,7 @@ function formatAlamat(alamat: string): string[] {
 
   // Build line 2
   const startIndexLine2 = lines[0] ? lines[0].split(' ').length : 0
-  let line2Words: string[] = []
+  const line2Words: string[] = []
   for (let i = startIndexLine2; i < words.length; i++) {
     const testLine = line2Words.join(' ') + (line2Words.length ? ' ' : '') + words[i]
     if (testLine.length <= maxLine2) {
@@ -143,6 +172,16 @@ export function clearKTACache() {
   templateImageBack = null
   templateMtime = null
   templateBackMtime = null
+
+  // Cache disk di /tmp juga dibuang. Kalau nggak, template hasil resize yang
+  // lama bakal terus dipakai lewat jalur fallback `readCachedTemplate()` —
+  // ganti file template di `public/` nggak akan kelihatan efeknya.
+  for (const cachePath of ['/tmp/kta-template-front-hires.png', '/tmp/kta-template-back-hires.png']) {
+    fs.unlink(cachePath).catch(() => {
+      // Nggak ada file-nya = sudah bersih, bukan error.
+    })
+  }
+
   console.log('KTA cache cleared successfully')
 }
 
@@ -223,12 +262,45 @@ async function getManropeMediumFont(): Promise<Buffer | ArrayBuffer> {
   return getManropeFont()
 }
 
+/**
+ * Kompresi template.
+ *
+ * Template aslinya 12520x7901 (99 megapixel). Setelah di-resize ke ukuran kartu
+ * (1200x760, ~150 DPI) isinya masih ~500 KB kalau di-encode PNG, dan itu
+ * ke-double karena kartu punya dua halaman. Totalnya ~1 MB per kartu, jauh di
+ * atas batas 500 KB.
+ *
+ * JPEG kualitas 82 di ukuran ini turun ke ~100-150 KB dengan hasil cetak yang
+ * masih tajam. Ini cuma template — teks dan QR-nya digambar vektor/PNG terpisah,
+ * jadi nggak ikut turun kualitasnya.
+ */
+const TEMPLATE_JPEG_QUALITY = 82
+
+/**
+ * Baca template hasil resize dari cache disk (`/tmp`).
+ *
+ * Balikin `null` kalau file-nya nggak ada atau nggak bisa dibaca — pemanggil
+ * yang mutusin fallback berikutnya, jadi jangan throw di sini.
+ *
+ * Isi file adalah JPEG, jadi konsumennya wajib `embedJpg()`, bukan `embedPng()`.
+ */
+async function readCachedTemplate(cachePath: string): Promise<Buffer | null> {
+  try {
+    return await fs.readFile(cachePath)
+  } catch {
+    return null
+  }
+}
+
 async function getTemplateImage(): Promise<Buffer> {
   try {
     console.log('⏳ getTemplateImage() called')
     // Priority 1: Try to load pre-converted PNG from public folder
     const pngPath = path.join(process.cwd(), 'public', 'template kta', 'KTA AI - FRONT.png')
     const svgPath = path.join(process.cwd(), 'public', 'template kta', 'KTA AI - FRONT.svg')
+    // Isinya JPEG (lihat TEMPLATE_JPEG_QUALITY), walau namanya masih .png dari
+    // versi sebelumnya. Ekstensi sengaja TIDAK diubah supaya cache lama di /tmp
+    // tetap kebaca setelah deploy pertama.
     const pngCachePath = path.join('/tmp', 'kta-template-front-hires.png')
 
     let currentMtime: number | null = null
@@ -244,7 +316,15 @@ async function getTemplateImage(): Promise<Buffer> {
         currentMtime = statSync(svgPath).mtimeMs
         sourcePath = svgPath
       } catch {
-        // Neither exists, use cache if available
+        // Dua-duanya nggak ada. Pakai cache di disk sebelum menyerah — cache ini
+        // yang dulu cuma ditulis tapi nggak pernah dibaca, jadi jalur ini selalu
+        // berakhir throw padahal hasil resize-nya ada.
+        const fromDisk = await readCachedTemplate(pngCachePath)
+        if (fromDisk) {
+          console.log('✅ Using on-disk cached front template (source file missing)')
+          templateImage = fromDisk
+          return templateImage
+        }
         if (templateImage) return templateImage
         throw new Error('No template file found')
       }
@@ -264,7 +344,7 @@ async function getTemplateImage(): Promise<Buffer> {
           fit: 'cover',
           position: 'center'
         })
-        .png()
+        .jpeg({ quality: TEMPLATE_JPEG_QUALITY, mozjpeg: true })
         .toBuffer()
       console.log('✅ PNG template loaded and resized')
 
@@ -286,7 +366,7 @@ async function getTemplateImage(): Promise<Buffer> {
         fit: 'cover',
         position: 'center'
       })
-      .png()
+      .jpeg({ quality: TEMPLATE_JPEG_QUALITY, mozjpeg: true })
       .toBuffer()
 
     templateImage = pngBuffer
@@ -308,7 +388,7 @@ async function getTemplateImage(): Promise<Buffer> {
         background: { r: 26, g: 26, b: 26 }
       }
     })
-    .png()
+    .jpeg({ quality: TEMPLATE_JPEG_QUALITY, mozjpeg: true })
     .toBuffer()
   }
 }
@@ -334,7 +414,14 @@ async function getTemplateImageBack(): Promise<Buffer> {
         currentMtime = statSync(svgPath).mtimeMs
         sourcePath = svgPath
       } catch {
-        // Neither exists, use cache if available
+        // Dua-duanya nggak ada. Sama seperti template depan: pakai cache disk
+        // dulu sebelum menyerah. Isinya JPEG walau namanya .png.
+        const fromDisk = await readCachedTemplate(pngCachePath)
+        if (fromDisk) {
+          console.log('✅ Using on-disk cached back template (source file missing)')
+          templateImageBack = fromDisk
+          return templateImageBack
+        }
         if (templateImageBack) return templateImageBack
         throw new Error('No template file found')
       }
@@ -354,7 +441,7 @@ async function getTemplateImageBack(): Promise<Buffer> {
           fit: 'cover',
           position: 'center'
         })
-        .png()
+        .jpeg({ quality: TEMPLATE_JPEG_QUALITY, mozjpeg: true })
         .toBuffer()
       console.log('✅ PNG back template loaded and resized')
 
@@ -376,7 +463,7 @@ async function getTemplateImageBack(): Promise<Buffer> {
         fit: 'cover',
         position: 'center'
       })
-      .png()
+      .jpeg({ quality: TEMPLATE_JPEG_QUALITY, mozjpeg: true })
       .toBuffer()
 
     templateImageBack = pngBuffer
@@ -398,7 +485,7 @@ async function getTemplateImageBack(): Promise<Buffer> {
         background: { r: 26, g: 26, b: 26 }
       }
     })
-    .png()
+    .jpeg({ quality: TEMPLATE_JPEG_QUALITY, mozjpeg: true })
     .toBuffer()
   }
 }
@@ -414,7 +501,7 @@ export class KTAPDFGenerator {
     console.log('✅ PDF document created')
 
     // Register fontkit for custom fonts
-    pdfDoc.registerFontkit((fontkit as any).default || fontkit)
+    pdfDoc.registerFontkit((fontkit as { default?: typeof fontkit }).default || fontkit)
 
     const page = pdfDoc.addPage([CARD_WIDTH, CARD_HEIGHT])
 
@@ -431,7 +518,7 @@ export class KTAPDFGenerator {
     console.log('⏳ Loading template image...')
     const templateBuffer = await getTemplateImage()
     console.log('✅ Template loaded, embedding...')
-    const templateImage = await pdfDoc.embedPng(templateBuffer)
+    const templateImage = await pdfDoc.embedJpg(templateBuffer)
     console.log('✅ Template embedded successfully')
 
     // Draw template background (full card size)
@@ -644,10 +731,19 @@ export class KTAPDFGenerator {
         }
 
         console.log('⏳ Creating rounded image...')
+        // PNG di sini boros: foto bertekstur di-downscale ke 236x276 lalu
+        // di-encode lossless, dan PNG nggak bisa ngompres noise. Terukur, foto
+        // 800x1067 bikin PDF 471 KB — mepet batas 500 KB, padahal tanpa foto
+        // cuma 295 KB. PNG dipakai karena sudut membulat butuh alpha (JPEG nggak
+        // punya), dan latar sekeliling foto bukan warna rata (biru di atas,
+        // kuning di bawah) jadi flatten ke satu warna bakal kelihatan belang.
+        //
+        // Jalan tengahnya: palette PNG. Sudut membulat tetap punya alpha, tapi
+        // warnanya dikuantisasi. Di 236x276 efeknya nggak kelihatan.
         const roundedImage = await sharp(pixels, {
           raw: info
         })
-          .png()
+          .png({ palette: true, colours: 128, effort: 10, compressionLevel: 9 })
           .toBuffer()
         console.log('✅ Rounded image created')
 
@@ -684,11 +780,10 @@ export class KTAPDFGenerator {
     })
 
     // Embed QR code if available
+    let qrImageBytes: Buffer | undefined
     if (ktaData.qrCodePath) {
       console.log('⏳ Processing QR code...')
       try {
-        let qrImageBytes: Buffer | undefined
-
         // Handle base64 data URL (from QRCodeGenerator)
         if (ktaData.qrCodePath.startsWith('data:image/')) {
           console.log('⏳ QR is base64 data URL, decoding...')
@@ -708,12 +803,12 @@ export class KTAPDFGenerator {
         // Handle local file path
         else {
           console.log('⏳ QR is local file path:', ktaData.qrCodePath)
-          const qrImagePath = path.join(process.cwd(), 'public', ktaData.qrCodePath)
-          try {
-            qrImageBytes = await fs.readFile(qrImagePath)
+          const fileBuffer = await readLocalQrFile(ktaData.qrCodePath)
+          if (fileBuffer) {
+            qrImageBytes = fileBuffer
             console.log('✅ QR file read, size:', qrImageBytes.length)
-          } catch {
-            console.log(`❌ QR file not found, skipping: ${qrImagePath}`)
+          } else {
+            console.log(`❌ QR file not found: ${ktaData.qrCodePath}`)
           }
         }
 
@@ -728,21 +823,7 @@ export class KTAPDFGenerator {
           if (!isValidPng) {
             console.log('⚠️ Invalid QR code PNG data (size:', qrImageBytes.length, '), skipping QR code')
             console.log('First 20 bytes:', Array.from(qrImageBytes.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '))
-          } else {
-            console.log('⏳ Embedding QR to PDF (this may take a moment)...')
-            try {
-              const qrImage = await pdfDoc.embedPng(qrImageBytes)
-              console.log('✅ QR embedded successfully')
-              page.drawImage(qrImage, {
-                x: qrX + 1 * SCALE,
-                y: qrY + 1 * SCALE,
-                width: qrSize - 2 * SCALE,
-                height: qrSize - 2 * SCALE,
-              })
-              console.log('✅ QR drawn to page')
-            } catch (embedError) {
-              console.log('❌ Failed to embed QR, continuing without it:', embedError instanceof Error ? embedError.message : 'Unknown error')
-            }
+            qrImageBytes = undefined
           }
         }
       } catch (error) {
@@ -751,6 +832,46 @@ export class KTAPDFGenerator {
       }
     } else {
       console.log('ℹ️ No QR code path provided')
+    }
+
+    // Jaring pengaman terakhir: kartu TANPA QR nggak boleh lolos diam-diam.
+    // Kalau apa pun di atas gagal, bikin QR baru dari NIK — QR-nya sendiri
+    // meng-encode NIK, jadi hasilnya sama dengan yang seharusnya tersimpan.
+    if (!qrImageBytes && ktaData.nik) {
+      console.log('⚠️ QR tidak terbaca, bikin ulang dari NIK:', ktaData.nik)
+      try {
+        const { QRCodeGenerator } = await import('./qr-generator')
+        qrImageBytes = await QRCodeGenerator.generateKTAQRBuffer({ nik: ktaData.nik })
+        console.log('✅ QR darurat dibuat, size:', qrImageBytes.length)
+      } catch (fallbackError) {
+        console.error('❌ Gagal bikin QR darurat:', fallbackError)
+      }
+    }
+
+    if (qrImageBytes) {
+      try {
+        const qrImage = await pdfDoc.embedPng(qrImageBytes)
+        console.log('✅ QR embedded successfully')
+        page.drawImage(qrImage, {
+          x: qrX + 1 * SCALE,
+          y: qrY + 1 * SCALE,
+          width: qrSize - 2 * SCALE,
+          height: qrSize - 2 * SCALE,
+        })
+        console.log('✅ QR drawn to page')
+      } catch (embedError) {
+        console.error(
+          `❌ Gagal embed QR (KTA ${ktaData.nomorKTA || ktaData.id}, NIK ${ktaData.nik || '-'}):`,
+          embedError instanceof Error ? embedError.message : 'Unknown error'
+        )
+      }
+    } else {
+      // Sampai sini artinya kartu ini terbit tanpa QR — selalu salah, jadi
+      // jangan cuma di-log pakai console.log biasa.
+      console.error(
+        `❌ KTA ${ktaData.nomorKTA || ktaData.id} dicetak TANPA QR. ` +
+        `qrCodePath="${ktaData.qrCodePath || '(kosong)'}", NIK=${ktaData.nik || '(kosong)'}`
+      )
     }
 
     console.log('✅ QR code processing complete')
@@ -762,7 +883,7 @@ export class KTAPDFGenerator {
     // Load and embed back template
     console.log('⏳ Loading back template...')
     const templateBackBuffer = await getTemplateImageBack()
-    const templateBackImage = await pdfDoc.embedPng(templateBackBuffer)
+    const templateBackImage = await pdfDoc.embedJpg(templateBackBuffer)
 
     // Draw back template background
     pageBack.drawImage(templateBackImage, {
