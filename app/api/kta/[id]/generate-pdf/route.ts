@@ -93,11 +93,16 @@ export async function POST(
 }
 
 // GET endpoint to download the PDF (generated on-demand)
+//
+// Query `?ktp=1` buat nyertain halaman KTP di depan kartu. Default-nya nggak,
+// biar pemanggil lama (preview & print) nggak berubah perilakunya.
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const includeKtp = request.nextUrl.searchParams.get('ktp') === '1'
+
     const ktaRequest = await prisma.kTARequest.findUnique({
       where: { id: params.id },
       select: {
@@ -113,6 +118,7 @@ export async function GET(
         daerahId: true,
         fotoUrl: true,
         fotoData: true, // Include fotoData from database
+        ktpUrl: true, // Buat halaman KTP kalau diminta
         status: true,
         daerah: {
           select: {
@@ -132,6 +138,15 @@ export async function GET(
         ktaRequest.status !== 'PRINTED' &&
         ktaRequest.status !== 'UPGRADE_PAID') {
       return NextResponse.json({ error: 'KTA must be approved first' }, { status: 400 })
+    }
+
+    // Halaman KTP sifatnya wajib begitu diminta — kalau datanya nggak ada,
+    // lebih baik gagal di sini daripada user dapat kartu yang kelihatan sah
+    // padahal dokumennya bolong.
+    if (includeKtp && !ktaRequest.ktpUrl) {
+      return NextResponse.json({
+        error: 'KTP belum ada untuk KTA ini'
+      }, { status: 400 })
     }
 
     // Generate nomorKTA if not exists
@@ -202,6 +217,52 @@ export async function GET(
       }
     }
 
+    // Resolve KTP jadi base64 kalau diminta.
+    //
+    // Cuma `ktpUrl` yang ada di schema (nggak ada kolom `ktpData`), jadi
+    // sumbernya selalu file lokal atau URL eksternal. Aturan baca-nya sama
+    // dengan foto: file lokal lewat `readUpload()`, URL eksternal (khas SIKI)
+    // di-fetch server-side — SIKI sering geo-blocked kalau dari browser.
+    let ktpData: string | undefined
+
+    if (includeKtp && !ktpData && ktaRequest.ktpUrl) {
+      if (ktaRequest.ktpUrl.startsWith('/uploads/') || ktaRequest.ktpUrl.startsWith('uploads/')) {
+        const key = ktaRequest.ktpUrl.replace(/^\/?uploads\//, '')
+        const buffer = await readUpload(key)
+        if (!buffer) {
+          return NextResponse.json({
+            error: 'File KTP nggak ketemu di storage'
+          }, { status: 400 })
+        }
+        ktpData = `data:${contentTypeFor(key)};base64,${buffer.toString('base64')}`
+      } else if (ktaRequest.ktpUrl.startsWith('http')) {
+        try {
+          const response = await fetch(ktaRequest.ktpUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
+          })
+          if (!response.ok) {
+            return NextResponse.json({
+              error: `Gagal ambil file KTP dari SIKI (HTTP ${response.status})`
+            }, { status: 502 })
+          }
+          const buffer = Buffer.from(await response.arrayBuffer())
+          const mimeType = (response.headers.get('content-type') || 'image/jpeg').split(';')[0].trim()
+          ktpData = `data:${mimeType};base64,${buffer.toString('base64')}`
+        } catch (error) {
+          return NextResponse.json({
+            error: 'Gagal ambil file KTP dari SIKI',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }, { status: 502 })
+        }
+      } else {
+        return NextResponse.json({
+          error: 'Format ktpUrl nggak dikenali'
+        }, { status: 400 })
+      }
+    }
+
     const ktaData = {
       id: ktaRequest.id,
       nik: ktaRequest.nik,
@@ -212,7 +273,8 @@ export async function GET(
       tanggalDaftar: ktaRequest.tanggalDaftar || ktaRequest.createdAt || new Date(),
       qrCodePath: qrCodePath,
       ...(fotoData ? { fotoData } : {}),
-      ...(!fotoData && ktaRequest.fotoUrl && !ktaRequest.fotoUrl.startsWith('http') ? { fotoUrl: ktaRequest.fotoUrl } : {})
+      ...(!fotoData && ktaRequest.fotoUrl && !ktaRequest.fotoUrl.startsWith('http') ? { fotoUrl: ktaRequest.fotoUrl } : {}),
+      ...(ktpData ? { ktpData } : {})
     }
 
     // Generate PDF on-demand

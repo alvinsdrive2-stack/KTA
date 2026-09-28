@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { ktaIds } = await request.json()
+    const { ktaIds, includeKtp = false } = await request.json()
 
     if (!ktaIds || !Array.isArray(ktaIds) || ktaIds.length === 0) {
       return NextResponse.json({ error: 'KTA IDs are required' }, { status: 400 })
@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
         status: true,
         fotoUrl: true,
         fotoData: true, // Include fotoData from database
+        ktpUrl: true, // Buat halaman KTP kalau diminta
         nik: true, // Need NIK for QR code generation
         daerah: {
           select: {
@@ -62,6 +63,19 @@ export async function POST(request: NextRequest) {
         error: 'Some KTAs are not ready for download',
         unapprovedKTAs: unapprovedKTAs.map(k => ({ id: k.id, nama: k.nama, status: k.status }))
       }, { status: 400 })
+    }
+
+    // Kalau KTP diminta, SEMUA KTA harus punya. Nge-zip sebagian doang bikin
+    // ZIP-nya kelihatan lengkap padahal isinya bolong — lebih baik gagal di
+    // sini dan user dikasih tau KTA mana yang KTP-nya belum ada.
+    if (includeKtp) {
+      const tanpaKtp = ktas.filter(k => !k.ktpUrl)
+      if (tanpaKtp.length > 0) {
+        return NextResponse.json({
+          error: 'Sebagian KTA belum punya file KTP',
+          tanpaKtp: tanpaKtp.map(k => ({ id: k.id, nama: k.nama, nomorKTA: k.nomorKTA }))
+        }, { status: 400 })
+      }
     }
 
     // Create ZIP file using archiver with streaming
@@ -177,7 +191,10 @@ export async function POST(request: NextRequest) {
             tanggalDaftar: kta.tanggalDaftar || kta.createdAt,
             qrCodePath: qrCodePath,
             ...(fotoData ? { fotoData } : {}),
-            ...(!fotoData && kta.fotoUrl && !kta.fotoUrl.startsWith('http') ? { fotoUrl: kta.fotoUrl } : {})
+            ...(!fotoData && kta.fotoUrl && !kta.fotoUrl.startsWith('http') ? { fotoUrl: kta.fotoUrl } : {}),
+            // `ktpUrl` di sini selalu path upload lokal (dijamin cek di atas),
+            // jadi generator bisa baca langsung dari storage.
+            ...(includeKtp && kta.ktpUrl ? { ktpUrl: kta.ktpUrl } : {})
           }
 
           // Generate PDF on-demand
