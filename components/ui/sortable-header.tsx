@@ -26,7 +26,13 @@ export function SortableHeader({
     align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
 
   return (
-    <th className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-wider', alignClass, className)}>
+    <th
+      // aria-sort cuma boleh ada di sel yang benar-benar terurut. Kolom lain
+      // dibiarkan tanpa atribut sama sekali — "none" eksplisit bikin screen
+      // reader ngumumin "tidak terurut" di tiap sel header.
+      aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
+      className={cn('px-4 py-3 text-xs font-semibold uppercase tracking-wider', alignClass, className)}
+    >
       <button
         type="button"
         onClick={() => onSort(sortKey)}

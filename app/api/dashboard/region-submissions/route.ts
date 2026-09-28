@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
 
     // Build chart data
     const chartData = dateLabels.map((date) => {
-      const dataPoint: any = {
+      const dataPoint: Record<string, string | number> = {
         date: formatDate(date, period),
       }
 

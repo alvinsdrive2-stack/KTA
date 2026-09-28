@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { formatDateKey, formatDateKeyMonth } from '@/lib/utils'
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate current period dates
     let currentStartDate = new Date(now.getTime())
-    let chartStartDate = new Date(now.getTime()) // For chart data range
+    const chartStartDate = new Date(now.getTime()) // For chart data range
 
     switch (period) {
       case 'week':
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
     chartStartDate.setHours(0, 0, 0, 0)
 
     // Build base where clause - include both READY_TO_PRINT and PRINTED
-    const baseWhereClause: any = {
+    const baseWhereClause: Prisma.KTARequestWhereInput = {
       daerahId: userDaerahId,
       status: { in: ['READY_TO_PRINT', 'PRINTED'] }, // Include both statuses
     }

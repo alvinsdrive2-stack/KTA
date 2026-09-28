@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma, KTAStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 
@@ -18,7 +19,7 @@ const sortFields: Record<string, string> = {
   updatedAt: 'updatedAt',
 }
 
-function buildOrderBy(sortBy: string | null, sortDir: 'asc' | 'desc'): any {
+function buildOrderBy(sortBy: string | null, sortDir: 'asc' | 'desc'): Prisma.KTARequestOrderByWithRelationInput {
   if (!sortBy) {
     return { createdAt: 'desc' }
   }
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit
 
     // Build where clause based on user role
-    let whereClause: any = {}
+    const whereClause: Prisma.KTARequestWhereInput = {}
 
     switch (session.user.role) {
       case 'DAERAH':
@@ -100,9 +101,9 @@ export async function GET(request: NextRequest) {
     if (status) {
       // If multiple statuses are sent, use 'in' operator
       if (statuses.length > 1) {
-        whereClause.status = { in: statuses }
+        whereClause.status = { in: statuses as KTAStatus[] }
       } else {
-        whereClause.status = status
+        whereClause.status = status as KTAStatus
       }
     }
 

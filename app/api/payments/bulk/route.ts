@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma, PaymentStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     const pusatParam = searchParams.get('pusat') === 'true'
 
     // Build where clause
-    const where: any = {}
+    const where: Prisma.BulkPaymentWhereInput = {}
 
     // For DAERAH users, only get their own bulk payments
     if (session.user.role === 'DAERAH') {
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     // Filter by status if provided
     if (status) {
-      where.status = status
+      where.status = status as PaymentStatus
     } else if (!all) {
       // If not fetching all and no status specified, only get PENDING invoices
       where.status = 'PENDING'

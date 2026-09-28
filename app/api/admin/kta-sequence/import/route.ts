@@ -100,11 +100,11 @@ export async function POST(request: NextRequest) {
         })
         successCount++
 
-      } catch (error: any) {
+      } catch (error) {
         results.push({
           kodeDaerah,
           status: 'error',
-          message: error.message || 'Unknown error'
+          message: error instanceof Error ? error.message : 'Unknown error'
         })
         errorCount++
       }

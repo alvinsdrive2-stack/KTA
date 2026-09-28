@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { QRCodeGenerator } from '@/lib/qr-generator'
+import { readUpload } from '@/lib/upload-storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,30 +40,26 @@ export async function POST(request: NextRequest) {
 
     for (const kta of ktas) {
       try {
-        // Generate new QR code using the fixed method
+        // `generateKTAQR()` nulis PNG ke storage dan balikin URL `/uploads/...`,
+        // bukan data URL base64 lagi. Validasi lama (`split(',')[1].length`)
+        // nggak pernah cocok — `split(',')[1]` selalu `undefined` — jadi route
+        // ini balik `regenerated: 0` terus tanpa error. Sekarang file hasil
+        // tulisnya yang diperiksa, itu satu-satunya bukti yang berarti.
         const qrCodePath = await QRCodeGenerator.generateKTAQR({
           nik: kta.nik,
         })
 
-        // Check if the new QR code is valid (should be > 1000 characters for base64)
-        const base64Part = qrCodePath.split(',')[1]
-        if (base64Part && base64Part.length > 1000) {
-          const updated = await prisma.kTARequest.update({
+        const fileBuffer = await readUpload(qrCodePath.replace(/^\/?uploads\//, ''))
+        if (fileBuffer && fileBuffer.length > 0) {
+          await prisma.kTARequest.update({
             where: { id: kta.id },
             data: { qrCodePath },
-            select: { id: true, qrCodePath: true }
+            select: { id: true }
           })
-          // Verify the update worked
-          const verifySize = updated.qrCodePath?.split(',')[1]?.length || 0
-          if (verifySize > 1000) {
-            regenerated++
-            console.log(`✅ Regenerated QR for ${kta.nama} (${kta.id}), size: ${base64Part.length}, verified: ${verifySize}`)
-          } else {
-            console.log(`⚠️ Update failed for ${kta.nama} - stored size: ${verifySize}`)
-            skipped++
-          }
+          regenerated++
+          console.log(`✅ Regenerated QR for ${kta.nama} (${kta.id}), ${fileBuffer.length} bytes`)
         } else {
-          console.log(`⚠️ Skipping ${kta.nama} - QR code still too small (${base64Part?.length || 0} bytes)`)
+          console.log(`⚠️ Skipping ${kta.nama} - file QR nggak kebentuk di ${qrCodePath}`)
           skipped++
         }
       } catch (error) {

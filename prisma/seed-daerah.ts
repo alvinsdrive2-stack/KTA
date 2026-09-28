@@ -109,8 +109,8 @@ async function main() {
         console.log(`  ✅ Created: ${provinsi.kode} - ${provinsi.nama}`)
         created++
       }
-    } catch (error: any) {
-      console.error(`  ❌ Failed: ${provinsi.kode} - ${error.message}`)
+    } catch (error) {
+      console.error(`  ❌ Failed: ${provinsi.kode} - ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 

@@ -81,7 +81,7 @@ export class SIKIApiClient {
     return null
   }
 
-  async getJabatanKerjaList(): Promise<any> {
+  async getJabatanKerjaList(): Promise<{ data?: Array<Record<string, unknown>> } | null> {
     try {
       const result = await this.fetchWithFallback(`${this.baseUrlV2}/jabatan-kerja`)
       if (!result || !result.response.ok) {
@@ -95,7 +95,7 @@ export class SIKIApiClient {
     }
   }
 
-  async getSubklasifikasiList(): Promise<any> {
+  async getSubklasifikasiList(): Promise<{ data?: Array<Record<string, unknown>> } | null> {
     try {
       const result = await this.fetchWithFallback(`${this.baseUrlV2}/subklasifikasi`)
       if (!result || !result.response.ok) {
@@ -141,7 +141,7 @@ export class SIKIApiClient {
       if (data && data.data) {
         this.subklasifikasiCache = new Map()
         for (const item of data.data) {
-          this.subklasifikasiCache.set(String(item.kode_subklasifikasi), item.subklasifikasi)
+          this.subklasifikasiCache.set(String(item.kode_subklasifikasi), String(item.subklasifikasi ?? ''))
         }
       } else {
         this.subklasifikasiCache = new Map()
@@ -313,9 +313,9 @@ export class SIKIApiClient {
           }
 
           console.warn(`Token ${token.slice(0, 8)}... no data on any endpoint, trying next token`)
-        } catch (fetchError: any) {
+        } catch (fetchError) {
           clearTimeout(timeoutId)
-          if (fetchError.name === 'AbortError') {
+          if (fetchError instanceof Error && fetchError.name === 'AbortError') {
             console.warn(`Token ${token.slice(0, 8)}... timed out, trying next`)
             continue
           }

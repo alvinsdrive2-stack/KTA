@@ -84,7 +84,7 @@ const formatAlamat = (alamat: string) => {
 
   // Build line 2
   const startIndexLine2 = lines[0] ? lines[0].split(' ').length : 0
-  let line2Words: string[] = []
+  const line2Words: string[] = []
   for (let i = startIndexLine2; i < words.length; i++) {
     const testLine = line2Words.join(' ') + (line2Words.length ? ' ' : '') + words[i]
     if (testLine.length <= maxLine2) {

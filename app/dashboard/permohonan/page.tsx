@@ -278,7 +278,7 @@ export default function PermohonanPage() {
             <div className="flex-1">
               <h3 className="font-semibold text-blue-900 mb-2">Informasi</h3>
               <p className="text-sm text-blue-800 leading-relaxed">
-                Tambah permohonan KTA baru dengan menekan tombol <strong>"Tambah KTA"</strong>. Setelah data selesai diisi, lanjutkan ke halaman pembayaran melalui tombol <strong>"Bayar KTA"</strong>. Gunakan fitur pencarian dan filter untuk menemukan data yang diperlukan, kemudian klik baris tabel untuk melihat atau mengedit detail.
+                Tambah permohonan KTA baru dengan menekan tombol <strong>&quot;Tambah KTA&quot;</strong>. Setelah data selesai diisi, lanjutkan ke halaman pembayaran melalui tombol <strong>&quot;Bayar KTA&quot;</strong>. Gunakan fitur pencarian dan filter untuk menemukan data yang diperlukan, kemudian klik baris tabel untuk melihat atau mengedit detail.
               </p>
             </div>
           </div>

@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     // Get diskon from daerah
     const daerah = await prisma.daerah.findUnique({
       where: { id: finalDaerahId },
-      select: { diskonPersen: true }
+      select: { diskonPersen: true, kodeDaerah: true }
     })
 
     const diskonPersen = daerah?.diskonPersen || 0
@@ -71,7 +71,9 @@ export async function POST(request: NextRequest) {
     const upgradeCheck = await checkUpgradeScenario(
       nik,
       jenjangNum,
-      subklasifikasi
+      subklasifikasi,
+      undefined,
+      daerah?.kodeDaerah || undefined
     )
 
     if (!upgradeCheck.canUpgrade) {

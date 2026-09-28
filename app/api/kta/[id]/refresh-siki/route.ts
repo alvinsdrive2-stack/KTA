@@ -1,45 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { deriveSikiFields, isLocalUpload } from '@/lib/siki-fields'
 
 export const dynamic = 'force-dynamic'
-
-// URL dokumen bisa berupa path lokal (`/uploads/...` dari upload manual) atau
-// URL absolut ke SIKI. Yang lokal harus menang: kalau SIKI kebalikin null atau
-// URL lama, jangan timpa dokumen yang udah di-upload anggota.
-const isLocalUpload = (value: string | null | undefined): value is string =>
-  typeof value === 'string' && value.length > 0 && !value.startsWith('http')
-
-/**
- * Putuskan nilai `ktpUrl` akhir.
- *
- * - SIKI nggak kirim apa-apa (null/undefined) -> pertahankan nilai lama.
- * - Nilai lama hasil upload manual -> tetap dipakai, abaikan URL SIKI.
- * - Nilai lama masih URL SIKI / kosong -> terima URL baru dari SIKI.
- */
-function resolveKtpUrl(
-  current: string | null,
-  incoming: string | null | undefined
-): string | null {
-  if (!incoming) return current
-  if (isLocalUpload(current)) return current
-  return incoming
-}
-
-/**
- * Putuskan nilai `fotoUrl` akhir.
- *
- * Beda dari KTP: foto sering berganti di SIKI, jadi URL baru selalu menang —
- * termasuk kalau yang lama hasil upload manual. Yang tetap dijaga cuma kasus
- * SIKI balikin null; itu artinya datanya nggak ada di respons, bukan berarti
- * fotonya dihapus, jadi nilai lama dipertahankan.
- */
-function resolveFotoUrl(
-  current: string | null,
-  incoming: string | null | undefined
-): string | null {
-  return incoming || current
-}
 
 export async function POST(
   request: NextRequest,
@@ -99,130 +63,46 @@ export async function POST(
     // Debug: Log SIKI data structure
     console.log('SIKI Raw Data:', JSON.stringify(sikiData.data, null, 2))
 
-    // Extract klasifikasi data - handle two different SIKI response formats
-    const klasifikasiKualifikasi = sikiData.data?.klasifikasi_kualifikasi?.[0]
-    let subklasifikasiId = null
-    let idJabatanKerja: string | null = null
-    let kodeSubklasifikasi: string | null = null
-    let jabatanKerja = sikiData.data?.jabatan || 'N/A'
-    let jenjang = sikiData.data?.jenjang || ''
-    let noTelp = sikiData.data?.telp || sikiData.data?.telepon || ''
-
-    // Format 1: SIKI has klasifikasi_kualifikasi array
-    if (klasifikasiKualifikasi) {
-      idJabatanKerja = klasifikasiKualifikasi.id_jabatan_kerja || null
-      kodeSubklasifikasi = klasifikasiKualifikasi.subklasifikasi || null
-      const idKlasifikasi = klasifikasiKualifikasi.klasifikasi
-      jenjang = klasifikasiKualifikasi.jenjang || jenjang
-
-      if (kodeSubklasifikasi && idKlasifikasi) {
-        // Fetch proper subklasifikasi name from SIKI v2 API
-        let subklasifikasiName = kodeSubklasifikasi
-        const nameFromAPI = await sikiApi.getSubklasifikasiName(String(kodeSubklasifikasi))
-        if (nameFromAPI) {
-          subklasifikasiName = nameFromAPI
-        }
-
-        // Try to find existing subklasifikasi
-        let subklasifikasi = await prisma.subklasifikasi.findUnique({
-          where: { kodeSubklasifikasi: kodeSubklasifikasi }
-        })
-
-        // If not found, create new entry
-        if (!subklasifikasi) {
-          const idSubklasifikasi = kodeSubklasifikasi.substring(2).toUpperCase()
-          subklasifikasi = await prisma.subklasifikasi.create({
-            data: {
-              idKlasifikasi: idKlasifikasi,
-              idSubklasifikasi: idSubklasifikasi,
-              kodeSubklasifikasi: kodeSubklasifikasi,
-              subklasifikasi: subklasifikasiName,
-            }
-          })
-        } else if (subklasifikasiName && subklasifikasi.subklasifikasi !== subklasifikasiName) {
-          // Update existing subklasifikasi with the proper name from API
-          subklasifikasi = await prisma.subklasifikasi.update({
-            where: { id: subklasifikasi.id },
-            data: { subklasifikasi: subklasifikasiName }
-          })
-        }
-        subklasifikasiId = subklasifikasi.id
-      }
-    }
-    // Format 2: SIKI has simple format with direct subklasifikasi field
-    else if (sikiData.data?.subklasifikasi) {
-      kodeSubklasifikasi = sikiData.data.subklasifikasi
-      // In simple format, sikiData.jabatan contains the jabatan kerja ID/code
-      idJabatanKerja = sikiData.data?.jabatan || null
-
-      // Fetch proper subklasifikasi name from SIKI v2 API
-      let subklasifikasiName = kodeSubklasifikasi
-      const nameFromAPI = await sikiApi.getSubklasifikasiName(String(kodeSubklasifikasi))
-      if (nameFromAPI) {
-        subklasifikasiName = nameFromAPI
-      }
-
-      // Parse kode_subklasifikasi (e.g., "SI01" -> idKlasifikasi="SI", idSubklasifikasi="01")
-      const idKlasifikasi = kodeSubklasifikasi.substring(0, 2).toUpperCase()
-      const idSubklasifikasi = kodeSubklasifikasi.substring(2).toUpperCase()
-
-      // Try to find existing subklasifikasi
-      let subklasifikasi = await prisma.subklasifikasi.findUnique({
-        where: { kodeSubklasifikasi: kodeSubklasifikasi }
-      })
-
-      // If not found, create new entry
-      if (!subklasifikasi) {
-        subklasifikasi = await prisma.subklasifikasi.create({
-          data: {
-            idKlasifikasi: idKlasifikasi,
-            idSubklasifikasi: idSubklasifikasi,
-            kodeSubklasifikasi: kodeSubklasifikasi,
-            subklasifikasi: subklasifikasiName,
-          }
-        })
-      } else if (subklasifikasiName && subklasifikasi.subklasifikasi !== subklasifikasiName) {
-        // Update existing subklasifikasi with the proper name from API
-        subklasifikasi = await prisma.subklasifikasi.update({
-          where: { id: subklasifikasi.id },
-          data: { subklasifikasi: subklasifikasiName }
-        })
-      }
-      subklasifikasiId = subklasifikasi.id
-    }
-
-    // Fetch proper jabatan kerja name from new API
-    if (idJabatanKerja) {
-      const nameFromAPI = await sikiApi.getJabatanKerjaByCode(String(idJabatanKerja))
-      if (nameFromAPI) {
-        jabatanKerja = nameFromAPI
-      }
-    }
+    // Penurunan field ada di `lib/siki-fields.ts` — dipakai bareng sama backfill
+    // di `lib/kta-upgrade.ts`, biar dua tempat itu nggak punya salinan aturan
+    // yang bisa menyimpang.
+    const fields = await deriveSikiFields(sikiData.data, sikiApi, {
+      ktpUrl: ktaRequest.ktpUrl,
+      fotoUrl: ktaRequest.fotoUrl,
+    })
 
     // Update KTA request with fresh data from SIKI
     const updatedKTA = await prisma.kTARequest.update({
       where: { id: params.id },
       data: {
-        nik: sikiData.data?.nik,
-        nama: sikiData.data?.nama,
-        jabatanKerja: jabatanKerja,
-        subklasifikasiId: subklasifikasiId,
-        jenjang: jenjang,
-        noTelp: noTelp,
-        email: sikiData.data?.email || '',
-        alamat: sikiData.data?.alamat || '',
+        nik: fields.nik,
+        nama: fields.nama,
+        jabatanKerja: fields.jabatanKerja,
+        subklasifikasiId: fields.subklasifikasiId,
+        jenjang: fields.jenjang,
+        noTelp: fields.noTelp,
+        email: fields.email,
+        alamat: fields.alamat,
         // KTP hasil upload manual dipertahankan; URL SIKI cuma nge-update kalau
         // kolomnya masih kosong atau masih nunjuk ke SIKI. Foto selalu ikut SIKI
         // selama responsnya nggak null — lihat resolveFotoUrl().
-        ktpUrl: resolveKtpUrl(ktaRequest.ktpUrl, sikiData.data?.ktpUrl),
-        fotoUrl: resolveFotoUrl(ktaRequest.fotoUrl, sikiData.data?.fotoUrl),
+        ktpUrl: fields.ktpUrl,
+        fotoUrl: fields.fotoUrl,
       },
     })
 
     // Laporkan field dokumen yang nggak ikut berubah, biar UI bisa kasih tahu
     // anggota bahwa url SIKI beda tapi dokumen manualnya dipertahankan.
+    //
+    // Syaratnya dua-duanya harus benar: SIKI BENAR-BENAR NGIRIM dokumen, DAN
+    // dokumen itu ditolak karena yang lama hasil upload manual. Banding lama
+    // (`resolveKtpUrl(...) !== incoming`) salah di kasus SIKI nggak ngirim
+    // apa-apa — `resolveKtpUrl` balikin `current` kalau `incoming` falsy, jadi
+    // `current !== undefined` selalu benar dan "KTP" dilaporkan ke-skip padahal
+    // SIKI nggak punya apa-apa.
     const skippedDocuments: string[] = []
-    if (ktaRequest.ktpUrl && resolveKtpUrl(ktaRequest.ktpUrl, sikiData.data?.ktpUrl) !== sikiData.data?.ktpUrl) {
+    const incomingKtp = sikiData.data?.ktpUrl
+    if (incomingKtp && ktaRequest.ktpUrl && isLocalUpload(ktaRequest.ktpUrl)) {
       skippedDocuments.push('KTP')
     }
 

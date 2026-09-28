@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma, PaymentStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 
@@ -12,7 +13,7 @@ const sortFields: Record<string, string> = {
   createdAt: 'createdAt',
 }
 
-function buildOrderBy(sortBy: string | null, sortDir: 'asc' | 'desc'): any {
+function buildOrderBy(sortBy: string | null, sortDir: 'asc' | 'desc'): Prisma.BulkPaymentOrderByWithRelationInput {
   if (!sortBy) {
     return { createdAt: 'desc' }
   }
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit
 
     // Build where clause
-    let whereClause: any = {}
+    const whereClause: Prisma.BulkPaymentWhereInput = {}
 
     // Map frontend status labels to valid PaymentStatus enum values
     const statusMap: Record<string, string> = {
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
         // Payments that need verification: already paid but not yet verified
         whereClause.status = 'PAID'
       } else if (statusMap[status]) {
-        whereClause.status = statusMap[status]
+        whereClause.status = statusMap[status] as PaymentStatus
       }
     }
 

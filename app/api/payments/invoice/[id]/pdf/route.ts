@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import { PDFDocument, rgb, StandardFonts, type PDFFont, type RGB } from 'pdf-lib'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { safeInvoiceFilename, formatCurrency } from '@/lib/utils'
@@ -108,7 +108,7 @@ export async function GET(
 
     // Create PDF
     const pdfDoc = await PDFDocument.create()
-    const page = pdfDoc.addPage([595, 842]) // A4 size
+    let page = pdfDoc.addPage([595, 842]) // A4 size
     const { height, width } = page.getSize()
 
     // Embed fonts
@@ -125,6 +125,22 @@ export async function GET(
     const margin = 56.7 // 2cm in points
     const contentWidth = width - (2 * margin)
     const lineHeight = 16
+    const BOTTOM_MARGIN = 60
+
+    // Kalau konten nggak muat di halaman ini, lanjut ke halaman baru.
+    // Kasus nyata: INV/KTA-GATENSI/2609/029 — pesertanya banyak, tabelnya
+    // jalan terus sampai nabrak footer karena cuma ada satu `page`.
+    const newPage = () => {
+      page = pdfDoc.addPage([595, 842])
+      yPosition = height - 50
+    }
+    const ensureSpace = (needed: number) => {
+      if (yPosition - needed < BOTTOM_MARGIN) {
+        newPage()
+        return true
+      }
+      return false
+    }
 
     // Helper function to format date
     const formatDate = (date: Date | string) => {
@@ -148,8 +164,8 @@ export async function GET(
       x: number,
       y: number,
       size: number,
-      font: any,
-      color: any,
+      font: PDFFont,
+      color: RGB,
       maxWidth: number
     ): number => {
       const words = text.split(' ')
@@ -356,34 +372,44 @@ export async function GET(
     const colWidths = [25, 95, 150, 80, 55, 100] // No, ID-Izin, Nama, NIK, Jenjang, Harga (No smaller, ID Izin bigger, Jenjang smaller)
     const rowHeight = 22
     const tableHeaderHeight = 25
-
-    // Table header background - Navy Blue
-    page.drawRectangle({
-      x: margin,
-      y: yPosition - tableHeaderHeight,
-      width: tableWidth,
-      height: tableHeaderHeight,
-      color: navyBlue
-    })
-
-    // Table headers - White text
     const headers = ['No', 'ID-Izin', 'Nama Peserta', 'NIK', 'Kualifikasi', 'Harga']
-    let xPos = margin
-    headers.forEach((header, i) => {
-      page.drawText(header, {
-        x: xPos + 5,
-        y: yPosition - 12,
-        size: 8,
-        font: fontBold,
-        color: rgb(1, 1, 1)
-      })
-      xPos += colWidths[i]
-    })
 
-    yPosition -= tableHeaderHeight
+    // Header tabel digambar ulang tiap halaman baru, biar potongan tabel di
+    // halaman lanjutan tetap kebaca kolomnya.
+    const drawTableHeader = () => {
+      page.drawRectangle({
+        x: margin,
+        y: yPosition - tableHeaderHeight,
+        width: tableWidth,
+        height: tableHeaderHeight,
+        color: navyBlue
+      })
+
+      let xPos = margin
+      headers.forEach((header, i) => {
+        page.drawText(header, {
+          x: xPos + 5,
+          y: yPosition - 12,
+          size: 8,
+          font: fontBold,
+          color: rgb(1, 1, 1)
+        })
+        xPos += colWidths[i]
+      })
+
+      yPosition -= tableHeaderHeight
+    }
+
+    drawTableHeader()
 
     // Table rows with alternating background
     paymentsWithPrev.forEach((payment, index) => {
+      // Halaman penuh di tengah tabel -> lanjut ke halaman baru + gambar header lagi.
+      if (ensureSpace(rowHeight)) {
+        drawTableHeader()
+      }
+
+      let xPos = margin
       // Alternating row background
       if (index % 2 === 0) {
         page.drawRectangle({
@@ -396,7 +422,6 @@ export async function GET(
       }
 
       // Draw cell data - No truncation, full text
-      xPos = margin
       const JENJANG_NAME = ['', 'Operator', 'Operator', 'Operator', 'Teknisi/Analis', 'Teknisi/Analis', 'Teknisi/Analis', 'Ahli', 'Ahli', 'Ahli']
       const jenjangLabel = JENJANG_NAME[Number(payment.ktaRequest.jenjang)] || payment.ktaRequest.jenjang
       const jenjangText = payment.ktaRequest.isUpgrade
@@ -445,6 +470,10 @@ export async function GET(
     })
 
     yPosition -= 30
+
+    // Blok ringkasan butuh ~100pt ke bawah. Kalau tabel berakhir mepet ke bawah
+    // halaman, blok ini yang kepotong duluan — pindah ke halaman baru sekalian.
+    ensureSpace(110)
 
     // ============================================
     // FLEX 3 LAYOUT - Rekening (Kiri) | Terbilang (Tengah) | Rincian (Kanan)
@@ -565,7 +594,7 @@ export async function GET(
 
     // Word wrap for terbilang - wrap by words, not characters
     const words = terbilangText.split(' ')
-    let lines: string[] = []
+    const lines: string[] = []
     let currentLine = ''
     words.forEach(word => {
       const testLine = currentLine ? currentLine + ' ' + word : word
@@ -674,6 +703,9 @@ export async function GET(
     })
 
     yPosition -= 100
+
+    // Legal nggak boleh kepotong di ujung halaman — pindah sekalian kalau mepet.
+    ensureSpace(60)
 
     // Legal statement elektronik
     yPosition -= 10

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { Workbook } from 'exceljs'
+import { Workbook, type Cell } from 'exceljs'
 import { getPeriodRange } from '@/lib/finance-period'
 
 export const dynamic = 'force-dynamic'
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     const allowedRoles = ['ADMIN', 'KEUANGAN', 'PUSAT', 'DAERAH']
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!session.user.role || !allowedRoles.includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     const isDaerah = session.user.role === 'DAERAH'
 
     // Scope: DAERAH hanya lihat daerah sendiri; lainnya bisa semua (opsional filter daerahKode)
-    let daerahWhere: any = {}
+    const daerahWhere: Prisma.BulkPaymentWhereInput = {}
     if (isDaerah && session.user.daerahId) {
       daerahWhere.daerahId = session.user.daerahId
     } else {
@@ -182,7 +183,7 @@ export async function GET(request: NextRequest) {
       ? [{ width: 5 }, { width: 24 }, { width: 14 }, { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }]
       : [{ width: 5 }, { width: 24 }, { width: 14 }, { width: 24 }, { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }]
 
-    const box = (cell: any) => {
+    const box = (cell: Cell) => {
       cell.border = {
         top: { style: 'thin', color: { argb: BORDER } },
         left: { style: 'thin', color: { argb: BORDER } },
@@ -191,7 +192,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const headerCell = (cell: any) => {
+    const headerCell = (cell: Cell) => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } }
       cell.font = { name: 'Helvetica', size: 9, bold: true, color: { argb: WHITE } }
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }

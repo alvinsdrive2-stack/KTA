@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,6 +17,7 @@ import { PulseLogo } from '@/components/ui/loading-spinner'
 import { Separator as UISeparator } from '@/components/ui/separator'
 import { useSidebar } from '@/contexts/sidebar-context'
 import { useSession } from '@/hooks/useSession'
+import type { UpgradeCheckResult } from '@/lib/kta-upgrade'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 
@@ -29,9 +30,34 @@ type FormData = z.infer<typeof formSchema>
 interface IdIzinItem {
   idIzin: string
   status: 'pending' | 'processing' | 'completed' | 'error'
-  data?: any
+  data?: SikiFetchData
   error?: string
   ktaRequestId?: string
+}
+
+/**
+ * Bentuk data SIKI yang diterima halaman ini dari endpoint fetch-siki.
+ * Semua field optional karena dua format respons SIKI sama-sama mungkin.
+ */
+interface SikiFetchData {
+  nik?: string
+  nama?: string
+  jabatan?: string
+  jabatanKerja?: string
+  jenjang?: string
+  telp?: string
+  email?: string
+  alamat?: string
+  subklasifikasi?: string
+  klasifikasi?: { kodeSubklasifikasi?: string; subklasifikasi?: string }
+  ktpUrl?: string
+  fotoUrl?: string
+}
+
+interface DaerahOption {
+  id: string
+  namaDaerah: string
+  kodeDaerah: string
 }
 
 export default function KTAApplyPage() {
@@ -40,7 +66,7 @@ export default function KTAApplyPage() {
   const { session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [sikiData, setSikiData] = useState<any>(null)
+  const [sikiData, setSikiData] = useState<SikiFetchData | null>(null)
   const [ktaRequestId, setKtaRequestId] = useState<string | null>(null)
 
   // Multi-ID queue states
@@ -51,7 +77,7 @@ export default function KTAApplyPage() {
   const [bulkIdIzinText, setBulkIdIzinText] = useState('')
 
   // Daerah states
-  const [daerahList, setDaerahList] = useState<any[]>([])
+  const [daerahList, setDaerahList] = useState<DaerahOption[]>([])
   const [selectedDaerahId, setSelectedDaerahId] = useState<string>('')
 
   // Pricing states
@@ -60,7 +86,7 @@ export default function KTAApplyPage() {
   const [hargaFinal, setHargaFinal] = useState(0)
 
   // Upgrade state
-  const [upgradeInfo, setUpgradeInfo] = useState<any>(null)
+  const [upgradeInfo, setUpgradeInfo] = useState<UpgradeCheckResult | null>(null)
 
   // Modal states
   const [ktpModalOpen, setKtpModalOpen] = useState(false)
@@ -129,10 +155,26 @@ export default function KTAApplyPage() {
                              session?.user?.role === 'ADMIN' ||
                              session?.user?.daerah?.kodeDaerah === '00'
 
+  // Kode daerah buat pengecekan NIK — daerah 98 dibebaskan dari cek lintas daerah.
+  //
+  // WAJIB pakai daerah TUJUAN, bukan daerah sesi. `create/route.ts:122` memakai
+  // `daerah?.kodeDaerah` dari daerah tujuan, jadi kalau di sini dipakai daerah
+  // sesi, dua pengecekan berjalan dengan filter berbeda. Akibatnya tombol submit
+  // kelihatan aktif (pengecekan form lolos) tapi submit ditolak server, dan
+  // `reason`-nya nggak ikut ditampilkan di UI — petugas cuma lihat pesan generik
+  // setelah mengisi seluruh form.
+  //
+  // Petugas yang nggak boleh pindah daerah memang selalu mengajukan ke daerahnya
+  // sendiri, jadi jatuh ke kode sesi sudah benar untuk mereka.
+  const daerahKode = useMemo(() => {
+    const tujuan = daerahList.find((d) => d.id === selectedDaerahId)
+    return tujuan?.kodeDaerah || session?.user?.daerah?.kodeDaerah
+  }, [daerahList, selectedDaerahId, session])
+
   // Calculate price when jenjang or diskon changes
   useEffect(() => {
     if (sikiData?.jenjang) {
-      const jenjangNum = parseInt(sikiData.jenjang, 10)
+      const jenjangNum = parseInt(sikiData.jenjang || '', 10)
       const base = jenjangNum >= 7 ? 300000 : 100000
       setHargaBase(base)
       setHargaFinal(base - (base * diskonPersen / 100))
@@ -150,7 +192,14 @@ export default function KTAApplyPage() {
             body: JSON.stringify({
               nik: sikiData.nik,
               jenjang: sikiData.jenjang,
-              subklasifikasi: sikiData.klasifikasi?.subklasifikasi || ''
+              subklasifikasi: sikiData.klasifikasi?.subklasifikasi || '',
+              // Biar server bisa ngisi field kosong di KTA lama pas permohonan
+              // ditolak karena jenjang.
+              sikiData,
+              // Buat filter NIK: daerah 98 dibebaskan dari pengecekan lintas daerah.
+              // Server tetap pakai ini cuma kalau diisi — kalau kosong, jatuh ke
+              // kode daerah sesi.
+              daerahKode
             })
           })
           const result = await response.json()
@@ -283,7 +332,7 @@ export default function KTAApplyPage() {
     setIsLoading(true)
 
     try {
-      if (!sikiData.nik || !sikiData.nama) {
+      if (!sikiData || !sikiData.nik || !sikiData.nama) {
         setError('NIK dan Nama harus diisi sebelum menyimpan.')
         return
       }
@@ -333,7 +382,7 @@ export default function KTAApplyPage() {
           setSikiData(null)
         }
       } else {
-        let errorMessage = result.error || 'Gagal menyimpan permohonan'
+        const errorMessage = result.error || 'Gagal menyimpan permohonan'
         setError(`❌ ${errorMessage}`)
       }
     } catch (error) {
@@ -376,7 +425,7 @@ export default function KTAApplyPage() {
     const item = idIzinQueue[index]
 
     if (item.status === 'completed' || (item.status === 'processing' && item.data)) {
-      setSikiData(item.data)
+      setSikiData(item.data ?? null)
       setKtaRequestId(item.ktaRequestId || null)
       setUpgradeInfo(null)
       setError(null)
@@ -1061,6 +1110,15 @@ export default function KTAApplyPage() {
                     <AlertCircle className="h-4 w-4 text-red-600" />
                     <AlertDescription className="text-red-800 text-sm">
                       {upgradeInfo.reason}
+                      {upgradeInfo.backfilledFields && upgradeInfo.backfilledFields.length > 0 && (
+                        <p className="mt-2 text-red-700">
+                          Data KTA yang sudah ada ikut dilengkapi dari SIKI:{' '}
+                          <span className="font-medium">
+                            {upgradeInfo.backfilledFields.join(', ')}
+                          </span>
+                          . Kolom yang sudah ada isinya tidak ditimpa.
+                        </p>
+                      )}
                     </AlertDescription>
                   </Alert>
                 )}
@@ -1184,7 +1242,12 @@ export default function KTAApplyPage() {
                 )}
                 <Button
                   onClick={completeCurrentAndNext}
-                  disabled={isLoading || (upgradeInfo && !upgradeInfo.canUpgrade)}
+                  disabled={isLoading || !!(upgradeInfo && !upgradeInfo.canUpgrade)}
+                  title={
+                    upgradeInfo && !upgradeInfo.canUpgrade
+                      ? upgradeInfo.reason
+                      : undefined
+                  }
                   className="flex-1 bg-slate-800 text-slate-100 hover:bg-slate-700 shadow-md"
                 >
                   {isLoading ? (

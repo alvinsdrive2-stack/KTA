@@ -16,7 +16,7 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
     if (user.role !== 'ADMIN') {
       return NextResponse.json({ success: false, error: 'Anda tidak memiliki akses' }, { status: 403 })
     }
@@ -47,7 +47,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
     if (user.role !== 'ADMIN') {
       return NextResponse.json({ success: false, error: 'Anda tidak memiliki akses' }, { status: 403 })
     }

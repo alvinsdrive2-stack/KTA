@@ -69,7 +69,7 @@ export function DateRangeFilter({ onRangeChange, className }: DateRangeFilterPro
 
   const formatDateRange = () => {
     const now = new Date()
-    let startDate = new Date()
+    const startDate = new Date()
 
     switch (selectedPreset) {
       case '7d':

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { isEmailConfigured, sendMail, renderPasswordResetByAdminEmail } from '@/lib/email'
 
@@ -18,7 +20,7 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
 
     // Only ADMIN can access
     if (user.role !== 'ADMIN') {
@@ -77,7 +79,7 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
 
     // Only ADMIN can access
     if (user.role !== 'ADMIN') {
@@ -117,7 +119,7 @@ export async function PATCH(
     }
 
     // Build update data
-    const updateData: any = {}
+    const updateData: Prisma.UserUncheckedUpdateInput = {}
     if (name) updateData.name = name
     if (email) updateData.email = email
     if (role) updateData.role = role
@@ -134,7 +136,6 @@ export async function PATCH(
 
     // Hash new password if provided
     if (password) {
-      const bcrypt = require('bcryptjs')
       updateData.password = await bcrypt.hash(password, 10)
       // Admin nge-set password baru -> user wajib ganti sendiri saat login.
       updateData.mustChangePassword = true
@@ -197,7 +198,7 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
 
     // Only ADMIN can access
     if (user.role !== 'ADMIN') {

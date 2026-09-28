@@ -94,12 +94,17 @@ function AnimatedCounter({ end, duration = 1200 }: { end: number; duration?: num
     return () => observer.disconnect()
   }, [])
 
+  // Reset hitungan saat kartu berubah jadi nggak kelihatan — lewat pola resmi
+  // React "adjust state when props/state berubah" saat render, bukan setState
+  // sinkron di effect.
+  const [prevVisible, setPrevVisible] = useState(isVisible)
+  if (prevVisible !== isVisible) {
+    setPrevVisible(isVisible)
+    if (!isVisible) setCount(0)
+  }
+
   useEffect(() => {
-    if (!isVisible) {
-      // Reset to 0 when becoming visible to start animation
-      setCount(0)
-      return
-    }
+    if (!isVisible) return
 
     let startTime: number | null = null
     const animateCount = (currentTime: number) => {

@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
 
       try {
         const nama = row[columnMapping.nama]?.toString().trim() || ''
-        let nikValue = row[columnMapping.nik]
+        const nikValue = row[columnMapping.nik]
 
         // Handle NIK - convert from number or scientific notation
         let nik = ''

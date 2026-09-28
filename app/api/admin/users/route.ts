@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
+import bcrypt from 'bcryptjs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { Prisma, UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { appUrl, isEmailConfigured, sendMail, renderSetPasswordEmail } from '@/lib/email'
 import { createPasswordResetToken, SET_PASSWORD_TOKEN_TTL_MINUTES } from '@/lib/password-reset'
@@ -17,7 +19,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
 
     // Only ADMIN can access
     if (user.role !== 'ADMIN') {
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: Prisma.UserWhereInput = {}
     if (search) {
       where.OR = [
         { name: { contains: search } },
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
       ]
     }
     if (role) {
-      where.role = role
+      where.role = role as UserRole
     }
     if (daerahId) {
       where.daerahId = daerahId
@@ -104,7 +106,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
 
     // Only ADMIN can access
     if (user.role !== 'ADMIN') {
@@ -150,7 +152,6 @@ export async function POST(request: NextRequest) {
     // cuma bisa dipakai setelah user bikin password sendiri lewat link email.
     const initialPassword = password || randomBytes(32).toString('hex')
 
-    const bcrypt = require('bcryptjs')
     const hashedPassword = await bcrypt.hash(initialPassword, 10)
 
     // Create user

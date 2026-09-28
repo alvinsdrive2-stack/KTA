@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
     const userDaerahId = session.user?.daerahId
 
     // Build where clause based on user role
-    let whereClause: any = {}
+    const whereClause: Prisma.KTARequestWhereInput = {}
 
     switch (userRole) {
       case 'DAERAH':

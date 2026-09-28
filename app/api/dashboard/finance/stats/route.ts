@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     // ADMIN, KEUANGAN, PUSAT, and DAERAH can access
     const allowedRoles = ['ADMIN', 'KEUANGAN', 'PUSAT', 'DAERAH']
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!session.user.role || !allowedRoles.includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

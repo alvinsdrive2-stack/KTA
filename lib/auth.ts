@@ -87,8 +87,8 @@ export const authOptions: NextAuthOptions = {
         token.daerah = user.daerah
         token.name = user.name
         token.email = user.email
-        token.deviceToken = (user as any).deviceToken
-        token.mustChangePassword = (user as any).mustChangePassword
+        token.deviceToken = user.deviceToken
+        token.mustChangePassword = user.mustChangePassword
       } else {
         // Request selanjutnya: pastikan session ini masih device aktif.
         // Jika user login di device lain, session ini sudah di-evict -> logout.

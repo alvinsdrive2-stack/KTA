@@ -89,9 +89,6 @@ export default function PusatCreateInvoicePage() {
   const subtotal = calculateSubtotal()
   const totalAmount = calculateTotal()
 
-  // Generate invoice number
-  const invoiceNo = `INV-${Date.now().toString().slice(-8)}`
-
   return (
     <div className="space-y-6">
       {/* Header */}

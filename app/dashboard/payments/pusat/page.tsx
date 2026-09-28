@@ -303,7 +303,7 @@ export default function PusatPaymentPage() {
             <div className="flex-1">
               <h3 className="font-semibold text-blue-900 mb-2">Informasi</h3>
               <p className="text-sm text-blue-800 leading-relaxed">
-                Pilih KTA yang akan dibayar dengan mencentang data, kemudian klik <strong>"Lanjut Pembayaran"</strong> dan <strong>"Buat Invoice"</strong>. Invoice yang telah dibuat akan muncul pada tabel <strong>"Invoice Menunggu Pembayaran"</strong> klik baris tabel tersebut untuk melanjutkan proses pembayaran. Setelah pembayaran selesai, KTA akan tersedia di halaman <strong>"Data KTA"</strong>.
+                Pilih KTA yang akan dibayar dengan mencentang data, kemudian klik <strong>&quot;Lanjut Pembayaran&quot;</strong> dan <strong>&quot;Buat Invoice&quot;</strong>. Invoice yang telah dibuat akan muncul pada tabel <strong>&quot;Invoice Menunggu Pembayaran&quot;</strong> klik baris tabel tersebut untuk melanjutkan proses pembayaran. Setelah pembayaran selesai, KTA akan tersedia di halaman <strong>&quot;Data KTA&quot;</strong>.
               </p>
             </div>
           </div>

@@ -16,7 +16,8 @@ import {
   UserCog,
   Database,
   Smartphone,
-  FilePenLine
+  FilePenLine,
+  type LucideIcon,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useSession } from '@/hooks/useSession'
@@ -29,7 +30,7 @@ interface DashboardNavProps {
 interface NavItem {
   title: string
   href?: string
-  icon: any
+  icon: LucideIcon
   roles: string[]
   badge?: string | null
 }
@@ -190,13 +191,6 @@ export function DashboardNav({ isPusat, isKeuangan }: DashboardNavProps) {
   // Extract role to avoid infinite re-renders
   const userRole = session?.user?.role
 
-  // Fetch verified invoice count for DAERAH users
-  useEffect(() => {
-    if (!isPusat && userRole === 'DAERAH') {
-      fetchVerifiedCount()
-    }
-  }, [isPusat, userRole])
-
   const fetchVerifiedCount = async () => {
     try {
       const response = await fetch('/api/payments/bulk?status=VERIFIED')
@@ -208,6 +202,13 @@ export function DashboardNav({ isPusat, isKeuangan }: DashboardNavProps) {
       console.error('Error fetching verified count:', error)
     }
   }
+
+  // Fetch verified invoice count for DAERAH users
+  useEffect(() => {
+    if (!isPusat && userRole === 'DAERAH') {
+      fetchVerifiedCount()
+    }
+  }, [isPusat, userRole])
 
   // Update badge for Riwayat Invoice based on verified count
   const navSectionsWithBadges = navSections.map(section => ({

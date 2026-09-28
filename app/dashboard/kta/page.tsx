@@ -13,6 +13,7 @@ import { JenjangBadge } from '@/components/ui/jenjang-badge'
 import { ImportKtaLegacyModal } from '@/components/dashboard/import-kta-legacy-modal'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { SortableHeader } from '@/components/ui/sortable-header'
+import { useToast } from '@/components/ui/use-toast'
 import {
   Select,
   SelectContent,
@@ -50,6 +51,7 @@ interface KTARequest {
 export default function KTAPage() {
   const { session } = useSession()
   const router = useRouter()
+  const { toast } = useToast()
   const { selectedKTAs, toggleKTA, clearSelection, selectedCount } = useKTASelection()
   const [ktaRequests, setKtaRequests] = useState<KTARequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -233,7 +235,11 @@ export default function KTAPage() {
       document.body.removeChild(a)
     } catch (error) {
       console.error('Error downloading file:', error)
-      alert('Gagal mendownload file')
+      toast({
+        variant: 'destructive',
+        title: 'Gagal mendownload file',
+        description: 'Coba lagi. Kalau masih gagal, hubungi admin pusat.',
+      })
     } finally {
       setDownloading(false)
     }
@@ -279,7 +285,7 @@ export default function KTAPage() {
               <div className="flex-1">
                 <h3 className="font-semibold text-blue-900 mb-2">Informasi</h3>
                 <p className="text-sm text-blue-800 leading-relaxed">
-                  Klik baris tabel untuk melihat detail KTA yang telah diterbitkan. Gunakan tombol <strong>"Download Excel"</strong> untuk mengunduh laporan data KTA dalam format Excel data dapat difilter berdasarkan rentang tanggal di sebelah kiri tombol. Untuk mengunduh file KTA secara bersamaan, klik tombol <strong>"Pilih untuk Download"</strong> lalu pilih KTA yang diinginkan.
+                  Klik baris tabel untuk melihat detail KTA yang telah diterbitkan. Gunakan tombol <strong>&quot;Download Excel&quot;</strong> untuk mengunduh laporan data KTA dalam format Excel data dapat difilter berdasarkan rentang tanggal di sebelah kiri tombol. Untuk mengunduh file KTA secara bersamaan, klik tombol <strong>&quot;Pilih untuk Download&quot;</strong> lalu pilih KTA yang diinginkan.
                 </p>
               </div>
             </div>
@@ -417,7 +423,7 @@ export default function KTAPage() {
                 <p className="text-slate-500">Belum ada KTA yang terverifikasi</p>
               </div>
             ) : (
-              <div className="overflow-hidden">
+              <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/50">

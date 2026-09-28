@@ -23,11 +23,11 @@ async function main() {
 
   for (const tableName of TABLES_ORDER) {
     try {
-      // @ts-ignore - dynamic model access
+      // @ts-expect-error - dynamic model access
       await prisma[tableName].deleteMany({})
       console.log(`-> ${tableName}: OK`)
-    } catch (error: any) {
-      console.error(`-> ${tableName}: ERROR - ${error.message}`)
+    } catch (error) {
+      console.error(`-> ${tableName}: ERROR - ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 

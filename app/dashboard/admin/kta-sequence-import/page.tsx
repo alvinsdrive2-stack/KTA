@@ -91,8 +91,8 @@ export default function ImportKTASequencePage() {
       }
 
       setResult(data)
-    } catch (err: any) {
-      setError(err.message || 'Terjadi kesalahan saat upload')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Terjadi kesalahan saat upload')
     } finally {
       setUploading(false)
     }

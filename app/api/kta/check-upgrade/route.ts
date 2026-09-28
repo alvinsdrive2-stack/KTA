@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkUpgradeScenario } from '@/lib/kta-upgrade'
+import { authMiddleware } from '@/lib/auth-helpers'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { nik, jenjang, subklasifikasi } = await request.json()
+    const session = await authMiddleware(request)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { nik, jenjang, subklasifikasi, daerahKode, sikiData } = await request.json()
 
     if (!nik || !jenjang) {
       return NextResponse.json(
@@ -17,7 +23,11 @@ export async function POST(request: NextRequest) {
     const result = await checkUpgradeScenario(
       nik,
       parseInt(jenjang),
-      subklasifikasi || ''
+      subklasifikasi || '',
+      // Dipakai buat ngisi field kosong di KTA lama kalau permohonannya ditolak
+      // karena jenjang. Nggak ada data SIKI = nggak ada yang di-backfill.
+      sikiData,
+      typeof daerahKode === 'string' && daerahKode.trim() !== '' ? daerahKode.trim() : undefined
     )
 
     return NextResponse.json({

@@ -81,7 +81,7 @@ function mapColumns(headers: string[]): { mapping: Record<string, string>; norma
     email: ['EMAIL', 'E_MAIL', 'E-MAIL', 'EMAIL_ADDRESS'],
     alamat: ['ALAMAT', 'ADDRESS'],
     tanggalDaftar: ['TANGGAL_DAFTAR', 'TANGGALDAFTAR', 'TGL_DAFTAR', 'TGLDAFTAR', 'TANGGAL', 'DATE', 'REGISTRATION_DATE', 'TANGGALDAFTARYYYYMMDD'],
-    daerahKode: ['DAERAH', 'KODE_DAERAH', 'KODEDAERAH', 'WILAYAH', 'REGION', 'REGION_CODE', 'PROVINSI', 'PROVINCE'],
+    daerahKode: ['DAERAH', 'KODE_DAERAH', 'KODEDAERAH', 'WILAYAH', 'REGION', 'REGION_CODE'],
   }
 
   // Find matching columns
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
 
       try {
         const nama = row[columnMapping.nama]?.toString().trim() || ''
-        let nikValue = row[columnMapping.nik]
+        const nikValue = row[columnMapping.nik]
 
         // Handle NIK - convert from number or scientific notation
         let nik = ''
@@ -353,7 +353,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's daerah
-    let userDaerahId = session.user.daerahId
+    const userDaerahId = session.user.daerahId
 
     // If user is DAERAH role, get their daerah
     if (session.user.role === 'DAERAH' && !userDaerahId) {
@@ -433,7 +433,21 @@ export async function PUT(request: NextRequest) {
     }
 
     // Determine daerah
-    let finalDaerahId = daerahId || session.user.daerahId
+    const finalDaerahId = daerahId || session.user.daerahId
+
+    // Pemeriksaan hak akses yang sama dengan `create/route.ts:41-60`. Sebelumnya
+    // cuma sesi yang dicek, jadi petugas daerah bisa menunjuk `daerahId` mana pun
+    // dari body dan mengimpor ke daerah yang bukan wilayahnya.
+    const userRole = session.user.role
+    const canAssignAnyDaerah =
+      userRole === 'PUSAT' || userRole === 'ADMIN' || session.user.daerah?.kodeDaerah === '00'
+
+    if (daerahId && !canAssignAnyDaerah && daerahId !== session.user.daerahId) {
+      return NextResponse.json(
+        { error: 'Anda tidak memiliki akses untuk mengimpor ke daerah lain' },
+        { status: 403 }
+      )
+    }
 
     if (!finalDaerahId) {
       return NextResponse.json({ error: 'Daerah is required' }, { status: 400 })
@@ -447,6 +461,19 @@ export async function PUT(request: NextRequest) {
 
     const diskonPersen = daerah?.diskonPersen || 0
 
+    // Peta kode daerah -> kodeDaerah, dipakai kalau baris Excel punya kode daerah sendiri
+    // (bisa beda dari daerah tujuan import). Query sekali di luar loop.
+    const kodeDaerahRows = Array.from(
+      new Set(rows.map((r: any) => r.daerahKode).filter((k: any) => k && String(k).trim() !== ''))
+    )
+    const daerahByKode = kodeDaerahRows.length > 0
+      ? await prisma.daerah.findMany({
+          where: { kodeDaerah: { in: kodeDaerahRows.map((k: any) => String(k).trim()) } },
+          select: { kodeDaerah: true }
+        })
+      : []
+    const kodeDaerahValid = new Set(daerahByKode.map(d => d.kodeDaerah))
+
     // Process each row
     const results = []
     const errors = []
@@ -459,10 +486,22 @@ export async function PUT(request: NextRequest) {
         const hargaFinal = 0
 
         // Check for upgrade scenario
+        // Kode daerah dari baris Excel, hanya diteruskan kalau memang terdaftar di tabel daerah.
+        // Kalau baris nggak nyebut daerahnya sendiri, jatuh ke daerah TUJUAN impor —
+        // sebelumnya `undefined`, dan itu bikin `checkUpgradeScenario` mencari lintas
+        // SEMUA daerah, sehingga aturan pengecualian 98 nggak jalan sama sekali di
+        // jalur import. `create` dan `create-manual` dua-duanya pakai daerah tujuan.
+        const rowDaerahKode = row.daerahKode ? String(row.daerahKode).trim() : ''
+        const rowKodeDaerah = kodeDaerahValid.has(rowDaerahKode)
+          ? rowDaerahKode
+          : (daerah?.kodeDaerah || undefined)
+
         const upgradeCheck = await checkUpgradeScenario(
           row.nik,
           jenjangNum,
-          row.subklasifikasi
+          row.subklasifikasi,
+          undefined,
+          rowKodeDaerah
         )
 
         if (!upgradeCheck.canUpgrade) {

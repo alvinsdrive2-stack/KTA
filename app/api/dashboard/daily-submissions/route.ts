@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { formatDateKey, formatDateKeyMonth } from '@/lib/utils'
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate current period dates
     let currentStartDate = new Date(now.getTime())
-    let chartStartDate = new Date(now.getTime()) // For chart data range
+    const chartStartDate = new Date(now.getTime()) // For chart data range
     let prevStartDate: Date
     let prevEndDate: Date
 
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
     prevEndDate.setHours(23, 59, 59, 999)
 
     // Build where clause for current period - include both READY_TO_PRINT and PRINTED
-    const currentWhereClause: any = {
+    const currentWhereClause: Prisma.KTARequestWhereInput = {
       createdAt: {
         gte: chartStartDate,
         lte: now,
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause for previous period (for comparison)
-    const prevWhereClause: any = {
+    const prevWhereClause: Prisma.KTARequestWhereInput = {
       createdAt: {
         gte: prevStartDate,
         lte: prevEndDate,

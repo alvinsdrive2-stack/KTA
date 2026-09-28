@@ -112,7 +112,7 @@ function InvoiceCreationBar() {
         return
       }
 
-      const selectedRequests = JSON.parse(stored)
+      const selectedRequests = JSON.parse(stored) as { id: string }[]
 
       const response = await fetch('/api/payments/create-invoice', {
         method: 'POST',
@@ -120,7 +120,7 @@ function InvoiceCreationBar() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          requestIds: selectedRequests.map((req: any) => req.id)
+          requestIds: selectedRequests.map((req) => req.id)
         })
       })
 
@@ -183,12 +183,22 @@ function InvoiceCreationBar() {
 }
 
 // Verification Floating Bar Component
+/** Bentuk payment yang dicek floating bar verifikasi (dari localStorage). */
+interface VerificationPayment {
+  id?: string
+  invoiceNumber?: string
+  status?: string
+  totalJumlah?: number
+  totalNominal?: number
+  payments: { ktaRequestId: string }[]
+}
+
 function VerificationFloatingBar() {
   const router = useRouter()
   const pathname = usePathname()
   const { session } = useSession()
   const { sidebarCollapsed } = useSidebar()
-  const [payment, setPayment] = useState<any>(null)
+  const [payment, setPayment] = useState<VerificationPayment | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [downloadingZip, setDownloadingZip] = useState(false)
   const [showRejection, setShowRejection] = useState(false)
@@ -226,7 +236,7 @@ function VerificationFloatingBar() {
 
     setDownloadingZip(true)
     try {
-      const ktaIds = payment.payments.map((p: any) => p.ktaRequestId)
+      const ktaIds = payment.payments.map((p) => p.ktaRequestId)
 
       const response = await fetch('/api/kta/bulk-download', {
         method: 'POST',
@@ -240,7 +250,7 @@ function VerificationFloatingBar() {
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `KTA-${safeInvoiceFilename(payment.invoiceNumber)}.zip`
+        a.download = `KTA-${safeInvoiceFilename(payment.invoiceNumber || '')}.zip`
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)
@@ -286,7 +296,7 @@ function VerificationFloatingBar() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bulkPaymentId: payment.id,
+          bulkPaymentId: payment?.id,
           approved,
           reason: approved ? null : rejectionReason
         })
@@ -556,10 +566,13 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
   // Extract daerahId to avoid infinite re-renders
   const daerahId = session?.user?.daerah?.id
 
-  // Reset logo error when daerah changes
-  useEffect(() => {
+  // Reset logo error saat daerah berubah — lewat pola resmi React "adjust
+  // state when props change" (set saat render), bukan setState sinkron di effect.
+  const [prevDaerahId, setPrevDaerahId] = useState(daerahId)
+  if (prevDaerahId !== daerahId) {
+    setPrevDaerahId(daerahId)
     setDaerahLogoError(false)
-  }, [daerahId])
+  }
 
   // Close sidebar on mobile when pressing ESC key
   useEffect(() => {

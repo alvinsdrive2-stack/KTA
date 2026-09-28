@@ -59,7 +59,10 @@ export function LoginForm() {
         console.log("Login successful, redirecting to dashboard...")
         // Wait longer for session to be fully established
         await new Promise(resolve => setTimeout(resolve, 500))
-        // Use window.location.href for full page reload to ensure session is synced
+        // Use window.location.href for full page reload to ensure session is synced.
+        // Full reload ini disengaja; penugasan window setelah await ditandai
+        // aturan immutability tapi aman — ini event handler, bukan render.
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = '/dashboard'
       }
     } catch (error) {
