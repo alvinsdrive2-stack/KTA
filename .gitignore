@@ -19,6 +19,8 @@ tsconfig.tsbuildinfo
 
 # Dump data dari Supabase - berisi PII anggota, jangan pernah di-commit
 supabase-dump/
+# Dump DB lokal buat uji — jangan pernah masuk repo.
+dump-*.sql
 .playwright-mcp/
 
 # Upload file anggota (KTP, foto, bukti bayar) - data pribadi, jangan di-commit
