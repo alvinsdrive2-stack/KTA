@@ -61,6 +61,7 @@ export default function KTADetailPage() {
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [includeKtp, setIncludeKtp] = useState(false)
 
   // Document upload states
   const [uploadingKtp, setUploadingKtp] = useState(false)
@@ -253,7 +254,7 @@ export default function KTADetailPage() {
     setDownloading(true)
     setShowPreview(false)
     try {
-      const response = await fetch(`/api/kta/${kta.id}/generate-pdf`)
+      const response = await fetch(`/api/kta/${kta.id}/generate-pdf${includeKtp ? '?ktp=1' : ''}`)
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
@@ -1074,14 +1075,26 @@ export default function KTADetailPage() {
             </div>
           )}
 
-          <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowPreview(false)}>
-              Tutup
-            </Button>
-            <Button onClick={confirmDownloadPDF} className="bg-blue-600 hover:bg-blue-700">
-              <Download className="h-4 w-4 mr-2" />
-              Download PDF
-            </Button>
+          <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex items-center justify-between gap-2">
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={includeKtp}
+                onChange={(e) => setIncludeKtp(e.target.checked)}
+                disabled={downloading}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              Sertakan scan KTP di halaman pertama
+            </label>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowPreview(false)}>
+                Tutup
+              </Button>
+              <Button onClick={confirmDownloadPDF} disabled={downloading} className="bg-blue-600 hover:bg-blue-700">
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -201,6 +201,7 @@ function VerificationFloatingBar() {
   const [payment, setPayment] = useState<VerificationPayment | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [downloadingZip, setDownloadingZip] = useState(false)
+  const [includeKtp, setIncludeKtp] = useState(false)
   const [showRejection, setShowRejection] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const { toast } = useToast()
@@ -241,7 +242,7 @@ function VerificationFloatingBar() {
       const response = await fetch('/api/kta/bulk-download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ktaIds })
+        body: JSON.stringify({ ktaIds, includeKtp })
       })
 
       if (response.ok) {
@@ -365,23 +366,35 @@ function VerificationFloatingBar() {
             </div>
 
             {isVerified ? (
-              <Button
-                onClick={handleDownloadAllKTA}
-                disabled={downloadingZip}
-                className="bg-green-600 hover:bg-green-700 px-8 py-6 text-lg"
-              >
-                {downloadingZip ? (
-                  <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Memproses...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-5 w-5 mr-2" />
-                    Download Semua KTA ({payment.payments?.length || 0})
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col items-end gap-2">
+                <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={includeKtp}
+                    onChange={(e) => setIncludeKtp(e.target.checked)}
+                    disabled={downloadingZip}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  Sertakan scan KTP (satu halaman per KTA)
+                </label>
+                <Button
+                  onClick={handleDownloadAllKTA}
+                  disabled={downloadingZip}
+                  className="bg-green-600 hover:bg-green-700 px-8 py-6 text-lg"
+                >
+                  {downloadingZip ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-5 w-5 mr-2" />
+                      Download Semua KTA ({payment.payments?.length || 0})
+                    </>
+                  )}
+                </Button>
+              </div>
             ) : !showRejection ? (
               <div className="flex gap-3">
                 <Button
@@ -472,6 +485,7 @@ function KTAFloatingBar() {
   const { sidebarCollapsed } = useSidebar()
   const { selectedCount, selectedKTAs, clearSelection } = useKTASelection()
   const [downloadingBulk, setDownloadingBulk] = useState(false)
+  const [includeKtp, setIncludeKtp] = useState(false)
 
   // Only show on /dashboard/kta page
   const shouldShow = pathname?.includes('/dashboard/kta') && !pathname?.includes('/dashboard/kta/') && selectedCount > 0
@@ -485,7 +499,10 @@ function KTAFloatingBar() {
       const response = await fetch('/api/kta/bulk-download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ktaIds: selectedKTAs.map(k => k.id) })
+        body: JSON.stringify({
+          ktaIds: selectedKTAs.map(k => k.id),
+          includeKtp
+        })
       })
 
       if (response.ok) {
@@ -502,7 +519,11 @@ function KTAFloatingBar() {
         clearSelection()
       } else {
         const error = await response.json()
-        alert(error.error || 'Failed to download files')
+        // KTP yang bolong dilaporkan per-KTA biar user tau mana yang harus diurus.
+        const detail = Array.isArray(error.tanpaKtp) && error.tanpaKtp.length > 0
+          ? `\n\nBelum ada KTP: ${error.tanpaKtp.map((k: { nama: string }) => k.nama).join(', ')}`
+          : ''
+        alert((error.error || 'Failed to download files') + detail)
       }
     } catch (error) {
       alert('Failed to download files')
@@ -528,6 +549,16 @@ function KTAFloatingBar() {
               <p className="text-2xl font-bold text-slate-900">
                 Download sebagai ZIP
               </p>
+              <label className="mt-1 flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={includeKtp}
+                  onChange={(e) => setIncludeKtp(e.target.checked)}
+                  disabled={downloadingBulk}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                Sertakan scan KTP (satu halaman per KTA)
+              </label>
             </div>
             <Button
               onClick={handleBulkDownload}

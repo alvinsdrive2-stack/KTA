@@ -23,6 +23,16 @@ interface KTAData {
   nik?: string
   fotoUrl?: string
   fotoData?: string  // base64 image data (client-side fetch)
+  /**
+   * KTP anggota. Kalau salah satunya diisi, `generateKTACard()` nambahin satu
+   * halaman KTP di DEPAN kartu (urutannya KTP -> depan -> belakang).
+   *
+   * Bedanya dari foto: kartu dianggap cetakan resmi yang harus punya KTP, jadi
+   * halaman ini WAJIB ada begitu diminta — bacaannya gagal = error, bukan
+   * diam-diam dilewat. Halaman foto di muka kartu tetap opsional seperti biasa.
+   */
+  ktpUrl?: string
+  ktpData?: string
 }
 
 
@@ -154,6 +164,16 @@ const SCALE = 2
 const CARD_WIDTH = 600 * SCALE
 const CARD_HEIGHT = 380 * SCALE
 
+/**
+ * Tinggi halaman KTP kalau lebarnya disamain sama kartu.
+ *
+ * Lebarnya sengaja ikut `CARD_WIDTH` biar tumpukan KTP + kartu rapi waktu
+ * dicetak (nggak ada halaman yang lebih sempit/lebar). Tingginya ngikutin rasio
+ * asli KTP (85,6 x 53,98 mm = 1,5858) yang dihitung dari lebar itu.
+ */
+const KTP_PAGE_WIDTH = CARD_WIDTH
+const KTP_PAGE_HEIGHT = Math.round((KTP_PAGE_WIDTH * 53.98) / 85.6)
+
 // Cache untuk font dan template
 let manropeFontBytes: Buffer | ArrayBuffer | null = null
 let manropeMediumFontBytes: Buffer | ArrayBuffer | null = null
@@ -275,6 +295,16 @@ async function getManropeMediumFont(): Promise<Buffer | ArrayBuffer> {
  * jadi nggak ikut turun kualitasnya.
  */
 const TEMPLATE_JPEG_QUALITY = 82
+
+/**
+ * Kualitas JPEG buat halaman KTP.
+ *
+ * KTP itu foto dokumen — ada teks kecil (NIK, alamat) yang harus kebaca setelah
+ * dicetak, beda dari foto wajah yang cukup dikenali. Kualitasnya dinaikin dari
+ * template biar teksnya nggak pecah, tapi tetap di bawah 90 karena di atas itu
+ * ukuran filenya naik tajam tanpa beda yang kelihatan.
+ */
+const KTP_JPEG_QUALITY = 88
 
 /**
  * Baca template hasil resize dari cache disk (`/tmp`).
@@ -488,6 +518,38 @@ async function getTemplateImageBack(): Promise<Buffer> {
     .jpeg({ quality: TEMPLATE_JPEG_QUALITY, mozjpeg: true })
     .toBuffer()
   }
+}
+
+/**
+ * Ambil byte gambar KTP dari base64 atau dari storage lokal.
+ *
+ * Hanya menerima dua sumber, sama seperti foto: base64 (`ktpData`) dan file
+ * lokal (`/uploads/...`). URL eksternal SENGAJA ditolak — server produksi
+ * kena geo-block ke host SIKI, jadi fetch-nya bakal gagal di tengah proses dan
+ * hasilnya kartu tanpa KTP. Kalau ketemu URL http, lempar error biar kelihatan
+ * di pemanggil, bukan diam-diam dilewat.
+ */
+async function readKtpImageBytes(ktpData?: string, ktpUrl?: string): Promise<Buffer> {
+  if (ktpData) {
+    const base64Data = ktpData.includes(',') ? ktpData.split(',')[1] : ktpData
+    return Buffer.from(base64Data, 'base64')
+  }
+
+  if (ktpUrl) {
+    if (ktpUrl.startsWith('http')) {
+      throw new Error(
+        `KTP masih berupa URL eksternal (${ktpUrl}) — perlu di-fetch jadi base64 dulu sebelum bikin PDF`
+      )
+    }
+    const key = ktpUrl.replace(/^\/?uploads\//, '')
+    const buffer = await readUpload(key)
+    if (!buffer) {
+      throw new Error(`File KTP nggak ketemu di storage: ${ktpUrl}`)
+    }
+    return buffer
+  }
+
+  throw new Error('KTP diminta tapi ktpData dan ktpUrl dua-duanya kosong')
 }
 
 export class KTAPDFGenerator {
@@ -876,6 +938,45 @@ export class KTAPDFGenerator {
 
     console.log('✅ QR code processing complete')
 
+    // ===== HALAMAN KTP =====
+    //
+    // Urutan halaman yang dihasilkan: KTP, muka kartu, belakang kartu. Halaman
+    // KTP ditambahin di sini (setelah halaman muka digambar, sebelum belakang)
+    // supaya indeks halaman belakang tetap terakhir.
+    //
+    // Kalau KTP diminta tapi gagalnya nggak ketolong, error sengaja dibiarkan
+    // naik: mencetak kartu tanpa KTP dianggap lebih berbahaya daripada gagal
+    // download, karena kartu-nya kelihatan sah padahal dokumennya bolong.
+    if (ktaData.ktpData || ktaData.ktpUrl) {
+      console.log('⏳ Processing KTP page...')
+      const ktpBytes = await readKtpImageBytes(ktaData.ktpData, ktaData.ktpUrl)
+
+      // Skala ulang biar pas lebar halaman; KTP asli landscape jadi tingginya
+      // nggak akan pernah lebih dari halaman.
+      const resizedKtp = await sharp(ktpBytes)
+        .resize(KTP_PAGE_WIDTH, KTP_PAGE_HEIGHT, { fit: 'cover', position: 'center' })
+        .jpeg({ quality: KTP_JPEG_QUALITY, mozjpeg: true })
+        .toBuffer()
+
+      const pageKtp = pdfDoc.addPage([KTP_PAGE_WIDTH, KTP_PAGE_HEIGHT])
+      const ktpImage = await pdfDoc.embedJpg(resizedKtp)
+      pageKtp.drawImage(ktpImage, {
+        x: 0,
+        y: 0,
+        width: KTP_PAGE_WIDTH,
+        height: KTP_PAGE_HEIGHT,
+      })
+
+      // Pindahkan halaman KTP ke paling depan — halaman muka kartu sudah
+      // digambar sebelumnya, jadi tanpa ini urutannya jadi kartu dulu.
+      const pages = pdfDoc.getPages()
+      const ktpPageRef = pages[pages.length - 1]
+      pdfDoc.removePage(pages.length - 1)
+      pdfDoc.insertPage(0, ktpPageRef)
+
+      console.log('✅ KTP page added (urutan: KTP, depan, belakang)')
+    }
+
     // ===== BACK PAGE =====
     console.log('⏳ Generating back page...')
     const pageBack = pdfDoc.addPage([CARD_WIDTH, CARD_HEIGHT])
@@ -905,10 +1006,14 @@ export class KTAPDFGenerator {
     for (const ktaData of ktaDataList) {
       const pdfBuffer = await this.generateKTACard(ktaData)
       const tempPdf = await PDFDocument.load(pdfBuffer)
-      // Copy both front (page 0) and back (page 1)
-      const [frontPage, backPage] = await pdfDoc.copyPages(tempPdf, [0, 1])
-      pdfDoc.addPage(frontPage)
-      pdfDoc.addPage(backPage)
+      // Jumlah halaman nggak tetap: 3 kalau KTP disertakan, 2 kalau nggak.
+      // Jangan hardcode [0, 1] — halaman belakang bakal ketuker sama KTP.
+      const pageCount = tempPdf.getPageCount()
+      const copiedPages = await pdfDoc.copyPages(
+        tempPdf,
+        Array.from({ length: pageCount }, (_, i) => i)
+      )
+      copiedPages.forEach(page => pdfDoc.addPage(page))
     }
 
     const pdfBytes = await pdfDoc.save()
