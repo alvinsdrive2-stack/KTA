@@ -100,8 +100,8 @@ export async function verifyEmailTransport(): Promise<{ ok: boolean; error?: str
   try {
     await getTransporter().verify()
     return { ok: true }
-  } catch (error: any) {
-    return { ok: false, error: error?.message || String(error) }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
 

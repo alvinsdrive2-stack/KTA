@@ -68,7 +68,7 @@ export default function SIKITestPage() {
       }
 
       // Map bulk response to ResultWithTiming format
-      const newResults: ResultWithTiming[] = data.results.map((r: any) => ({
+      const newResults: ResultWithTiming[] = data.results.map((r: { status?: string; error?: string; timing?: number }) => ({
         data: r.status === 'success' ? r : null,
         error: r.error || null,
         timing: r.timing || 0,

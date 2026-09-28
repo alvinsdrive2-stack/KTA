@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { KTAStatus } from '@prisma/client'
 
@@ -18,7 +19,7 @@ const sortFields: Record<string, string> = {
   updatedAt: 'updatedAt',
 }
 
-function buildOrderBy(sortBy: string | null, sortDir: 'asc' | 'desc'): any {
+function buildOrderBy(sortBy: string | null, sortDir: 'asc' | 'desc'): Prisma.KTARequestOrderByWithRelationInput {
   if (!sortBy) {
     return { createdAt: 'desc' }
   }
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
 
     // Only ADMIN can access
     if (user.role !== 'ADMIN') {
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: Prisma.KTARequestWhereInput = {}
     if (search) {
       where.OR = [
         { idIzin: { contains: search } },
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
 
     // Only ADMIN can access
     if (user.role !== 'ADMIN') {

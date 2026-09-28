@@ -35,7 +35,16 @@ type TokenState =
  */
 export function ResetPasswordForm({ token }: { token: string }) {
   const router = useRouter()
-  const [tokenState, setTokenState] = useState<TokenState>({ status: 'checking' })
+  // Token dari URL nggak berubah tanpa remount, jadi status awalnya bisa
+  // langsung dihitung dari prop — setState sinkron di effect nggak perlu.
+  const [tokenState, setTokenState] = useState<TokenState>(() =>
+    !token
+      ? {
+          status: 'invalid',
+          message: 'Link reset nggak lengkap. Minta link baru dari halaman lupa password.',
+        }
+      : { status: 'checking' }
+  )
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [focusedField, setFocusedField] = useState<string | null>(null)
@@ -48,14 +57,6 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
   useEffect(() => {
     let cancelled = false
-
-    if (!token) {
-      setTokenState({
-        status: 'invalid',
-        message: 'Link reset nggak lengkap. Minta link baru dari halaman lupa password.',
-      })
-      return
-    }
 
     fetch(`/api/auth/reset-password?token=${encodeURIComponent(token)}`)
       .then(async (res) => {

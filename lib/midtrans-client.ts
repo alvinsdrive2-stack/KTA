@@ -32,7 +32,7 @@ export interface SnapResult {
   transaction_time: string
   transaction_status: string
   fraud_status: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 /**

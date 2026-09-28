@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+import type { UserRole } from '@prisma/client'
 import { prisma } from './prisma'
 
 // Idle timeout: 5 menit tanpa aktivitas -> auto logout (sliding window).
@@ -22,7 +23,7 @@ export function getIdleTimeoutMs(): number {
 export async function getMaxDevices(role: string): Promise<number> {
   if (role) {
     const setting = await prisma.roleSetting.findUnique({
-      where: { role: role as any }
+      where: { role: role as UserRole }
     })
     if (setting && setting.maxDevices >= 1) {
       return setting.maxDevices

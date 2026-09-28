@@ -1,6 +1,7 @@
 import QRCode from 'qrcode'
-import fs from 'fs/promises'
-import path from 'path'
+import { writeFile, mkdir } from 'fs/promises'
+import { join } from 'path'
+import { getUploadRoot, keyToUrl } from './upload-storage'
 
 interface QRCodeOptions {
   nik: string
@@ -8,41 +9,42 @@ interface QRCodeOptions {
 }
 
 export class QRCodeGenerator {
-  // Use /tmp for Vercel serverless compatibility
-  private static readonly qrDir = '/tmp/qr-codes'
-
   /**
-   * Generate QR code for KTA verification
-   * Returns base64 data URL for direct embedding in PDF
-   * QR code contains URL to public verification page
-   * URL format: {baseUrl}/verify/{nik}
+   * Generate QR code for KTA verification.
    *
-   * NIK-based format ensures QR remains valid after KTA upgrades
-   * (always shows the latest approved KTA for that NIK)
+   * Nyimpen PNG ke `storage/uploads/qr-codes/` dan balikin URL `/uploads/...`,
+   * BUKAN data URL base64. Sebelumnya fungsi ini balikin data URL sementara
+   * `bulk-download` nyimpen URL file — dua bentuk nilai di satu kolom
+   * `qrCodePath`. Yang baca (`lib/pdf-generator.ts`) cuma paham salah satunya,
+   * jadi separuh kartu terbit tanpa QR. Sekarang satu bentuk saja.
+   *
+   * URL format: {baseUrl}/verify/{nik}
+   * Pakai NIK biar QR tetap valid setelah KTA di-upgrade — halaman verifikasi
+   * selalu nunjukin KTA terbaru buat NIK itu.
    */
   static async generateKTAQR(options: QRCodeOptions): Promise<string> {
-    const { nik, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'Kta.Gatensi.or.id' } = options
+    // Nama file mengikuti `bulk-download` — NIK unik per orang, dan QR-nya
+    // sendiri meng-encode NIK, jadi menimpa file lama memang perilaku yang benar.
+    await this.writeKTAQRFile(options)
 
-    // Generate QR code URL using NIK
-    const qrUrl = `${baseUrl}/verify/${nik}`
+    return keyToUrl(`qr-codes/qr-${options.nik}.png`)
+  }
 
-    // Generate QR code as buffer first (more reliable than toDataURL)
-    const qrBuffer = await QRCode.toBuffer(qrUrl, {
-      width: 200,
-      margin: 1,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF',
-      },
-    })
+  /**
+   * Tulis PNG QR ke storage dan balikin key relatifnya.
+   * Dipakai bareng oleh `generateKTAQR()` dan `bulk-download`.
+   */
+  static async writeKTAQRFile(options: QRCodeOptions): Promise<string> {
+    const { nik } = options
+    const buffer = await this.generateKTAQRBuffer(options)
 
-    // Convert buffer to base64 data URL
-    const base64 = qrBuffer.toString('base64')
-    const qrDataUrl = `data:image/png;base64,${base64}`
+    const dir = join(getUploadRoot(), 'qr-codes')
+    await mkdir(dir, { recursive: true })
 
-    console.log('Generated QR code, buffer size:', qrBuffer.length, 'base64 size:', base64.length)
+    const key = `qr-codes/qr-${nik}.png`
+    await writeFile(join(dir, `qr-${nik}.png`), buffer)
 
-    return qrDataUrl // Returns "data:image/png;base64,..."
+    return key
   }
 
   /**
@@ -50,19 +52,23 @@ export class QRCodeGenerator {
    * Same as generateKTAQR but returns only base64 without prefix
    */
   static async generateKTAQRBase64(options: QRCodeOptions): Promise<string> {
-    const dataUrl = await this.generateKTAQR(options)
-    // Remove "data:image/png;base64," prefix
-    return dataUrl.split(',')[1]
+    const buffer = await this.generateKTAQRBuffer(options)
+    return buffer.toString('base64')
   }
 
   /**
-   * Generate QR code as buffer (for file operations if needed)
+   * Generate QR code as buffer.
+   *
+   * `baseUrl` wajib punya skema — tanpa `https://` hasilnya URL yang nggak bisa
+   * dipindai. Default lama cuma domain telanjang; sekarang skemanya ikut, dan
+   * `NEXT_PUBLIC_APP_URL` tetap yang menang kalau diisi.
    */
   static async generateKTAQRBuffer(options: QRCodeOptions): Promise<Buffer> {
-    const { nik, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'kta.Gatensi.or.id' } = options
+    const { nik, baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kta.gatensi.or.id' } = options
 
-    // Generate QR code URL using NIK
-    const qrUrl = `${baseUrl}/verify/${nik}`
+    // Hindari skema dobel kalau env-nya sudah lengkap.
+    const origin = /^https?:\/\//i.test(baseUrl) ? baseUrl : `https://${baseUrl}`
+    const qrUrl = `${origin.replace(/\/+$/, '')}/verify/${nik}`
 
     // Generate QR code as PNG buffer
     return await QRCode.toBuffer(qrUrl, {
@@ -75,3 +81,4 @@ export class QRCodeGenerator {
     })
   }
 }
+

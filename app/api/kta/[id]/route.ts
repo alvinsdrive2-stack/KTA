@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { QRCodeGenerator } from '@/lib/qr-generator'
@@ -113,7 +114,7 @@ export async function PATCH(
     }
 
     // Prepare update data
-    const updateData: any = {}
+    const updateData: Prisma.KTARequestUncheckedUpdateInput = {}
 
     // Standard updates (ktpUrl, fotoUrl, status)
     if (body.ktpUrl !== undefined) {
@@ -134,11 +135,11 @@ export async function PATCH(
         // Only allow update if the field is currently empty
         const currentValue = existingKta[field as keyof typeof existingKta]
         if (!currentValue || currentValue.toString().trim() === '') {
-          updateData[field] = body[field]
+          (updateData as Record<string, unknown>)[field] = body[field]
         } else if (currentValue !== body[field]) {
           // If field is not empty, only ADMIN/PUSAT can change it
           if (session.user.role === 'ADMIN' || session.user.role === 'PUSAT') {
-            updateData[field] = body[field]
+            (updateData as Record<string, unknown>)[field] = body[field]
           }
         }
       }

@@ -12,6 +12,16 @@ type ToastProps = {
   duration?: number
 }
 
+type StoredToast = ToastProps & { id: string }
+
+type ToastState = { toasts: StoredToast[] }
+
+type ToastAction =
+  | { type: "ADD_TOAST"; toast: StoredToast }
+  | { type: "UPDATE_TOAST"; toast: StoredToast }
+  | { type: "DISMISS_TOAST"; toastId?: string }
+  | { type: "REMOVE_TOAST"; toastId?: string }
+
 let count = 0
 
 function genId() {
@@ -44,7 +54,7 @@ function createToast(toast: ToastProps) {
   }
 }
 
-function reducer(state: any, action: any) {
+function reducer(state: ToastState, action: ToastAction): ToastState {
   switch (action.type) {
     case "ADD_TOAST":
       return {
@@ -55,7 +65,7 @@ function reducer(state: any, action: any) {
     case "UPDATE_TOAST":
       return {
         ...state,
-        toasts: state.toasts.map((t: any) =>
+        toasts: state.toasts.map((t) =>
           t.id === action.toast.id ? { ...t, ...action.toast } : t
         ),
       }
@@ -66,14 +76,14 @@ function reducer(state: any, action: any) {
       if (toastId) {
         addToRemoveQueue(toastId)
       } else {
-        state.toasts.forEach((toast: any) => {
+        state.toasts.forEach((toast) => {
           addToRemoveQueue(toast.id)
         })
       }
 
       return {
         ...state,
-        toasts: state.toasts.map((t: any) =>
+        toasts: state.toasts.map((t) =>
           t.id === toastId || toastId === undefined
             ? {
               ...t,
@@ -92,7 +102,7 @@ function reducer(state: any, action: any) {
       }
       return {
         ...state,
-        toasts: state.toasts.filter((t: any) => t.id !== action.toastId),
+        toasts: state.toasts.filter((t) => t.id !== action.toastId),
       }
   }
 }
@@ -113,11 +123,11 @@ function addToRemoveQueue(toastId: string) {
   toastTimeouts.set(toastId, timeout)
 }
 
-const listeners: Array<(state: { toasts: ToastProps[] }) => void> = []
+const listeners: Array<(state: ToastState) => void> = []
 
-let memoryState: { toasts: ToastProps[] } = { toasts: [] }
+let memoryState: ToastState = { toasts: [] }
 
-function dispatch(action: any) {
+function dispatch(action: ToastAction) {
   memoryState = reducer(memoryState, action)
   listeners.forEach((listener) => {
     listener(memoryState)

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Workbook } from 'exceljs'
+import { Workbook, type Cell, type BorderStyle } from 'exceljs'
 import { safeInvoiceFilename, formatCurrency } from '@/lib/utils'
 import { resolveInvoiceAmounts, lineHargaBase } from '@/lib/invoice'
 import { readFileSync } from 'fs'
@@ -184,7 +184,7 @@ export async function GET(
       { width: 46 },  // F - kanan value (Rincian Biaya)
     ]
 
-    const box = (cell: any, color: string = BORDER, weight: string = 'thin') => {
+    const box = (cell: Cell, color: string = BORDER, weight: BorderStyle = 'thin') => {
       cell.border = {
         top: { style: weight, color: { argb: color } },
         left: { style: weight, color: { argb: color } },
@@ -193,7 +193,7 @@ export async function GET(
       }
     }
 
-    const sectionBox = (cell: any) => {
+    const sectionBox = (cell: Cell) => {
       cell.border = {
         top: { style: 'thin', color: { argb: NAVY } },
         left: { style: 'thin', color: { argb: NAVY } },
@@ -217,7 +217,11 @@ export async function GET(
     try {
       const logoBuffer = readFileSync(join(process.cwd(), 'public', 'logo.png'))
       // Cast tipe saja: deklarasi Buffer di exceljs beda versi dengan @types/node.
-      const logoImg = wb.addImage({ buffer: logoBuffer as any, extension: 'png' })
+      type WbImageOptions = Parameters<typeof wb.addImage>[0]
+      const logoImg = wb.addImage({
+        buffer: logoBuffer as unknown as NonNullable<WbImageOptions['buffer']>,
+        extension: 'png',
+      } as WbImageOptions)
       ws.addImage(logoImg, {
         tl: { col: 5, row: 0 },
         ext: { width: 62, height: 62 }

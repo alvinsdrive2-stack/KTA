@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { fetchSikiWithFallback, sikiApi } from '@/lib/siki-api'
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
     // Only process IMPORTED_PENDING_DOCS status
     // 1. idIzin is null (need to fetch from SIKI index)
     // 2. idIzin exists but fotoUrl or ktpUrl is null (can directly fetch from SIKI API)
-    const baseClause: any = {
+    const baseClause: Prisma.KTARequestWhereInput = {
       status: 'IMPORTED_PENDING_DOCS',
       OR: [
         { idIzin: null },
@@ -242,7 +243,7 @@ export async function POST(request: NextRequest) {
             }
 
             // Build update data - include idIzin only if we're setting it for the first time
-            const updateData: any = {
+            const updateData: Prisma.KTARequestUncheckedUpdateInput = {
               nama: data.nama,
               nik: data.nik,
               jabatanKerja: jabatanKerja,
@@ -337,7 +338,7 @@ export async function GET(request: NextRequest) {
     const daerahId = searchParams.get('daerahId')
 
     // Count records that need sync: only IMPORTED_PENDING_DOCS with missing idIzin or docs
-    const baseClause: any = {
+    const baseClause: Prisma.KTARequestWhereInput = {
       status: 'IMPORTED_PENDING_DOCS',
       OR: [
         { idIzin: null },

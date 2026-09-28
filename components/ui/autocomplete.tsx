@@ -144,7 +144,7 @@ export function Autocomplete({
       {isOpen && inputValue && filteredOptions.length === 0 && !loading && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3">
           <p className="text-sm text-slate-500 text-center">
-            Tidak ditemukan: "{inputValue}"
+            Tidak ditemukan: &quot;{inputValue}&quot;
           </p>
         </div>
       )}

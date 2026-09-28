@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const daerahId = searchParams.get('daerahId')
 
-    const where: any = {}
+    const where: Prisma.DaerahWhereInput = {}
     if (daerahId) {
       where.id = daerahId
     }
@@ -94,7 +95,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Build update data dynamically based on provided fields
-    const updateData: any = {}
+    const updateData: Prisma.DaerahUncheckedUpdateInput = {}
     if (typeof lastSequenceAhli === 'number') {
       updateData.lastSequenceAhli = lastSequenceAhli
     }
@@ -175,7 +176,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const updateData: any = {}
+        const updateData: Prisma.DaerahUncheckedUpdateInput = {}
         if (typeof lastSequenceAhli === 'number') {
           updateData.lastSequenceAhli = lastSequenceAhli
         }

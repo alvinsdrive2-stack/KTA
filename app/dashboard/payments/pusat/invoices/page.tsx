@@ -121,7 +121,7 @@ export default function PusatInvoicesHistoryPage() {
           ) : filteredInvoices.length === 0 ? (
             <div className="text-center py-12">
               <Search className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">Tidak ada invoice yang cocok dengan "{search}"</p>
+              <p className="text-slate-500">Tidak ada invoice yang cocok dengan &quot;{search}&quot;</p>
             </div>
           ) : (
             <div className="overflow-x-auto">

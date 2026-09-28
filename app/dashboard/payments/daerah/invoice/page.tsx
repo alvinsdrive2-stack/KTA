@@ -107,9 +107,6 @@ export default function CreateInvoicePage() {
   const totalDiskon = subtotal - calculateTotal()
   const totalAmount = calculateTotal()
 
-  // Generate invoice number
-  const invoiceNo = `INV-${Date.now().toString().slice(-8)}`
-
   return (
     <div className="space-y-6">
       {/* Header */}

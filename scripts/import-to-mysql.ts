@@ -81,7 +81,7 @@ async function importTable(tableName: string, modelName: string) {
   let successCount = 0
   let errorCount = 0
 
-  // @ts-ignore - dynamic model access
+  // @ts-expect-error - dynamic model access
   const model = prisma[modelName]
 
   for (const row of data) {
@@ -100,12 +100,12 @@ async function importTable(tableName: string, modelName: string) {
       })
 
       successCount++
-    } catch (error: any) {
+    } catch (error) {
       // Skip duplicate errors
-      if (error.code === 'P2002') {
+      if ((error as { code?: string }).code === 'P2002') {
         // console.log(`  SKIP: Duplicate (${row.email || row.id})`)
       } else {
-        console.error(`  ERROR: ${error.message}`)
+        console.error(`  ERROR: ${error instanceof Error ? error.message : String(error)}`)
         errorCount++
       }
     }
@@ -124,8 +124,8 @@ async function main() {
     try {
       const count = await importTable(table.name, table.model)
       totalImported += count
-    } catch (error: any) {
-      console.error(`FATAL ERROR for ${table.name}:`, error.message)
+    } catch (error) {
+      console.error(`FATAL ERROR for ${table.name}:`, error instanceof Error ? error.message : String(error))
     }
   }
 

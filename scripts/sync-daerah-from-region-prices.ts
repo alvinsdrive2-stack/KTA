@@ -129,12 +129,12 @@ async function main() {
 
       created.push(newDaerah)
       console.log(`  ✅ Created: ${newDaerah.kodeDaerah} - ${newDaerah.namaDaerah}`)
-    } catch (error: any) {
-      if (error.code === 'P2002') {
+    } catch (error) {
+      if ((error as { code?: string }).code === 'P2002') {
         skipped.push(region.daerahId)
         console.log(`  ⚠️  Skip: ${region.daerahId} (already exists - duplicate)`)
       } else {
-        console.error(`  ❌ Failed: ${region.daerahId} - ${error.message}`)
+        console.error(`  ❌ Failed: ${region.daerahId} - ${error instanceof Error ? error.message : String(error)}`)
       }
     }
   }

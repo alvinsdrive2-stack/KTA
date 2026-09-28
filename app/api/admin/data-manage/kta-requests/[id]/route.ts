@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -17,7 +18,7 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
 
     // Only ADMIN can access
     if (user.role !== 'ADMIN') {
@@ -136,7 +137,7 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
 
     // Only ADMIN can access
     if (user.role !== 'ADMIN') {
@@ -196,7 +197,7 @@ export async function PATCH(
     }
 
     // Build update data
-    const updateData: any = {}
+    const updateData: Prisma.KTARequestUncheckedUpdateInput = {}
     if (idIzin) updateData.idIzin = idIzin
     if (daerahId) updateData.daerahId = daerahId
     if (nik) updateData.nik = nik
@@ -263,7 +264,7 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
 
     // Only ADMIN can access
     if (user.role !== 'ADMIN') {

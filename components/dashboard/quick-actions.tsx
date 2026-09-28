@@ -10,7 +10,8 @@ import {
   Settings,
   BarChart3,
   Plus,
-  ChevronRight
+  ChevronRight,
+  type LucideIcon,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -18,7 +19,7 @@ interface QuickAction {
   id: string
   label: string
   description: string
-  icon: any
+  icon: LucideIcon
   href: string
   color: 'slate' | 'blue' | 'green' | 'orange'
   badge?: string

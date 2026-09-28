@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     const jenjang = searchParams.get('jenjang')
 
     // Build where clause
-    const where: any = {}
+    const where: Prisma.JabatanKerjaWhereInput = {}
 
     if (subklasifikasi) {
       where.subklasifikasi = subklasifikasi

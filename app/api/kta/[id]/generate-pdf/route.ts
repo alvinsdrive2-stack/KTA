@@ -204,6 +204,7 @@ export async function GET(
 
     const ktaData = {
       id: ktaRequest.id,
+      nik: ktaRequest.nik,
       nama: ktaRequest.nama,
       alamat: ktaRequest.alamat,
       nomorKTA: nomorKTA || '',

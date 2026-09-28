@@ -1,9 +1,10 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
 // Hitung porsi (diskon) per bulkPayment. Porsi = max(0, base total - totalNominal).
 // Base upgrade dihitung hargaBase - hargaBase KTA sebelumnya, karena hargaBase KTA upgrade
 // udah termasuk harga KTA asal.
-export async function getBulkPaymentsWithPorsi(where: any) {
+export async function getBulkPaymentsWithPorsi(where: Prisma.BulkPaymentWhereInput) {
   const bulkPayments = await prisma.bulkPayment.findMany({
     where,
     include: {

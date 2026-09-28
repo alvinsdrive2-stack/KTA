@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma, KTAStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { Workbook } from 'exceljs'
@@ -29,11 +30,11 @@ export async function GET(request: NextRequest) {
     const statusParams = searchParams.getAll('status')
 
     // Build where clause
-    const where: any = {}
+    const where: Prisma.KTARequestWhereInput = {}
 
     // Status filter - only verified statuses
     if (statusParams.length > 0) {
-      where.status = { in: statusParams }
+      where.status = { in: statusParams as KTAStatus[] }
     } else {
       // Default to verified statuses
       where.status = { in: ['APPROVED_BY_PUSAT', 'READY_TO_PRINT', 'PRINTED'] }

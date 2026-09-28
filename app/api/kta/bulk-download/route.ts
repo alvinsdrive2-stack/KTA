@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { generateNomorKTA } from '@/lib/kta-numbering'
-import { getUploadRoot, keyToUrl, readUpload, contentTypeFor } from '@/lib/upload-storage'
+import { keyToUrl, readUpload, contentTypeFor } from '@/lib/upload-storage'
 import { KTAPDFGenerator } from '@/lib/pdf-generator'
 import { QRCodeGenerator } from '@/lib/qr-generator'
-import * as fs from 'fs/promises'
-import * as path from 'path'
-import * as os from 'os'
 import archiver from 'archiver'
 import { Readable } from 'stream'
 
@@ -111,22 +108,12 @@ export async function POST(request: NextRequest) {
           // Generate QR code path if not exists
           let qrCodePath = kta.qrCodePath
           if (!qrCodePath) {
-            // Generate QR code buffer
-            const qrBuffer = await QRCodeGenerator.generateKTAQRBuffer({
-              nik: kta.nik || kta.id,
-            })
-
-            // Create qr-codes directory if it doesn't exist
-            const qrDir = path.join(getUploadRoot(), 'qr-codes')
-            await fs.mkdir(qrDir, { recursive: true })
-
-            // Save QR code file
-            const qrFileName = `qr-${kta.nik || kta.id}.png`
-            const qrFilePath = path.join(qrDir, qrFileName)
-            await fs.writeFile(qrFilePath, qrBuffer)
-
-            // Set qrCodePath to the storage URL
-            qrCodePath = keyToUrl(`qr-codes/${qrFileName}`)
+            // Penulisan file QR ada di `QRCodeGenerator.writeKTAQRFile()` —
+            // dipakai bareng sama `generateKTAQR()`, biar cuma ada satu tempat
+            // yang nentuin nama file dan lokasinya.
+            qrCodePath = keyToUrl(
+              await QRCodeGenerator.writeKTAQRFile({ nik: kta.nik || kta.id })
+            )
 
             // Update KTA with the qrCodePath
             await prisma.kTARequest.update({
@@ -182,6 +169,7 @@ export async function POST(request: NextRequest) {
 
           const ktaData = {
             id: kta.id,
+            nik: kta.nik || '',
             nama: kta.nama,
             alamat: kta.alamat,
             nomorKTA: nomorKTA || kta.id,

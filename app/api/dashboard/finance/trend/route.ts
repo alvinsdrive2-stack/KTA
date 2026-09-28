@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { resolveRange } from '@/lib/finance-period'
 import { getBulkPaymentsWithPorsi } from '@/lib/finance-porsi'
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
 
     // ADMIN, KEUANGAN, PUSAT, and DAERAH can access
     const allowedRoles = ['ADMIN', 'KEUANGAN', 'PUSAT', 'DAERAH']
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!session.user.role || !allowedRoles.includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
     const mode = resolveGroupingMode(period, isCustom, start, end)
 
     // Build where clause based on user role
-    let whereClause: any = {
+    const whereClause: Prisma.BulkPaymentWhereInput = {
       createdAt: {
         gte: start,
         lte: end,

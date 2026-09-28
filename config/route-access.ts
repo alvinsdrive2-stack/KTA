@@ -202,7 +202,7 @@ export function canAccessPath(role: string | undefined, pathname: string): boole
     return true
   }
 
-  return route.allowedRoles.includes(role as any)
+  return route.allowedRoles.includes(role as RouteAccess['allowedRoles'][number])
 }
 
 /**
@@ -220,7 +220,7 @@ export function getRedirectPath(role: string | undefined, pathname: string): str
   })
 
   if (!route) return null
-  if (route.allowedRoles.includes(role as any)) return null
+  if (route.allowedRoles.includes(role as RouteAccess['allowedRoles'][number])) return null
 
   // Use forbidden page if specified, otherwise use redirectPath
   if (route.useForbiddenPage) {

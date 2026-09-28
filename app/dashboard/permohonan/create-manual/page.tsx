@@ -1,5 +1,6 @@
 'use client'
 
+import type { UpgradeCheckResult } from '@/lib/kta-upgrade'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -65,7 +66,7 @@ export default function CreateManualPage() {
   const [uploadProgress, setUploadProgress] = useState(0)
 
   // Daerah states
-  const [daerahList, setDaerahList] = useState<any[]>([])
+  const [daerahList, setDaerahList] = useState<{ id: string; namaDaerah: string; kodeDaerah?: string }[]>([])
   const [selectedDaerahId, setSelectedDaerahId] = useState<string>('')
 
   // Pricing states
@@ -74,7 +75,7 @@ export default function CreateManualPage() {
   const [hargaFinal, setHargaFinal] = useState(0)
 
   // Upgrade state
-  const [upgradeInfo, setUpgradeInfo] = useState<any>(null)
+  const [upgradeInfo, setUpgradeInfo] = useState<UpgradeCheckResult | null>(null)
 
   // Reference data states
   const [allJabkerData, setAllJabkerData] = useState<Array<{
@@ -135,7 +136,7 @@ export default function CreateManualPage() {
           setAllJabkerData(result.data)
           // Dedupe subklasifikasi: beda huruf besar/kecil atau spasi ekstra dianggap sama
           const seen = new Map<string, string>()
-          result.data.forEach((d: any) => {
+          result.data.forEach((d: { subklasifikasi?: string }) => {
             const raw = (d.subklasifikasi || '').trim()
             if (!raw) return
             const key = raw.toLowerCase()

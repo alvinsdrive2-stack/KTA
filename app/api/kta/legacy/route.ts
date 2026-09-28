@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 
@@ -15,7 +16,7 @@ const sortFields: Record<string, string> = {
   createdAt: 'createdAt',
 }
 
-function buildOrderBy(sortBy: string | null, sortDir: 'asc' | 'desc'): any {
+function buildOrderBy(sortBy: string | null, sortDir: 'asc' | 'desc'): Prisma.KTARequestOrderByWithRelationInput {
   if (!sortBy) {
     return { createdAt: 'desc' }
   }
@@ -51,31 +52,33 @@ export async function GET(request: NextRequest) {
 
     // Build where clause for legacy data
     // Legacy data = DRAFT status OR (READY_TO_PRINT AND missing foto/ktp)
-    const whereClause: any = {
-          AND: [
-            { status: 'IMPORTED_PENDING_DOCS' },
-            { OR: [{ ktpUrl: null }, { fotoUrl: null }, { idIzin: null }] }
-          ]
-    }
+    //
+    // Filter search/daerah di-AND ke klausa yang sama. Kode lama malah
+    // MENGGANTI array AND dengan filter search doang (bertentangan dengan
+    // maksudnya), dan memakai `mode: 'insensitive'` yang ditolak Prisma di
+    // MySQL — collation MySQL memang sudah case-insensitive, jadi mode itu
+    // dibuang. Sebelumnya query dengan search selalu gagal.
+    const andClauses: Prisma.KTARequestWhereInput[] = [
+      { status: 'IMPORTED_PENDING_DOCS' },
+      { OR: [{ ktpUrl: null }, { fotoUrl: null }, { idIzin: null }] },
+    ]
 
-    // Add search filter - combine with AND
     if (search) {
-      whereClause.AND = [
-        {
-          OR: [
-            { nama: { contains: search, mode: 'insensitive' } },
-            { nik: { contains: search } },
-            { nomorKTA: { contains: search } },
-          ]
-        }
-      ]
+      andClauses.push({
+        OR: [
+          { nama: { contains: search } },
+          { nik: { contains: search } },
+          { nomorKTA: { contains: search } },
+        ],
+      })
     }
 
     // Add daerah filter
     if (daerahId) {
-      whereClause.AND = whereClause.AND || []
-      whereClause.AND.push({ daerahId })
+      andClauses.push({ daerahId })
     }
+
+    const whereClause: Prisma.KTARequestWhereInput = { AND: andClauses }
 
     // Get total count
     const total = await prisma.kTARequest.count({ where: whereClause })

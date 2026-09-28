@@ -12,11 +12,25 @@ import { Separator } from '@/components/ui/separator'
 import { Search, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 
+/** Bentuk data SIKI hasil fetch per ID Izin yang ditampilkan halaman ini. */
+interface FetchSikiData {
+  id?: string
+  nik?: string
+  nama?: string
+  jabatan?: string
+  subklasifikasi?: string
+  jenjang?: string
+  telp?: string
+  email?: string
+  alamat?: string
+  tanggalDaftar?: string
+}
+
 export default function FetchSikiPage() {
   const router = useRouter()
   const [idIzin, setIdIzin] = useState('')
   const [loading, setLoading] = useState(false)
-  const [sikiData, setSikiData] = useState<any>(null)
+  const [sikiData, setSikiData] = useState<FetchSikiData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
@@ -157,7 +171,7 @@ export default function FetchSikiPage() {
               <div>
                 <Label className="text-sm font-medium text-gray-500">Tanggal Daftar</Label>
                 <p className="font-semibold">
-                  {new Date(sikiData.tanggalDaftar).toLocaleDateString('id-ID')}
+                  {new Date(sikiData.tanggalDaftar || '').toLocaleDateString('id-ID')}
                 </p>
               </div>
             </div>

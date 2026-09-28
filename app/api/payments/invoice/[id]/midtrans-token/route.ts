@@ -137,9 +137,9 @@ export async function POST(
           where: { id: params.id },
           data: { midtransOrderId: kandidat }
         })
-      } catch (err: any) {
+      } catch (err) {
         // P2002 = order_id ini udah dipakai baris lain, coba nomor berikutnya
-        if (err?.code === 'P2002') continue
+        if ((err as { code?: string })?.code === 'P2002') continue
         throw err
       }
 

@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     // Extract values from SIKI
     let idJabatanKerja: string | null = null
     let kodeSubklasifikasi: string | null = null
-    let jabatanKerja = sikiData.jabatan || 'N/A'
+    const jabatanKerja = sikiData.jabatan || 'N/A'
     let jenjang = sikiData.jenjang || ''
 
     // Format 1: SIKI has klasifikasi_kualifikasi array

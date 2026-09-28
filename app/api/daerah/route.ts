@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
 
     // Build where clause
-    const where: any = {}
+    const where: Prisma.DaerahWhereInput = {}
 
     if (isActive !== null) {
       where.isActive = isActive === 'true'

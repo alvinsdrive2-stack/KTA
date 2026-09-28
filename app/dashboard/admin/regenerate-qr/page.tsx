@@ -2,9 +2,19 @@
 
 import { useState } from 'react'
 
+interface RegenerateResult {
+  data: {
+    total?: number
+    regenerated?: number
+    skipped?: number
+    errors?: number
+    errorDetails?: string[]
+  }
+}
+
 export default function RegenerateQRPage() {
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<RegenerateResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const regenerateQRCodes = async () => {

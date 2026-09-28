@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user
 
     // Only KEUANGAN role can access
     if (user.role !== 'KEUANGAN') {

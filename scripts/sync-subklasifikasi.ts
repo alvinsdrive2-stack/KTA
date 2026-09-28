@@ -110,8 +110,8 @@ async function main() {
           skipped++
         }
       }
-    } catch (error: any) {
-      console.error(`  ❌ Failed: ${siki.kode_subklasifikasi} - ${error.message}`)
+    } catch (error) {
+      console.error(`  ❌ Failed: ${siki.kode_subklasifikasi} - ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
