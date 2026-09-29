@@ -7,6 +7,7 @@ import fontkit from '@pdf-lib/fontkit'
 import fs from 'fs/promises'
 import path from 'path'
 import sharp from 'sharp'
+import { pdf as renderPdfToImages } from 'pdf-to-img'
 import { statSync } from 'fs'
 import { capitalizeEachWord, formatAlamatWithRW } from './kta-format'
 import { readUpload } from './upload-storage'
@@ -521,6 +522,45 @@ async function getTemplateImageBack(): Promise<Buffer> {
 }
 
 /**
+ * Skala render PDF KTP ke titik. 2x dari ukuran tampil, biar teks kecil di
+ * halaman hasil (NIK, alamat) nggak pecah — sama alasannya dengan
+ * `KTP_JPEG_QUALITY`.
+ */
+const KTP_PDF_RENDER_SCALE = 2
+
+/** Titik yang dipakai buat ngenalin header file secara mentah. */
+function isPdfBytes(buffer: Buffer): boolean {
+  return buffer.length > 4 && buffer.subarray(0, 5).toString('latin1') === '%PDF-'
+}
+
+/**
+ * Ubah PDF KTP jadi gambar (PNG) halaman pertama.
+ *
+ * KTP yang diupload dari dashboard boleh berupa PDF (`accept=".jpg,.jpeg,.png,.pdf"`),
+ * tapi sharp nggak bisa baca PDF — kalau byte-nya dikasih langsung ke sharp,
+ * errornya `Input buffer contains unsupported image format`. Di sini PDF-nya
+ * di-render dulu lewat pdf.js, jadi sisa jalur di bawahnya tetap cuma nerima
+ * gambar.
+ *
+ * Cuma halaman pertama yang dipakai: KTP itu satu halaman, dan kalau ternyata
+ * lebih (misal hasil scan yang kepisah), halaman sisanya bukan bagian dari KTP.
+ */
+async function pdfFirstPageToPng(pdfBytes: Buffer): Promise<Buffer> {
+  const pages = await renderPdfToImages(pdfBytes, { scale: KTP_PDF_RENDER_SCALE })
+
+  if (pages.length === 0) {
+    throw new Error('File PDF KTP nggak punya halaman')
+  }
+
+  for await (const page of pages) {
+    return Buffer.from(page)
+  }
+
+  // Nggak mungkin ke sini — `length > 0` dijamin di atas — tapi biar tipenya jelas.
+  throw new Error('Gagal render halaman pertama PDF KTP')
+}
+
+/**
  * Ambil byte gambar KTP dari base64 atau dari storage lokal.
  *
  * Hanya menerima dua sumber, sama seperti foto: base64 (`ktpData`) dan file
@@ -528,8 +568,23 @@ async function getTemplateImageBack(): Promise<Buffer> {
  * kena geo-block ke host SIKI, jadi fetch-nya bakal gagal di tengah proses dan
  * hasilnya kartu tanpa KTP. Kalau ketemu URL http, lempar error biar kelihatan
  * di pemanggil, bukan diam-diam dilewat.
+ *
+ * Yang dibalikin selalu byte GAMBAR. Kalau sumbernya PDF, halamannya dirender
+ * dulu — lihat `pdfFirstPageToPng()`.
  */
 async function readKtpImageBytes(ktpData?: string, ktpUrl?: string): Promise<Buffer> {
+  const raw = await readKtpRawBytes(ktpData, ktpUrl)
+
+  return isPdfBytes(raw) ? await pdfFirstPageToPng(raw) : raw
+}
+
+/**
+ * Byte mentah dari sumbernya, sebelum diubah jadi gambar.
+ *
+ * Dipisah dari `readKtpImageBytes()` biar jalur PDF dan jalur gambar sama-sama
+ * lewat satu tempat baca file — termasuk pesan errornya.
+ */
+async function readKtpRawBytes(ktpData?: string, ktpUrl?: string): Promise<Buffer> {
   if (ktpData) {
     const base64Data = ktpData.includes(',') ? ktpData.split(',')[1] : ktpData
     return Buffer.from(base64Data, 'base64')
