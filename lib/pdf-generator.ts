@@ -7,10 +7,10 @@ import fontkit from '@pdf-lib/fontkit'
 import fs from 'fs/promises'
 import path from 'path'
 import sharp from 'sharp'
-import { pdf as renderPdfToImages } from 'pdf-to-img'
 import { statSync } from 'fs'
 import { capitalizeEachWord, formatAlamatWithRW } from './kta-format'
 import { readUpload } from './upload-storage'
+import { renderPdfFirstPageToPng } from './pdf-to-image'
 
 interface KTAData {
   id: string
@@ -540,24 +540,10 @@ function isPdfBytes(buffer: Buffer): boolean {
  * tapi sharp nggak bisa baca PDF — kalau byte-nya dikasih langsung ke sharp,
  * errornya `Input buffer contains unsupported image format`. Di sini PDF-nya
  * di-render dulu lewat pdf.js, jadi sisa jalur di bawahnya tetap cuma nerima
- * gambar.
- *
- * Cuma halaman pertama yang dipakai: KTP itu satu halaman, dan kalau ternyata
- * lebih (misal hasil scan yang kepisah), halaman sisanya bukan bagian dari KTP.
+ * gambar. Detail worker-nya ada di `lib/pdf-to-image.ts`.
  */
 async function pdfFirstPageToPng(pdfBytes: Buffer): Promise<Buffer> {
-  const pages = await renderPdfToImages(pdfBytes, { scale: KTP_PDF_RENDER_SCALE })
-
-  if (pages.length === 0) {
-    throw new Error('File PDF KTP nggak punya halaman')
-  }
-
-  for await (const page of pages) {
-    return Buffer.from(page)
-  }
-
-  // Nggak mungkin ke sini — `length > 0` dijamin di atas — tapi biar tipenya jelas.
-  throw new Error('Gagal render halaman pertama PDF KTP')
+  return renderPdfFirstPageToPng(pdfBytes, KTP_PDF_RENDER_SCALE)
 }
 
 /**
