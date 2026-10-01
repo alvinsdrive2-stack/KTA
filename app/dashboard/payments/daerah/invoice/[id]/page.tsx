@@ -582,16 +582,36 @@ export default function InvoiceDetailPage() {
             </div>
           ) : (
             <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-red-600 rounded-full">
-                  <AlertCircle className="h-6 w-6 text-white" />
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-red-600 rounded-full">
+                    <AlertCircle className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-red-900">Pembayaran Ditolak</h3>
+                    <p className="text-sm text-red-700">
+                      Pembayaran pada invoice ini ditolak. Anda bisa membayar ulang
+                      dengan invoice yang sama.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-red-900">Pembayaran Ditolak</h3>
-                  <p className="text-sm text-red-700">
-                    Pembayaran pada invoice ini ditolak. Hubungi admin untuk tindak lanjut.
-                  </p>
-                </div>
+                <Button
+                  onClick={handlePaymentWithMidtrans}
+                  size="lg"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg w-full sm:w-auto"
+                >
+                  {isMidtransLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-5 w-5 mr-2" />
+                      Bayar Online
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           )}
