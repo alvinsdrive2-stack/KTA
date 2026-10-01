@@ -86,10 +86,22 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    // Hanya pembayaran manual yang muncul di konfirmasi.
-    // Pembayaran via Midtrans auto-verified dan tidak perlu dikonfirmasi manual.
-    whereClause.midtransOrderId = null
-    whereClause.midtransTransactionId = null
+    // Pembayaran via Midtrans auto-verified, jadi normalnya nggak perlu
+    // dikonfirmasi manual — makanya yang murni manual saja yang muncul.
+    //
+    // Pengecualian: invoice yang pernah ditolak lalu dibayar ULANG lewat
+    // Midtrans. Pembayaran ulangnya sengaja ditahan di PAID (bukan
+    // auto-verified) supaya KEUANGAN yang putuskan — lihat
+    // app/api/payments/midtrans-notification/route.ts. Kalau baris begini
+    // ikut disaring, user sudah bayar tapi nggak ada yang pernah meng-approve.
+    whereClause.AND = [
+      {
+        OR: [
+          { midtransOrderId: null, midtransTransactionId: null },
+          { status: { in: ['PENDING', 'PAID' as PaymentStatus] }, verifiedAt: null }
+        ]
+      }
+    ]
 
     const [payments, total] = await Promise.all([
       prisma.bulkPayment.findMany({

@@ -175,6 +175,17 @@ export async function POST(request: NextRequest) {
       console.log(`Payment status set to: ${newStatus} (Midtrans auto-verified)`)
     }
 
+    // Invoice yang SEMPAT ditolak KEUANGAN lalu dibayar ulang lewat Midtrans
+    // ditahan di PAID, bukan langsung VERIFIED. Yang ditolak itu keputusan
+    // manusia — pembayaran ulangnya juga harus lewat manusia, bukan diterima
+    // otomatis. Dari PAID, KEUANGAN yang approve lewat /api/payments/verify,
+    // dan status itu juga yang bikin dia muncul di daftar konfirmasi
+    // (lihat app/api/payments/list/route.ts).
+    if (newStatus === 'VERIFIED' && bulkPayment.status === 'REJECTED') {
+      newStatus = 'PAID'
+      console.log('Pembayaran ulang atas invoice yang pernah ditolak — ditahan di PAID, menunggu verifikasi KEUANGAN')
+    }
+
     console.log(`Updating payment ${order_id} to status: ${newStatus}`)
 
     // Update bulk payment status
