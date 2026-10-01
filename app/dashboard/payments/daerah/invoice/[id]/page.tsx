@@ -552,7 +552,7 @@ export default function InvoiceDetailPage() {
                 </div>
               </div>)}
             </div>
-          ) : (
+          ) : invoice.status === 'VERIFIED' ? (
             <div className="bg-green-50 border border-green-200 rounded-xl p-6">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-green-600 rounded-full">
@@ -561,8 +561,35 @@ export default function InvoiceDetailPage() {
                 <div>
                   <h3 className="font-semibold text-green-900">Pembayaran Berhasil</h3>
                   <p className="text-sm text-green-700">
-                    Invoice ini sudah dibayar dan{' '}
-                    {invoice.status === 'VERIFIED' ? 'terverifikasi' : 'sedang diverifikasi'}
+                    Invoice ini sudah dibayar dan terverifikasi
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : invoice.status === 'PAID' ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-600 rounded-full">
+                  <Clock className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-blue-900">Menunggu Verifikasi</h3>
+                  <p className="text-sm text-blue-700">
+                    Pembayaran sudah diterima dan sedang diverifikasi
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-red-600 rounded-full">
+                  <AlertCircle className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-red-900">Pembayaran Ditolak</h3>
+                  <p className="text-sm text-red-700">
+                    Pembayaran pada invoice ini ditolak. Hubungi admin untuk tindak lanjut.
                   </p>
                 </div>
               </div>
