@@ -8,7 +8,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import sharp from 'sharp'
 import { statSync } from 'fs'
-import { capitalizeEachWord, formatAlamatWithRW } from './kta-format'
+import { capitalizeEachWord, formatAlamatWithRW, formatNamaForCard } from './kta-format'
 import { readUpload } from './upload-storage'
 import { renderPdfFirstPageToPng } from './pdf-to-image'
 
@@ -58,45 +58,6 @@ async function readLocalQrFile(qrCodePath: string): Promise<Buffer | null> {
   } catch {
     return null
   }
-}
-
-// Helper functions untuk format data (sama seperti kta-preview)
-function formatNama(nama: string): string {
-  const maxChars = 25
-
-  if (nama.length <= maxChars) {
-    return nama
-  }
-
-  const words = nama.trim().split(/\s+/)
-
-  if (words.length <= 2) {
-    return nama.slice(0, maxChars - 3) + '...'
-  }
-
-  const firstWord = words[0]
-  const lastWord = words[words.length - 1]
-  const middleWords = words.slice(1, -1)
-
-  let abbreviated = firstWord
-  for (const word of middleWords) {
-    const initial = word.charAt(0) + '.'
-    if ((abbreviated + ' ' + initial + ' ' + lastWord).length <= maxChars) {
-      abbreviated += ' ' + initial
-    } else {
-      break
-    }
-  }
-
-  if ((abbreviated + ' ' + lastWord).length <= maxChars) {
-    abbreviated += ' ' + lastWord
-    return abbreviated
-  }
-
-  // Nama belakang nggak boleh hilang diam-diam. Kalau singkatan + nama belakang
-  // tetap kepanjangan, potong paksa dengan elipsis — jelek tapi lengkap,
-  // bukan rapi tapi datanya kurang.
-  return (abbreviated + ' ' + lastWord).slice(0, maxChars - 3) + '...'
 }
 
 function formatAlamat(alamat: string): string[] {
@@ -633,7 +594,7 @@ export class KTAPDFGenerator {
     })
 
     // Format data
-    const formattedNama = capitalizeEachWord(formatNama(ktaData.nama))
+    const formattedNama = capitalizeEachWord(formatNamaForCard(ktaData.nama))
     const alamatLines = formatAlamat(ktaData.alamat).map(line => formatAlamatWithRW(line))
     const nomorKTA = ktaData.nomorKTA.toUpperCase()
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { capitalizeEachWord, formatAlamatWithRW } from '@/lib/kta-format'
+import { capitalizeEachWord, formatAlamatWithRW, formatNamaForCard } from '@/lib/kta-format'
 
 // Dummy data untuk testing
 const dummyData = {
@@ -10,46 +10,6 @@ const dummyData = {
   nomorKTA: 'KTA-DKI-2024-0001',
   issuedDate: '01/2024',
   expiredDate: '01/2029',
-}
-
-// Helper function untuk format nama max 25 chars dengan singkatan
-const formatNama = (nama: string) => {
-  const maxChars = 25
-
-  if (nama.length <= maxChars) {
-    return nama
-  }
-
-  // Split nama menjadi kata-kata
-  const words = nama.trim().split(/\s+/)
-
-  if (words.length <= 2) {
-    // Jika cuma 2 kata atau kurang, truncate saja
-    return nama.slice(0, maxChars - 3) + '...'
-  }
-
-  // Jika lebih dari 2 kata, buat singkatan
-  // Format: Firstname + Initial(s) + Lastname
-  const firstWord = words[0]
-  const lastWord = words[words.length - 1]
-  const middleWords = words.slice(1, -1)
-
-  let abbreviated = firstWord
-  for (const word of middleWords) {
-    const initial = word.charAt(0) + '.'
-    if ((abbreviated + ' ' + initial + ' ' + lastWord).length <= maxChars) {
-      abbreviated += ' ' + initial
-    } else {
-      break
-    }
-  }
-
-  // Tambah last name kalo muat
-  if ((abbreviated + ' ' + lastWord).length <= maxChars) {
-    abbreviated += ' ' + lastWord
-  }
-
-  return abbreviated
 }
 
 // Helper function untuk split alamat berdasarkan kata (word-based)
@@ -118,7 +78,7 @@ export default function KTAPreviewPage() {
 
 
   const alamatLines = formatAlamat(data.alamat)
-  const formattedNama = formatNama(data.nama)
+  const formattedNama = formatNamaForCard(data.nama)
 
   return (
     <div className="min-h-screen bg-slate-100 p-8">

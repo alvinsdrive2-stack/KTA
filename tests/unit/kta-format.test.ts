@@ -8,7 +8,7 @@
  */
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
-import { capitalizeEachWord, formatAlamatWithRW } from '@/lib/kta-format'
+import { capitalizeEachWord, formatAlamatWithRW, formatNamaForCard } from '@/lib/kta-format'
 
 describe('capitalizeEachWord()', () => {
   test('kapitalkan huruf pertama tiap kata, sisanya lowercase', () => {
@@ -129,5 +129,52 @@ describe('formatAlamatWithRW()', () => {
 
   test('string kosong -> string kosong', () => {
     assert.equal(formatAlamatWithRW(''), '')
+  })
+})
+
+describe('formatNamaForCard()', () => {
+  test('nama pendek dibiarkan utuh', () => {
+    assert.equal(formatNamaForCard('Budi Santoso'), 'Budi Santoso')
+  })
+
+  test('nama belakang tidak pernah disingkat', () => {
+    // Nama depan + tengah panjang, belakang harus tetap utuh.
+    const hasil = formatNamaForCard('Ahmad Suryadi Pratama Setiawan Wijaya')
+    assert.ok(hasil.endsWith('Wijaya'), `nama belakang hilang: ${hasil}`)
+    assert.ok(hasil.length <= 25, `kepanjangan: ${hasil.length}`)
+  })
+
+  test('nama tengah disingkat jadi inisial', () => {
+    const hasil = formatNamaForCard('Ahmad Suryadi Pratama Wijaya')
+    assert.equal(hasil, 'Ahmad S. P. Wijaya')
+  })
+
+  /*
+   * Regresi: koma adalah penanda gelar. Sebelumnya kata terakhir diambil buta,
+   * jadi pada nama bergelar "S.H." dianggap nama belakang — nama belakang asli
+   * (Santoso) malah kena singkat/hilang.
+   */
+  test('gelar setelah koma nggak dianggap nama belakang', () => {
+    // Nama inti panjang + gelar: kalau kata terakhir (gelar) dikira nama
+    // belakang, "Santoso" yang kena singkat. Sekarang "Santoso" wajib utuh.
+    const hasil = formatNamaForCard('Budi Hartono Santoso, S.H.')
+    assert.ok(hasil.includes('Santoso'), `nama belakang hilang: ${hasil}`)
+    assert.ok(!hasil.includes('S. '), `"Santoso" disingkat: ${hasil}`)
+    assert.ok(hasil.length <= 25, `kepanjangan: ${hasil.length}`)
+  })
+
+  test('gelar tetap dipertahankan kalau masih muat', () => {
+    // Nama inti + gelar muat dalam 25 char: keduanya utuh.
+    assert.equal(formatNamaForCard('Budi Santoso, S.H.'), 'Budi Santoso, S.H.')
+  })
+
+  test('gelar panjang bikin susunan minimal dipotong paksa, bukan nama belakang dibuang', () => {
+    const hasil = formatNamaForCard('Budi Santoso, S.H., M.H., Ph.D.')
+    assert.ok(hasil.includes('Santoso'), `nama belakang hilang: ${hasil}`)
+    assert.ok(hasil.length <= 25, `kepanjangan: ${hasil.length}`)
+  })
+
+  test('tanpa koma: perilaku lama tetap sama', () => {
+    assert.equal(formatNamaForCard('AB'), 'AB')
   })
 })

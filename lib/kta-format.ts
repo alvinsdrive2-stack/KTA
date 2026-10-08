@@ -1,11 +1,99 @@
 /**
  * Format tampilan data KTA — satu sumber.
  *
- * Kedua fungsi ini tadinya lokal di dalam `lib/pdf-generator.ts` (nggak di-export),
- * jadi tiga halaman (`kta-preview`, `qr/[id]/[nomorKTA]`, `verify/[nik]`) nulis
- * ulang versinya sendiri. Akibatnya format alamat di layar verifikasi bisa beda
- * dari yang tercetak di PDF. Sekarang semua ambil dari sini.
+ * Fungsi di file ini tadinya lokal di dalam `lib/pdf-generator.ts` (nggak di-export),
+ * jadi halaman (`kta-preview`, `qr/[id]/[nomorKTA]`, `verify/[nik]`) nulis
+ * ulang versinya sendiri. Akibatnya format di layar bisa beda dari yang
+ * tercetak di PDF. Sekarang semua ambil dari sini.
  */
+
+/**
+ * Pisah nama jadi nama inti dan gelar, dipisah koma pertama.
+ *
+ * Koma adalah penanda gelar: "Budi Santoso, S.H., M.H." → nama inti "Budi
+ * Santoso", gelar "S.H., M.H.". Koma pertama memisahkan keduanya; koma
+ * berikutnya cuma memisah antar-gelar.
+ *
+ * Kenapa penting: kata terakhir di string belum tentu nama belakang. Tanpa
+ * pemisahan ini, "Budi Santoso, S.H." diperlakukan seolah "S.H." nama
+ * belakangnya — nama belakang user hilang dari singkatan, gelar malah
+ * dipertahankan utuh. Tanpa koma, seluruh string dianggap nama inti.
+ */
+export function splitNamaDanGelar(nama: string): { namaInti: string; gelar: string } {
+  const trimmed = nama.trim()
+  const idx = trimmed.indexOf(',')
+
+  if (idx === -1) {
+    return { namaInti: trimmed, gelar: '' }
+  }
+
+  return {
+    namaInti: trimmed.slice(0, idx).trim(),
+    gelar: trimmed.slice(idx + 1).trim(),
+  }
+}
+
+/**
+ * Rapikan nama biar muat `maxChars` di kartu.
+ *
+ * Aturannya:
+ *
+ * 1. **Nama belakang tidak pernah disingkat.** Bagian identitas yang user
+ *    larang dipotong — selalu tampil utuh.
+ * 2. **Nama tengah disingkat jadi inisial** (`Budi S. P. Wijaya`) selama masih
+ *    muat.
+ * 3. **Gelar di belakang koma dipertahankan**, tapi tidak pernah menggeser
+ *    nama belakang; kalau ruang habis, susunan minimal (nama depan + nama
+ *    belakang + gelar) dipotong paksa pakai elipsis daripada kehilangan data.
+ *
+ * `words[words.length - 1]` saja tidak cukup: pada "Budi Santoso, S.H." kata
+ * terakhir adalah gelar, bukan nama belakang. Karena itu nama inti dipisah
+ * dulu dari gelar lewat `splitNamaDanGelar`.
+ */
+export function formatNamaForCard(nama: string, maxChars = 25): string {
+  if (nama.length <= maxChars) {
+    return nama
+  }
+
+  const { namaInti, gelar } = splitNamaDanGelar(nama)
+  const words = namaInti.split(/\s+/).filter(Boolean)
+
+  // Nama inti satu kata (atau kosong): nggak ada tengah buat disingkat, gelar
+  // tetap dipertahankan kalau muat, sisanya dipotong paksa.
+  if (words.length <= 1) {
+    const withGelar = nama.length <= maxChars ? nama : namaInti
+    return withGelar.length <= maxChars
+      ? withGelar
+      : withGelar.slice(0, maxChars - 3) + '...'
+  }
+
+  const firstWord = words[0]
+  const lastWord = words[words.length - 1]
+  const middleWords = words.slice(1, -1)
+
+  const suffix = gelar ? ', ' + gelar : ''
+  const sisaUntukTengah = maxChars - (firstWord + ' ' + lastWord).length - suffix.length
+
+  let abbreviated = firstWord
+  let used = 0
+  for (const word of middleWords) {
+    const initial = word.charAt(0) + '.'
+    if (used + initial.length + 1 > sisaUntukTengah) {
+      break
+    }
+    abbreviated += ' ' + initial
+    used += initial.length + 1
+  }
+
+  const hasil = abbreviated + ' ' + lastWord + suffix
+  if (hasil.length <= maxChars) {
+    return hasil
+  }
+
+  // Susunan minimal tetap kepanjangan. Potong paksa dengan elipsis — jelek tapi
+  // lengkap, bukan rapi tapi datanya kurang.
+  return hasil.slice(0, maxChars - 3) + '...'
+}
 
 /** Kapitalkan huruf pertama tiap kata. */
 export function capitalizeEachWord(text: string): string {
