@@ -26,6 +26,43 @@ export interface UpgradeCheckResult {
  */
 export const KODE_DAERAH_BEBAS_NIK = '98'
 
+/** Kode subklasifikasi K3. Daerah di luar 98 nggak boleh ngajuin ini. */
+export const KODE_SUBKLASIFIKASI_K3 = 'MP01'
+
+/** Nama subklasifikasi K3 yang tersimpan di baris KTA (jalur manual tanpa kode). */
+const NAMA_SUBKLASIFIKASI_K3 = 'KESELAMATAN KONSTRUKSI'
+
+/**
+ * K3 cuma boleh masuk ke daerah 98.
+ *
+ * Cek dua sumber sekaligus: kode `MP01` (jalur SIKI — acuan utama) dan nama
+ * 'KESELAMATAN KONSTRUKSI' (jalur manual/import yang cuma nyimpan nama).
+ * Yang dicek kode daerah **tujuan**, bukan daerah akun yang login: PUSAT/ADMIN/
+ * daerah '00' boleh milih daerah tujuan mana pun, dan yang menentukan sah-tidaknya
+ * KTA itu adalah daerah tempat KTA-nya nanti terbit.
+ */
+export function isSubklasifikasiK3(kodeSubklasifikasi?: string | null): boolean {
+  return (kodeSubklasifikasi || '').trim().toUpperCase() === KODE_SUBKLASIFIKASI_K3
+}
+
+/** Jalur manual cuma punya nama subklasifikasi, bukan kode — cocokkan namanya. */
+export function isSubklasifikasiK3ByName(nama?: string | null): boolean {
+  return (nama || '').trim().toUpperCase() === NAMA_SUBKLASIFIKASI_K3
+}
+
+export function isK3AllowedForDaerah(kodeDaerah?: string | null): boolean {
+  return (kodeDaerah || '').trim() === KODE_DAERAH_BEBAS_NIK
+}
+
+/** K3 ke daerah selain 98 = pelanggaran. `true` berarti tolak. */
+export function isK3Violation(
+  subklasifikasi: { kode?: string | null; nama?: string | null } | null | undefined,
+  kodeDaerah?: string | null
+): boolean {
+  const isK3 = isSubklasifikasiK3(subklasifikasi?.kode) || isSubklasifikasiK3ByName(subklasifikasi?.nama)
+  return isK3 && !isK3AllowedForDaerah(kodeDaerah)
+}
+
 export type JenjangCategory = 'OPERATOR' | 'TEKNISI' | 'AHLI'
 
 /** Label tampilan buat tiap kategori — dipakai UI, bukan buat perbandingan. */

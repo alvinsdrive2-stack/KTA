@@ -12,7 +12,7 @@
  * Test nggak nyentuh database sama sekali.
  */
 import { prisma } from '@/lib/prisma'
-import { checkUpgradeScenario, getJenjangCategory, JENJANG_LABEL } from '@/lib/kta-upgrade'
+import { checkUpgradeScenario, getJenjangCategory, JENJANG_LABEL, isK3Violation } from '@/lib/kta-upgrade'
 import { describe, test, expect } from './helpers/assert'
 
 // ---------------------------------------------------------------- test double
@@ -378,6 +378,29 @@ describe("checkUpgradeScenario() — pengecualian daerah kode '98'", () => {
     const r = await checkUpgradeScenario('3201010101010001', 2, 'SK-01', null, null)
 
     expect.toBe(r.canUpgrade, false, 'canUpgrade')
+  })
+})
+
+describe('isK3Violation() — K3 hanya untuk daerah 98', () => {
+  test('MP01 ke daerah non-98 -> tolak', () => {
+    expect.toBe(isK3Violation({ kode: 'MP01' }, '32'), true, 'MP01 di 32')
+  })
+
+  test('MP01 ke daerah 98 -> lolos', () => {
+    expect.toBe(isK3Violation({ kode: 'MP01' }, '98'), false, 'MP01 di 98')
+  })
+
+  test('kodeDaerah null nggak dianggap 98', () => {
+    expect.toBe(isK3Violation({ kode: 'MP01' }, null), true, 'MP01 tanpa kodeDaerah')
+  })
+
+  test('bukan K3 -> lolos di daerah mana pun', () => {
+    expect.toBe(isK3Violation({ kode: 'SK01' }, '32'), false, 'SK01 di 32')
+  })
+
+  test('jalur manual: cocok lewat nama, case & spasi diabaikan', () => {
+    expect.toBe(isK3Violation({ nama: ' Keselamatan Konstruksi ' }, '32'), true, 'nama K3 di 32')
+    expect.toBe(isK3Violation({ nama: 'Keselamatan Konstruksi' }, '98'), false, 'nama K3 di 98')
   })
 })
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
-import { checkUpgradeScenario } from '@/lib/kta-upgrade'
+import { checkUpgradeScenario, isK3Violation } from '@/lib/kta-upgrade'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,6 +66,14 @@ export async function POST(request: NextRequest) {
 
     const diskonPersen = daerah?.diskonPersen || 0
     const hargaFinal = Math.floor(hargaBase - (hargaBase * diskonPersen / 100))
+
+    // K3 (MP01) cuma boleh masuk ke daerah 98. Manual input nggak simpan
+    // kodeSubklasifikasi, jadi dicocokkan lewat nama subklasifikasinya.
+    if (isK3Violation({ nama: subklasifikasi }, daerah?.kodeDaerah)) {
+      return NextResponse.json({
+        error: 'Sub klasifikasi Keselamatan Konstruksi (K3) hanya dapat diajukan ke daerah K3 (98)'
+      }, { status: 403 })
+    }
 
     // Check for upgrade scenario
     const upgradeCheck = await checkUpgradeScenario(

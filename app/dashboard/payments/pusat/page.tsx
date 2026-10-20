@@ -1,20 +1,17 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useSession } from '@/hooks/useSession'
 import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Search, CreditCard, FileText, Clock, CheckCircle, XCircle, TrendingUp } from 'lucide-react'
+import { Search, CreditCard, TrendingUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
 import { usePaymentSelection } from '@/contexts/PaymentSelectionContext'
 import { getJenjangCategory, JENJANG_LABEL } from '@/lib/kta-upgrade'
-import { useTableSort } from '@/hooks/use-table-sort'
-import { SortableHeader } from '@/components/ui/sortable-header'
 import { getKtaStatusBadge as getStatusBadge } from '@/lib/status-badges'
 
 interface KTARequest {
@@ -32,38 +29,16 @@ interface KTARequest {
   hargaUpgrade?: number | null
 }
 
-interface BulkPayment {
-  id: string
-  invoiceNumber: string
-  totalJumlah: number
-  totalNominal: number
-  status: 'PENDING' | 'PAID' | 'VERIFIED' | 'REJECTED'
-  createdAt: string
-  verifiedAt?: string
-  payments: {
-    id: string
-    ktaRequest: {
-      id: string
-      idIzin: string
-      nama: string
-      jenjang: string
-    }
-  }[]
-}
-
 export default function PusatPaymentPage() {
-  const { session } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const { selectedRequests, addRequest, removeRequest, clearSelection } = usePaymentSelection()
   const [ktaRequests, setKtaRequests] = useState<KTARequest[]>([])
-  const [bulkPayments, setBulkPayments] = useState<BulkPayment[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
 
-  const { sort, toggleSort, applyClientSort } = useTableSort('createdAt', 'desc')
 
   // Track if we've already shown the toast
   const hasShownToast = useRef(false)
@@ -115,7 +90,6 @@ export default function PusatPaymentPage() {
   useEffect(() => {
     if (!hasInitialFetch.current) {
       fetchUnpaidKTAs()
-      fetchBulkPayments()
       hasInitialFetch.current = true
     }
   }, [])
@@ -173,46 +147,6 @@ export default function PusatPaymentPage() {
     }
   }
 
-  const fetchBulkPayments = async () => {
-    try {
-      const response = await fetch('/api/payments/bulk?pusat=true')
-      const data = await response.json()
-
-      if (data.success) {
-        setBulkPayments(data.data)
-      }
-    } catch (error) {
-      console.error('Error fetching bulk payments:', error)
-    }
-  }
-
-
-  const getBulkPaymentStatusBadge = (status: string) => {
-    const badges: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
-      PENDING: {
-        label: 'Menunggu Pembayaran',
-        className: 'bg-amber-100 text-amber-800 border-amber-200',
-        icon: <Clock className="h-3 w-3" />
-      },
-      PAID: {
-        label: 'Sudah Dibayar',
-        className: 'bg-blue-100 text-blue-800 border-blue-200',
-        icon: <CheckCircle className="h-3 w-3" />
-      },
-      VERIFIED: {
-        label: 'Terverifikasi',
-        className: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-        icon: <CheckCircle className="h-3 w-3" />
-      },
-      REJECTED: {
-        label: 'Ditolak',
-        className: 'bg-red-100 text-red-800 border-red-200',
-        icon: <XCircle className="h-3 w-3" />
-      },
-    }
-    return badges[status] || { label: status, className: 'bg-gray-100 text-gray-800', icon: null }
-  }
-
   const handleSelectRequest = (request: KTARequest) => {
     const isSelected = selectedRequests.find(r => r.id === request.id)
     if (isSelected) {
@@ -262,25 +196,6 @@ export default function PusatPaymentPage() {
 
   const selectedCount = selectedRequests.length
 
-  // Filter bulk payments by search term (search names in invoice)
-  const filteredBulkPayments = bulkPayments.filter(payment => {
-    if (!debouncedSearchTerm) return true
-    const searchLower = debouncedSearchTerm.toLowerCase()
-    return payment.payments.some(p =>
-      p.ktaRequest.nama.toLowerCase().includes(searchLower) ||
-      (p.ktaRequest.idIzin || '').toLowerCase().includes(searchLower)
-    )
-  })
-
-  const sortedBulkPayments = applyClientSort(filteredBulkPayments, (p: BulkPayment) => {
-    switch (sort.key) {
-      case 'invoiceNumber': return p.invoiceNumber
-      case 'totalJumlah': return p.totalJumlah
-      case 'totalNominal': return p.totalNominal
-      case 'status': return p.status
-      default: return p.createdAt
-    }
-  })
 
   return (
     <>
@@ -303,7 +218,7 @@ export default function PusatPaymentPage() {
             <div className="flex-1">
               <h3 className="font-semibold text-blue-900 mb-2">Informasi</h3>
               <p className="text-sm text-blue-800 leading-relaxed">
-                Pilih KTA yang akan dibayar dengan mencentang data, kemudian klik <strong>&quot;Lanjut Pembayaran&quot;</strong> dan <strong>&quot;Buat Invoice&quot;</strong>. Invoice yang telah dibuat akan muncul pada tabel <strong>&quot;Invoice Menunggu Pembayaran&quot;</strong> klik baris tabel tersebut untuk melanjutkan proses pembayaran. Setelah pembayaran selesai, KTA akan tersedia di halaman <strong>&quot;Data KTA&quot;</strong>.
+                Pilih KTA yang akan dibayar dengan mencentang data, kemudian klik <strong>&quot;Lanjut Pembayaran&quot;</strong> dan <strong>&quot;Buat Invoice&quot;</strong>. Invoice yang telah dibuat akan muncul pada halaman <strong>&quot;Riwayat Invoice&quot;</strong> klik baris tabel tersebut untuk melanjutkan proses pembayaran. Setelah pembayaran selesai, KTA akan tersedia di halaman <strong>&quot;Data KTA&quot;</strong>.
               </p>
             </div>
           </div>
@@ -421,82 +336,6 @@ export default function PusatPaymentPage() {
       </Card>
 
       {/* Bulk Payments / Invoice Table */}
-      <Card className="card-3d animate-slide-up-stagger stagger-5">
-        <CardHeader className="border-b border-slate-200">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-5 w-5 text-slate-700" />
-            Invoice Menunggu Pembayaran
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {filteredBulkPayments.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">
-                {debouncedSearchTerm ? 'Tidak ada invoice yang cocok dengan pencarian' : 'Belum ada invoice pembayaran'}
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <SortableHeader label="No. Invoice" sortKey="invoiceNumber" sort={sort} onSort={toggleSort} />
-                    <SortableHeader label="Jumlah KTA" sortKey="totalJumlah" sort={sort} onSort={toggleSort} />
-                    <SortableHeader label="Total Nominal" sortKey="totalNominal" sort={sort} onSort={toggleSort} />
-                    <SortableHeader label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
-                    <SortableHeader label="Tanggal" sortKey="createdAt" sort={sort} onSort={toggleSort} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedBulkPayments.map((payment) => {
-                    const statusBadge = getBulkPaymentStatusBadge(payment.status)
-                    return (
-                      <tr
-                        key={payment.id}
-                        className="border-b border-slate-100 hover:bg-blue-50 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/dashboard/payments/daerah/invoice/${payment.id}`)}
-                      >
-                        <td className="py-3 px-4">
-                          <p className="font-medium text-slate-900">{payment.invoiceNumber}</p>
-                          <p className="text-xs text-slate-500">
-                            {payment.payments.map(p => p.ktaRequest.nama).join(', ')}
-                          </p>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                            {payment.totalJumlah} KTA
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <p className="font-semibold text-slate-900">
-                            Rp {payment.totalNominal.toLocaleString('id-ID')}
-                          </p>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge className={statusBadge.className}>
-                            {statusBadge.icon}
-                            <span className="ml-1">{statusBadge.label}</span>
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-slate-600">
-                          {new Date(payment.createdAt).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Spacer for floating bar */}
       {selectedCount > 0 && <div className="h-20" />}

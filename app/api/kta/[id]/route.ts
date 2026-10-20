@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { QRCodeGenerator } from '@/lib/qr-generator'
+import { isK3Violation } from '@/lib/kta-upgrade'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,7 +107,8 @@ export async function PATCH(
 
     // Check if KTA exists
     const existingKta = await prisma.kTARequest.findUnique({
-      where: { id: ktaId }
+      where: { id: ktaId },
+      include: { daerah: { select: { kodeDaerah: true } } }
     })
 
     if (!existingKta) {
@@ -143,6 +145,13 @@ export async function PATCH(
           }
         }
       }
+    }
+
+    // K3 (MP01) cuma boleh ada di KTA daerah 98 — termasuk kalau disuntik lewat edit.
+    if (body.subklasifikasi !== undefined && isK3Violation({ nama: body.subklasifikasi }, existingKta.daerah?.kodeDaerah)) {
+      return NextResponse.json({
+        error: 'Sub klasifikasi Keselamatan Konstruksi (K3) hanya dapat diajukan ke daerah K3 (98)'
+      }, { status: 403 })
     }
 
     // Regenerate QR code if requested

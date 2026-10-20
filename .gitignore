@@ -52,3 +52,6 @@ lpt2
 lpt3
 tmpclaude-*-cwd
 .env.local.backup
+
+# Script dump DB berisi kredensial — jangan pernah di-track
+scripts/dump-supabase.ts

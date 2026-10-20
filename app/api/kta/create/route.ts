@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
-import { checkUpgradeScenario } from '@/lib/kta-upgrade'
+import { checkUpgradeScenario, isK3Violation } from '@/lib/kta-upgrade'
 
 export const dynamic = 'force-dynamic'
 
@@ -110,6 +110,13 @@ export async function POST(request: NextRequest) {
         subklasifikasiText = newSub.subklasifikasi
         console.log('Created new subklasifikasi with ID:', finalSubklasifikasiId)
       }
+    }
+
+    // K3 (MP01) cuma boleh masuk ke daerah 98.
+    if (isK3Violation({ kode: sikiData.klasifikasi?.kodeSubklasifikasi }, daerah?.kodeDaerah)) {
+      return NextResponse.json({
+        error: 'Sub klasifikasi Keselamatan Konstruksi (K3) hanya dapat diajukan ke daerah K3 (98)'
+      }, { status: 403 })
     }
 
     // Check for upgrade scenario
