@@ -18,7 +18,7 @@ export async function GET(
 
     const user = session.user
 
-    // Only KEUANGAN role can access
+    // Halaman ini halaman verifikasi — cuma KEUANGAN yang boleh buka.
     if (user.role !== 'KEUANGAN') {
       return NextResponse.json(
         { success: false, error: 'Anda tidak memiliki akses' },
@@ -64,8 +64,13 @@ export async function GET(
       )
     }
 
-    // Midtrans payments are auto-verified, tidak perlu dikonfirmasi manual
-    if (payment.midtransOrderId || payment.midtransTransactionId) {
+    // Invoice yang pernah dibuatkan token Midtrans dilempar ke sini sebagai
+    // 404 "tidak ditemukan" — itu buat mencegah verifikasi manual atas
+    // pembayaran yang seharusnya auto-verified. Tapi yang belum dibayar
+    // (PENDING) tetap harus bisa dibuka: BPP bisa membayarnya lewat transfer
+    // manual atau pengajuan dinas, dan halaman detailnya butuh data ini.
+    const sudahBayarMidtrans = payment.midtransTransactionId && payment.status !== 'PENDING'
+    if (sudahBayarMidtrans) {
       return NextResponse.json(
         { success: false, error: 'Pembayaran tidak ditemukan' },
         { status: 404 }
@@ -77,6 +82,7 @@ export async function GET(
       invoiceNumber: payment.invoiceNumber,
       totalJumlah: payment.totalJumlah,
       totalNominal: payment.totalNominal,
+      gratis: payment.gratis,
       buktiPembayaranUrl: payment.buktiPembayaranUrl,
       status: payment.status,
       isEnrolment: payment.isEnrolment,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { checkUpgradeScenario } from '@/lib/kta-upgrade'
+import { KODE_DAERAH_PUSAT } from '@/lib/riwayat-invoice'
 import * as XLSX from 'xlsx'
 
 export const dynamic = 'force-dynamic'
@@ -440,7 +441,7 @@ export async function PUT(request: NextRequest) {
     // dari body dan mengimpor ke daerah yang bukan wilayahnya.
     const userRole = session.user.role
     const canAssignAnyDaerah =
-      userRole === 'PUSAT' || userRole === 'ADMIN' || session.user.daerah?.kodeDaerah === '00'
+      userRole === 'PUSAT' || userRole === 'ADMIN' || session.user.daerah?.kodeDaerah === KODE_DAERAH_PUSAT
 
     if (daerahId && !canAssignAnyDaerah && daerahId !== session.user.daerahId) {
       return NextResponse.json(

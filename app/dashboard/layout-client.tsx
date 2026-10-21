@@ -190,6 +190,8 @@ interface VerificationPayment {
   status?: string
   totalJumlah?: number
   totalNominal?: number
+  buktiPembayaranUrl?: string | null
+  gratis?: boolean
   payments: { ktaRequestId: string }[]
 }
 
@@ -344,6 +346,9 @@ function VerificationFloatingBar() {
   }
 
   const isVerified = payment.status === 'VERIFIED'
+  // Tanpa bukti transfer, setujui/tolak dua-duanya nggak masuk akal.
+  // Invoice gratis (total 0) nggak butuh bukti.
+  const buktiMasuk = payment.gratis || (payment.totalNominal ?? 0) === 0 || !!payment.buktiPembayaranUrl
 
   return (
     <div className={`
@@ -395,6 +400,10 @@ function VerificationFloatingBar() {
                   )}
                 </Button>
               </div>
+            ) : !buktiMasuk ? (
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Belum ada bukti transfer. Verifikasi bisa dilakukan setelah bukti dikirim.
+              </p>
             ) : !showRejection ? (
               <div className="flex gap-3">
                 <Button
@@ -591,6 +600,40 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [returnTo, setReturnTo] = useState<{ name?: string; impersonated: string } | null>(null)
+
+  // Mode login-as: sesi yang aktif milik user lain yang di-impersonate admin.
+  // Ditandai route impersonate lewat sessionStorage, dibaca sekali di client.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('impersonatorReturn')
+      if (!raw) return
+      const parsed = JSON.parse(raw) as { at?: number; name?: string; impersonated?: string }
+      // Abaikan jejak basi (lebih dari 1 jam) biar nggak nyangkut.
+      if (!parsed.at || Date.now() - parsed.at > 60 * 60 * 1000) {
+        sessionStorage.removeItem('impersonatorReturn')
+        return
+      }
+      if (parsed.impersonated) {
+        setReturnTo({ name: parsed.name, impersonated: parsed.impersonated })
+      }
+    } catch {
+      // storage nggak bisa dibaca — abaikan
+    }
+  }, [])
+
+  const handleReturnToAdmin = () => {
+    // Sesi impersonate dilepas di sisi server (device session target dihapus),
+    // lalu admin login ulang pakai kredensialnya sendiri.
+    signOut({ callbackUrl: '/auth/login' })
+  }
+
+  const handleLogout = () => {
+    try {
+      sessionStorage.removeItem('impersonatorReturn')
+    } catch {}
+    signOut({ callbackUrl: '/auth/login' })
+  }
   const { sidebarCollapsed, setSidebarCollapsed } = useSidebar()
   const [daerahLogoError, setDaerahLogoError] = useState(false)
 
@@ -710,10 +753,10 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
               variant="outline"
               size="sm"
               className="w-full border-slate-300 text-slate-700 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all duration-200 group shadow-sm"
-              onClick={() => signOut({ callbackUrl: '/auth/login' })}
+              onClick={handleLogout}
             >
               <LogOut className="h-4 w-4 mr-2 group-hover:translate-x-1 transition-transform" />
-              Keluar
+              {returnTo ? 'Keluar dari mode login as' : 'Keluar'}
             </Button>
           </div>
         </div>
@@ -766,6 +809,23 @@ function DashboardContent({ children, isPusat, isKeuangan }: DashboardClientProp
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Login-as banner */}
+              {returnTo && (
+                <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-300">
+                  <span className="text-xs text-amber-900">
+                    Login as <strong>{returnTo.impersonated}</strong>
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs border-amber-400 text-amber-900 hover:bg-amber-100"
+                    onClick={handleReturnToAdmin}
+                  >
+                    Keluar dari mode ini
+                  </Button>
+                </div>
+              )}
+
               {/* Date */}
               <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border border-slate-200 shadow-sm">
                 <ShieldCheck className="h-4 w-4 text-slate-600" />

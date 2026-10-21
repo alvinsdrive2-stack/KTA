@@ -11,6 +11,7 @@ import { statSync } from 'fs'
 import { capitalizeEachWord, formatAlamatWithRW, formatNamaForCard } from './kta-format'
 import { readUpload } from './upload-storage'
 import { renderPdfFirstPageToPng } from './pdf-to-image'
+import { addYearsWib, getWibParts } from './utils'
 
 interface KTAData {
   id: string
@@ -116,9 +117,11 @@ function formatAlamat(alamat: string): string[] {
 }
 
 function formatDate(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
-  return `${month}/${year}`
+  // Patokan WIB, bukan zona mesin. `tanggalDaftar` sering tersimpan jam 00:00
+  // UTC — di server WIB, getMonth() lokal membacanya sebagai sehari sebelumnya
+  // sehingga CRD/EXP di kartu mundur satu bulan.
+  const { year, month } = getWibParts(date)
+  return `${String(month + 1).padStart(2, '0')}/${year}`
 }
 
 // Use 2x resolution for print quality (1200x760)
@@ -598,9 +601,8 @@ export class KTAPDFGenerator {
     const alamatLines = formatAlamat(ktaData.alamat).map(line => formatAlamatWithRW(line))
     const nomorKTA = ktaData.nomorKTA.toUpperCase()
 
-    // Hitung expired date (tanggalDaftar + 5 years)
-    const expiredDate = new Date(ktaData.tanggalDaftar)
-    expiredDate.setFullYear(expiredDate.getFullYear() + 5)
+    // Hitung expired date (tanggalDaftar + 5 years), dihitung dari kalender WIB
+    const expiredDate = addYearsWib(ktaData.tanggalDaftar, 5)
 
     const issuedDateStr = formatDate(ktaData.tanggalDaftar)
     const expiredDateStr = formatDate(expiredDate)

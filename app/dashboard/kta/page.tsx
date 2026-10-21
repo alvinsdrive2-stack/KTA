@@ -6,7 +6,7 @@ import { useSession } from '@/hooks/useSession'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Download, Filter, FileText, CheckCircle, Package, CheckSquare, X, Calendar, FileSpreadsheet, Loader2, Upload, Database, Import, DownloadCloudIcon } from 'lucide-react'
+import { Search, Download, Filter, FileText, CheckCircle, Package, CheckSquare, X, FileSpreadsheet, Loader2, Upload, Database, Import, DownloadCloudIcon } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useKTASelection } from '@/contexts/KTASelectionContext'
 import { JenjangBadge } from '@/components/ui/jenjang-badge'
@@ -69,6 +69,8 @@ export default function KTAPage() {
   // Date filter states
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [daerahFilter, setDaerahFilter] = useState('all')
+  const [daerahList, setDaerahList] = useState<{ id: string; namaDaerah: string; kodeDaerah: string }[]>([])
   const [downloading, setDownloading] = useState(false)
 
   const { sort, toggleSort, sortQuery } = useTableSort()
@@ -91,7 +93,22 @@ export default function KTAPage() {
 
   useEffect(() => {
     fetchKTARequests()
-  }, [statusFilter, debouncedSearchTerm, currentPage, startDate, endDate, sort.key, sort.dir])
+  }, [statusFilter, debouncedSearchTerm, currentPage, startDate, endDate, daerahFilter, sort.key, sort.dir])
+
+  // Daerah list buat filter (cuma relevan buat PUSAT/ADMIN/KEUANGAN)
+  useEffect(() => {
+    if (!isPusatOrAdmin) return
+    const fetchDaerahList = async () => {
+      try {
+        const response = await fetch('/api/daerah')
+        const data = await response.json()
+        if (data.success) setDaerahList(data.data)
+      } catch (error) {
+        console.error('Error fetching daerah list:', error)
+      }
+    }
+    fetchDaerahList()
+  }, [isPusatOrAdmin])
 
   const handleSort = (key: string) => {
     if (sort.key !== key) setCurrentPage(1)
@@ -120,6 +137,7 @@ export default function KTAPage() {
       if (debouncedSearchTerm) params.append('search', debouncedSearchTerm)
       if (startDate) params.append('startDate', startDate)
       if (endDate) params.append('endDate', endDate)
+      if (daerahFilter && daerahFilter !== 'all') params.append('daerahKode', daerahFilter)
       if (sortQuery) params.append('sortBy', sort.key)
       if (sortQuery) params.append('sortDir', sort.dir)
       params.append('page', currentPage.toString())
@@ -201,6 +219,9 @@ export default function KTAPage() {
       // Add date filters
       if (startDate) params.append('startDate', startDate)
       if (endDate) params.append('endDate', endDate)
+
+      // Add daerah filter
+      if (daerahFilter && daerahFilter !== 'all') params.append('daerahKode', daerahFilter)
 
       // Add status filter
       const verifiedStatuses = ['APPROVED_BY_PUSAT', 'READY_TO_PRINT', 'PRINTED']
@@ -309,7 +330,6 @@ export default function KTAPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-slate-400" />
                   <Input
                     type="date"
                     value={startDate}
@@ -324,6 +344,25 @@ export default function KTAPage() {
                     className="w-[160px] bg-white"
                   />
                 </div>
+
+                {isPusatOrAdmin && (
+                  <Select value={daerahFilter} onValueChange={(val) => {
+                    setDaerahFilter(val)
+                    setCurrentPage(1)
+                  }}>
+                    <SelectTrigger className="w-64 bg-white">
+                      <SelectValue placeholder="Filter Daerah" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Daerah</SelectItem>
+                      {daerahList.map((daerah) => (
+                        <SelectItem key={daerah.id} value={daerah.kodeDaerah}>
+                          {daerah.kodeDaerah} - {daerah.namaDaerah}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
                 <Button
                   onClick={handleDownloadExcel}
@@ -365,9 +404,18 @@ export default function KTAPage() {
               </div>
 
               {/* Filter info */}
-              {(startDate || endDate) && (
-                <div className="text-sm text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
-                  <span className="font-medium">Filter Tanggal:</span> {startDate || 'Awal'} sd {endDate || 'Akhir'}
+              {(startDate || endDate || (daerahFilter && daerahFilter !== 'all')) && (
+                <div className="text-sm text-slate-500 bg-slate-50 px-3 py-2 rounded-lg space-x-4">
+                  {(startDate || endDate) && (
+                    <span>
+                      <span className="font-medium">Filter Tanggal:</span> {startDate || 'Awal'} sd {endDate || 'Akhir'}
+                    </span>
+                  )}
+                  {daerahFilter && daerahFilter !== 'all' && (
+                    <span>
+                      <span className="font-medium">Filter Daerah:</span> {daerahFilter} - {daerahList.find(d => d.kodeDaerah === daerahFilter)?.namaDaerah || '-'}
+                    </span>
+                  )}
                 </div>
               )}
             </div>

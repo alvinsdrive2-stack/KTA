@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { addYearsWib } from '@/lib/utils'
 
 /**
  * Check if KTA is expired (more than 5 years from tanggalDaftar)
@@ -19,9 +20,8 @@ export async function checkAndUpdateExpiredKTA(ktaId: string): Promise<{ isExpir
     return { isExpired: false, wasUpdated: false }
   }
 
-  // Calculate expiry date (tanggalDaftar + 5 years)
-  const expiredDate = new Date(kta.tanggalDaftar)
-  expiredDate.setFullYear(expiredDate.getFullYear() + 5)
+  // Calculate expiry date (tanggalDaftar + 5 years), kalender WIB
+  const expiredDate = addYearsWib(kta.tanggalDaftar, 5)
 
   // Check if current date is past expiry date
   const now = new Date()
@@ -44,7 +44,5 @@ export async function checkAndUpdateExpiredKTA(ktaId: string): Promise<{ isExpir
  * Check if KTA is expired without updating (read-only check)
  */
 export function isKTAExpired(tanggalDaftar: Date): boolean {
-  const expiredDate = new Date(tanggalDaftar)
-  expiredDate.setFullYear(expiredDate.getFullYear() + 5)
-  return new Date() > expiredDate
+  return new Date() > addYearsWib(tanggalDaftar, 5)
 }

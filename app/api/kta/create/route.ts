@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { checkUpgradeScenario, isK3Violation } from '@/lib/kta-upgrade'
+import { KODE_DAERAH_PUSAT } from '@/lib/riwayat-invoice'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
     const userDaerahKode = session.user.daerah?.kodeDaerah
 
     // PUSAT/ADMIN users or users with daerah "00" can assign to any daerah
-    const canAssignAnyDaerah = userRole === 'PUSAT' || userRole === 'ADMIN' || userDaerahKode === '00'
+    const canAssignAnyDaerah = userRole === 'PUSAT' || userRole === 'ADMIN' || userDaerahKode === KODE_DAERAH_PUSAT
 
     if (!daerahId) {
       // If no daerahId specified, use user's own daerah

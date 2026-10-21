@@ -41,7 +41,8 @@ import {
   Building,
   Users,
   BadgeX,
-  CheckCircle
+  CheckCircle,
+  LogIn
 } from 'lucide-react'
 
 interface Daerah {
@@ -532,6 +533,51 @@ export default function UsersManagementPage() {
     }
   }
 
+  // Login as user — cookie sesi diganti jadi milik user target.
+  // Sebelum pindah, jejak admin dicatat dulu di sessionStorage biar gampang
+  // balik lagi.
+  const [impersonating, setImpersonating] = useState<string | null>(null)
+  const handleImpersonate = async (user: User) => {
+    setImpersonating(user.id)
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}/impersonate`, {
+        method: 'POST',
+      })
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        toast({
+          variant: 'destructive',
+          title: 'Gagal login as',
+          description: result.error || 'Terjadi kesalahan',
+        })
+        return
+      }
+
+      try {
+        sessionStorage.setItem('impersonatorReturn', JSON.stringify({
+          at: Date.now(),
+          name: session?.user?.name,
+          impersonated: user.name,
+        }))
+      } catch {
+        // private mode / storage penuh — abaikan, cuma buat jejak balik
+      }
+
+      // Full reload biar semua data client di-fetch ulang dengan sesi baru.
+      window.location.href = '/dashboard'
+    } catch (error) {
+      console.error('Impersonate error:', error)
+      toast({
+        variant: 'destructive',
+        title: 'Gagal login as',
+        description: 'Terjadi kesalahan saat login as user',
+      })
+    } finally {
+      setImpersonating(null)
+    }
+  }
+
   // Delete user
   const handleDelete = async () => {
     if (!selectedUser) return
@@ -847,6 +893,20 @@ export default function UsersManagementPage() {
                                       onClick={() => openEditModal(user)}
                                     >
                                       <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleImpersonate(user)}
+                                      disabled={impersonating !== null || !user.isActive || user.id === session?.user?.id}
+                                      title="Login as user ini"
+                                      className="text-blue-600 hover:text-blue-700"
+                                    >
+                                      {impersonating === user.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <LogIn className="h-4 w-4" />
+                                      )}
                                     </Button>
                                     <Button
                                       variant="ghost"

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma, KTAStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { addYearsWib, buildWibRange, formatDateWib } from '@/lib/utils'
 import { Workbook } from 'exceljs'
 
 export const dynamic = 'force-dynamic'
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const search = searchParams.get('search')
+    const daerahKode = searchParams.get('daerahKode')
     const statusParams = searchParams.getAll('status')
 
     // Build where clause
@@ -40,16 +42,9 @@ export async function GET(request: NextRequest) {
       where.status = { in: ['APPROVED_BY_PUSAT', 'READY_TO_PRINT', 'PRINTED'] }
     }
 
-    // Date filter (tanggal daftar anggota)
-    if (startDate || endDate) {
-      where.tanggalDaftar = {}
-      if (startDate) where.tanggalDaftar.gte = new Date(startDate)
-      if (endDate) {
-        const endDateTime = new Date(endDate)
-        endDateTime.setHours(23, 59, 59, 999)
-        where.tanggalDaftar.lte = endDateTime
-      }
-    }
+    // Date filter (tanggal daftar anggota), batas hari dipatok WIB
+    const tanggalRange = buildWibRange(startDate, endDate)
+    if (tanggalRange) where.tanggalDaftar = tanggalRange
 
     // Search filter
     if (search) {
@@ -66,6 +61,11 @@ export async function GET(request: NextRequest) {
 
     if (!isPusatOrAdmin && session.user.daerahId) {
       where.daerahId = session.user.daerahId
+    }
+
+    // Filter daerah — cuma PUSAT/ADMIN/KEUANGAN yang boleh milih daerah lain
+    if (isPusatOrAdmin && daerahKode && daerahKode !== 'all') {
+      where.daerah = { kodeDaerah: daerahKode }
     }
 
     // Fetch KTA data with relations
@@ -147,14 +147,12 @@ export async function GET(request: NextRequest) {
     })
     headerRow.height = 20
 
-    const fmtDate = (d: Date) =>
-      new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const fmtDate = (d: Date) => formatDateWib(d)
 
     ktaRequests.forEach((kta, index) => {
       const invoiceNumber = kta.payments?.[0]?.bulkPayment?.invoiceNumber || '-'
       const tanggalDaftar = new Date(kta.tanggalDaftar)
-      const expired = new Date(tanggalDaftar)
-      expired.setFullYear(expired.getFullYear() + 5)
+      const expired = addYearsWib(tanggalDaftar, 5)
 
       const subklasifikasi =
         kta.klasifikasi?.subklasifikasi ||

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma, KTAStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
+import { buildWibRange } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -122,16 +123,9 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    // Filter by date range on tanggalDaftar (tanggal daftar anggota)
-    if (startDate || endDate) {
-      whereClause.tanggalDaftar = {}
-      if (startDate) whereClause.tanggalDaftar.gte = new Date(startDate)
-      if (endDate) {
-        const endDateTime = new Date(endDate)
-        endDateTime.setHours(23, 59, 59, 999)
-        whereClause.tanggalDaftar.lte = endDateTime
-      }
-    }
+    // Filter by date range on tanggalDaftar (tanggal daftar anggota), patokan WIB
+    const tanggalRange = buildWibRange(startDate, endDate)
+    if (tanggalRange) whereClause.tanggalDaftar = tanggalRange
 
 
     const [ktaRequests, total] = await Promise.all([

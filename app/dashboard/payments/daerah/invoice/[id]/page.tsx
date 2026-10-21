@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ArrowLeft, Download, FileText, FileSpreadsheet, Loader2, CreditCard, CheckCircle2, Clock, Upload, AlertCircle } from 'lucide-react'
@@ -13,7 +12,7 @@ import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
 import { useMidtransPayment } from '@/hooks/use-midtrans-payment'
 import { useSession } from '@/hooks/useSession'
-import { safeInvoiceFilename, formatCurrency } from '@/lib/utils'
+import { safeInvoiceFilename, formatCurrency, formatDateTimeWib } from '@/lib/utils'
 import { resolveInvoiceAmounts, lineHargaBase } from '@/lib/invoice'
 import { QRIS_MAX_AMOUNT } from '@/lib/midtrans'
 
@@ -51,6 +50,8 @@ interface BulkPayment {
   totalHargaBase?: number | null
   /** Diskon daerah (%) saat invoice dibuat */
   diskonPersen?: number | null
+  /** Gratis karena pengajuan dinas (daerah Pusat). Angka tagihan tetap disimpan. */
+  gratis?: boolean
   buktiPembayaranUrl: string
   status: string
   createdAt: string
@@ -85,9 +86,19 @@ export default function InvoiceDetailPage() {
   const [downloadingExcel, setDownloadingExcel] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [paymentProof, setPaymentProof] = useState<File | null>(null)
+  // Keterangan transfer manual (mis. "transfer dari rekening dinas").
+  const [keterangan, setKeterangan] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const isPusatOnly = session?.user.role === 'PUSAT' 
+  const isPusatOnly = session?.user.role === 'PUSAT'
+
+  // Pengajuan dinas: gratis, wajib keterangan. Modal sendiri, terpisah dari
+  // upload bukti transfer.
+  const [showDinasModal, setShowDinasModal] = useState(false)
+  const [keteranganDinas, setKeteranganDinas] = useState('')
+  const [buktiDinas, setBuktiDinas] = useState<File | null>(null)
+  const [submittingDinas, setSubmittingDinas] = useState(false)
+  const [dinasError, setDinasError] = useState<string | null>(null)
 
   useEffect(() => {
     if (params.id) {
@@ -214,6 +225,71 @@ export default function InvoiceDetailPage() {
     }
   }
 
+  const handleFileDinasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) {
+      setBuktiDinas(null)
+      return
+    }
+    if (!file.type.match(/image\/(jpeg|jpg|png)/) && file.type !== 'application/pdf') {
+      setDinasError('Hanya menerima file JPG, JPEG, PNG, atau PDF')
+      setBuktiDinas(null)
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setDinasError('Ukuran file maksimal 5MB')
+      setBuktiDinas(null)
+      return
+    }
+    setDinasError(null)
+    setBuktiDinas(file)
+  }
+
+  const handleAjukanDinas = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!invoice) return
+
+    if (!keteranganDinas.trim()) {
+      setDinasError('Keterangan pengajuan dinas wajib diisi')
+      return
+    }
+
+    setSubmittingDinas(true)
+    setDinasError(null)
+
+    try {
+      // Multipart biar bukti (kalau ada) bisa ikut dalam satu request.
+      const formData = new FormData()
+      formData.append('bulkPaymentId', invoice.id)
+      formData.append('keterangan', keteranganDinas.trim())
+      if (buktiDinas) formData.append('buktiPembayaran', buktiDinas)
+
+      const response = await fetch('/api/payments/dinas', {
+        method: 'POST',
+        body: formData,
+      })
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        toast({
+          variant: 'success',
+          title: 'Pengajuan Dinas Tercatat',
+          description: 'Invoice tidak ditagih dan menunggu verifikasi Keuangan.',
+        })
+        setShowDinasModal(false)
+        setKeteranganDinas('')
+        setBuktiDinas(null)
+        fetchInvoice(params.id as string)
+      } else {
+        setDinasError(result.error || 'Gagal mencatat pengajuan dinas')
+      }
+    } catch {
+      setDinasError('Terjadi kesalahan saat mencatat pengajuan dinas')
+    } finally {
+      setSubmittingDinas(false)
+    }
+  }
+
   const handleUploadProof = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -228,6 +304,7 @@ export default function InvoiceDetailPage() {
     const formData = new FormData()
     formData.append('paymentProof', paymentProof)
     formData.append('bulkPaymentId', invoice.id)
+    if (keterangan.trim()) formData.append('keterangan', keterangan.trim())
 
     try {
       const response = await fetch('/api/payments/upload-proof', {
@@ -245,6 +322,7 @@ export default function InvoiceDetailPage() {
         })
         setShowUploadModal(false)
         setPaymentProof(null)
+        setKeterangan('')
         fetchInvoice(params.id as string)
       } else {
         setUploadError(result.error || 'Gagal mengupload bukti pembayaran')
@@ -326,6 +404,13 @@ export default function InvoiceDetailPage() {
   } = resolveInvoiceAmounts(invoice, paymentsWithHarga)
   const isPending = invoice.status === 'PENDING'
 
+  // Invoice bisa sudah PAID tanpa bukti (mis. ditandai lunas waktu pengajuan
+  // dinas). Selama belum ada bukti dan bukan gratis, tombol Transfer Manual
+  // tetap perlu kelihatan — kalau nggak, nggak ada jalan buat upload.
+  const perluBukti =
+    invoice.status === 'PAID' && !invoice.gratis && !invoice.buktiPembayaranUrl
+  const tampilkanCta = isPending || perluBukti
+
   // Samain sama aturan di server (lib/midtrans.ts): >= Rp 500.000 cuma VA bank.
   const vaOnly = totalTagihan >= QRIS_MAX_AMOUNT
 
@@ -391,11 +476,7 @@ export default function InvoiceDetailPage() {
             <div>
               <CardTitle className="text-xl text-slate-900">{invoice.invoiceNumber}</CardTitle>
               <p className="text-sm text-slate-500 mt-1">
-                {new Date(invoice.createdAt).toLocaleDateString('id-ID', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric'
-                })}
+                {formatDateTimeWib(invoice.createdAt)}
               </p>
             </div>
             <Badge className={`${statusBadge.className} flex items-center gap-1.5 px-3 py-1.5`}>
@@ -487,9 +568,10 @@ export default function InvoiceDetailPage() {
           </div>
 
           {/* Payment CTA */}
-          {isPending ? (
+          {tampilkanCta ? (
             <div className="space-y-4">
               {/* Midtrans Payment Option */}
+              {isPending && (
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -524,6 +606,7 @@ export default function InvoiceDetailPage() {
                   </Button>
                 </div>
               </div>
+              )}
 
               {/* Manual Payment Option */}
               {isPusatOnly && (
@@ -551,6 +634,34 @@ export default function InvoiceDetailPage() {
                   </Button>
                 </div>
               </div>)}
+
+              {/* Pengajuan Dinas Option — gratis, wajib keterangan */}
+              {isPusatOnly && (
+                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-6">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-amber-600 rounded-full">
+                        <FileText className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-900">Pengajuan Dinas</h3>
+                        <p className="text-sm text-slate-600">
+                          Untuk pengajuan kedinasan — tidak ada tagihan, cukup isi keterangan
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => setShowDinasModal(true)}
+                      variant="outline"
+                      size="lg"
+                      className="border-amber-600 text-amber-700 hover:bg-amber-50 w-full sm:w-auto"
+                    >
+                      <FileText className="h-5 w-5 mr-2" />
+                      Ajukan Dinas
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : invoice.status === 'VERIFIED' ? (
             <div className="bg-green-50 border border-green-200 rounded-xl p-6">
@@ -618,6 +729,101 @@ export default function InvoiceDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Pengajuan Dinas Modal */}
+      <Dialog open={showDinasModal} onOpenChange={setShowDinasModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pengajuan Dinas</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAjukanDinas} className="space-y-4">
+            {invoice && (
+              <div className="bg-slate-50 p-3 rounded-lg">
+                <p className="text-sm font-medium">{invoice.invoiceNumber}</p>
+                <p className="text-2xl font-bold text-emerald-600 mt-2">Gratis</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Tagihan {formatCurrency(totalTagihan)} tidak perlu dibayar.
+                </p>
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="keterangan-dinas" className="block text-sm font-medium mb-2">
+                Keterangan Pengajuan Dinas
+              </label>
+              <textarea
+                id="keterangan-dinas"
+                value={keteranganDinas}
+                onChange={(e) => setKeteranganDinas(e.target.value)}
+                rows={4}
+                maxLength={500}
+                required
+                placeholder="Contoh: pengajuan dinas BPP untuk pelatihan internal, nomor surat ..."
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Wajib diisi — jadi jejak alasan invoice ini tidak ditagih.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="bukti-dinas" className="block text-sm font-medium mb-2">
+                Upload Bukti <span className="font-normal text-slate-500">(opsional)</span>
+              </label>
+              <input
+                id="bukti-dinas"
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,application/pdf"
+                onChange={handleFileDinasChange}
+                className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-amber-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-amber-700 cursor-pointer border border-slate-300 rounded-md"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Surat dinas / bukti transfer kedinasan. JPG, PNG, PDF (Maks. 5MB).
+              </p>
+              {buktiDinas && (
+                <p className="text-xs text-amber-700 mt-1">Terpilih: {buktiDinas.name}</p>
+              )}
+            </div>
+
+            {dinasError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{dinasError}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowDinasModal(false)
+                  setKeteranganDinas('')
+                  setBuktiDinas(null)
+                  setDinasError(null)
+                }}
+                className="flex-1"
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={submittingDinas || !keteranganDinas.trim()}
+                className="flex-1 bg-amber-600 hover:bg-amber-700"
+              >
+                {submittingDinas ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  'Ajukan'
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Upload Proof Modal */}
       <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
         <DialogContent className="max-w-md">
@@ -635,17 +841,44 @@ export default function InvoiceDetailPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label htmlFor="bukti-transfer" className="block text-sm font-medium mb-2">
                 Upload Bukti Transfer
               </label>
-              <Input
+              {/* Input file dibuat eksplisit, bukan lewat <Input>: kelas h-10/py-2
+                  bikin input file di beberapa browser cuma tampil garis tipis. */}
+              <input
+                id="bukti-transfer"
                 type="file"
-                accept="image/*,.pdf"
+                accept="image/jpeg,image/jpg,image/png,application/pdf"
                 onChange={handleFileChange}
                 required
+                className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-green-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-green-700 cursor-pointer border border-slate-300 rounded-md"
               />
               <p className="text-xs text-slate-500 mt-1">
                 Format: JPG, JPEG, PNG, PDF (Maks. 5MB)
+              </p>
+              {paymentProof && (
+                <p className="text-xs text-green-700 mt-1">
+                  Terpilih: {paymentProof.name}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="keterangan-transfer" className="block text-sm font-medium mb-2">
+                Keterangan
+              </label>
+              <textarea
+                id="keterangan-transfer"
+                value={keterangan}
+                onChange={(e) => setKeterangan(e.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder="Contoh: transfer dari rekening dinas BPD, dikirim tanggal 21 Oktober 2026"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Opsional — membantu Keuangan mencocokkan transfer.
               </p>
             </div>
 
@@ -670,6 +903,7 @@ export default function InvoiceDetailPage() {
                 onClick={() => {
                   setShowUploadModal(false)
                   setPaymentProof(null)
+                  setKeterangan('')
                   setUploadError(null)
                 }}
                 className="flex-1"

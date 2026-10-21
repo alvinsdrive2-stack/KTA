@@ -38,7 +38,7 @@ const NAMA_SUBKLASIFIKASI_K3 = 'KESELAMATAN KONSTRUKSI'
  * Cek dua sumber sekaligus: kode `MP01` (jalur SIKI — acuan utama) dan nama
  * 'KESELAMATAN KONSTRUKSI' (jalur manual/import yang cuma nyimpan nama).
  * Yang dicek kode daerah **tujuan**, bukan daerah akun yang login: PUSAT/ADMIN/
- * daerah '00' boleh milih daerah tujuan mana pun, dan yang menentukan sah-tidaknya
+ * daerah Pusat (kode 99) boleh milih daerah tujuan mana pun, dan yang menentukan sah-tidaknya
  * KTA itu adalah daerah tempat KTA-nya nanti terbit.
  */
 export function isSubklasifikasiK3(kodeSubklasifikasi?: string | null): boolean {

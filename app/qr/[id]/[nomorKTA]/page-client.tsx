@@ -6,6 +6,7 @@ import { MapPin, Award, Phone, Mail, IdCard, CheckCircle2, Briefcase } from 'luc
 import { MapZoomIntro } from '@/components/verification/map-zoom-intro'
 import { getDaerahLogoUrl } from '@/lib/daerah-logo'
 import { capitalizeEachWord, formatAlamatWithRW } from '@/lib/kta-format'
+import { KODE_DAERAH_PUSAT } from '@/lib/riwayat-invoice'
 
 interface KTAData {
   nomorKTA: string
@@ -37,7 +38,7 @@ export function VerifyKTAPageClient({ ktaData }: VerifyKTAPageClientProps) {
     }, 150)
   }
 
-  const daerahLogo = ktaData.kodeDaerah === '00' ? '/logo.png' : getDaerahLogoUrl(ktaData.daerah)
+  const daerahLogo = ktaData.kodeDaerah === KODE_DAERAH_PUSAT ? '/logo.png' : getDaerahLogoUrl(ktaData.daerah)
 
   // Get kualifikasi image based on jenjang
   const jenjangNum = parseInt(ktaData.jenjang, 10)

@@ -1,13 +1,17 @@
 import { prisma } from '@/lib/prisma'
+import { getWibParts } from '@/lib/utils'
 
 const INVOICE_PREFIX = 'INV/KTA-GATENSI/'
 
 // Format: INV/KTA-GATENSI/[yymm]/[urut-3digit-dari-001]
 // Contoh: INV/KTA-GATENSI/2608/001
 export async function generateInvoiceNumber(): Promise<string> {
-  const now = new Date()
-  const yy = String(now.getFullYear()).slice(-2)
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  // Bulan diambil dari kalender WIB. Dulu pakai getFullYear/getMonth yang
+  // ngikutin zona mesin — invoice yang dibuat 00:00–06:59 WIB tanggal 1
+  // dapet prefix bulan sebelumnya kalau server jalan di UTC.
+  const { year, month } = getWibParts(new Date())
+  const yy = String(year).slice(-2)
+  const mm = String(month + 1).padStart(2, '0')
   const monthPrefix = `${INVOICE_PREFIX}${yy}${mm}/`
 
   const lastInvoice = await prisma.bulkPayment.findFirst({
@@ -60,6 +64,7 @@ export function resolveInvoiceAmounts(
     totalNominal: number
     totalHargaBase?: number | null
     diskonPersen?: number | null
+    gratis?: boolean | null
   },
   lines: InvoiceAmountLine[]
 ): InvoiceAmounts {
@@ -83,7 +88,10 @@ export function resolveInvoiceAmounts(
     diskonPersen,
     diskonAmount,
     totalTagihan,
-    isFree: diskonPersen >= 100,
+    // Gratis = pengajuan dinas (daerah Pusat) ATAU diskon 100%.
+    // Diskon 100% tetap dihitung gratis; angka diskonnya sendiri nggak diubah
+    // oleh status dinas — laporan keuangan butuh angka tagihan aslinya.
+    isFree: !!invoice.gratis || diskonPersen >= 100,
   }
 }
 

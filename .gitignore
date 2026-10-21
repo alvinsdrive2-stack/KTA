@@ -21,6 +21,7 @@ tsconfig.tsbuildinfo
 supabase-dump/
 # Dump DB lokal buat uji — jangan pernah masuk repo.
 dump-*.sql
+backup/
 .playwright-mcp/
 
 # Upload file anggota (KTP, foto, bukti bayar) - data pribadi, jangan di-commit

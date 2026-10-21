@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
+import { formatDateTimeWib } from '@/lib/utils'
 import {
   CheckCircle,
   XCircle,
@@ -30,6 +31,7 @@ interface BulkPaymentDetail {
   status: 'PENDING' | 'VERIFIED' | 'REJECTED'
   isEnrolment: boolean
   keterangan?: string
+  gratis?: boolean
   submittedByUser: {
     name: string
   }
@@ -310,7 +312,7 @@ export default function PaymentDetailPage() {
             )}
           </Badge>
           <span className="text-sm text-gray-600">
-            {new Date(payment.createdAt).toLocaleString('id-ID')}
+            {formatDateTimeWib(payment.createdAt)}
           </span>
         </div>
 
@@ -432,7 +434,7 @@ export default function PaymentDetailPage() {
                 <div className="flex justify-between border-b pb-2">
                   <span className="text-gray-600">Tanggal Pengajuan</span>
                   <span className="font-medium">
-                    {new Date(payment.createdAt).toLocaleString('id-ID')}
+                    {formatDateTimeWib(payment.createdAt)}
                   </span>
                 </div>
 
@@ -446,7 +448,7 @@ export default function PaymentDetailPage() {
                       <div className="flex justify-between border-b pb-2">
                         <span className="text-gray-600">Tanggal Konfirmasi</span>
                         <span className="font-medium">
-                          {new Date(payment.verifiedAt).toLocaleString('id-ID')}
+                          {formatDateTimeWib(payment.verifiedAt)}
                         </span>
                       </div>
                     )}
@@ -457,18 +459,28 @@ export default function PaymentDetailPage() {
               {/* Bukti Pembayaran Section */}
               <div className="pt-4 border-t">
                 <p className="text-sm font-medium text-gray-700 mb-3">Bukti Pembayaran</p>
-                {payment.totalNominal === 0 ? (
+                {(payment.gratis || payment.totalNominal === 0) && (
                   <Alert className="bg-green-50 border-green-200">
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <AlertDescription className="text-green-800">
-                      <p className="font-semibold">Pengajuan K3</p>
+                      {/* Gratis bisa dua sebab: pengajuan dinas, atau diskon 100% (K3).
+                          Dulu dua-duanya ditulis "Pengajuan K3". */}
+                      <p className="font-semibold">
+                        {payment.gratis ? 'Pengajuan Dinas' : 'Pengajuan K3'}
+                      </p>
                       <p className="text-sm">
-                        Tidak ada biaya (diskon 100% / biaya Rp 0). Pengajuan diproses tanpa pembayaran.
+                        {payment.gratis
+                          ? 'Tidak ada biaya karena pengajuan untuk kedinasan. Diproses tanpa pembayaran.'
+                          : 'Tidak ada biaya (diskon 100% / biaya Rp 0). Pengajuan diproses tanpa pembayaran.'}
                       </p>
                     </AlertDescription>
                   </Alert>
-                ) : payment.buktiPembayaranUrl ? (
-                  <div className="border rounded-lg overflow-hidden bg-slate-50">
+                )}
+
+                {/* Bukti lampiran. Pengajuan dinas boleh punya bukti (surat dinas /
+                    bukti transfer kedinasan), jadi dicek terpisah dari status gratis. */}
+                {payment.buktiPembayaranUrl ? (
+                  <div className={`border rounded-lg overflow-hidden bg-slate-50 ${payment.gratis || payment.totalNominal === 0 ? 'mt-3' : ''}`}>
                     {payment.buktiPembayaranUrl.toLowerCase().endsWith('.pdf') ? (
                       <iframe
                         src={payment.buktiPembayaranUrl}
@@ -484,14 +496,26 @@ export default function PaymentDetailPage() {
                       />
                     )}
                   </div>
-                ) : (
-                  <Alert className="bg-green-50 border-green-200">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <AlertDescription className="text-green-800">
-                      <p className="font-semibold">Pembayaran Online</p>
-                      <p className="text-sm">Pembayaran terverifikasi otomatis melalui Midtrans</p>
+                ) : payment.gratis || payment.totalNominal === 0 ? null : (
+                  <Alert className="bg-amber-50 border-amber-200">
+                    <Clock className="h-5 w-5 text-amber-600" />
+                    <AlertDescription className="text-amber-800">
+                      <p className="font-semibold">Belum Ada Bukti Transfer</p>
+                      <p className="text-sm">
+                        {payment.status === 'PENDING'
+                          ? 'Daerah belum mengirim bukti transfer untuk invoice ini. Jangan diverifikasi sebelum buktinya masuk.'
+                          : 'Tidak ada bukti transfer yang dilampirkan untuk invoice ini.'}
+                      </p>
                     </AlertDescription>
                   </Alert>
+                )}
+
+                {/* Keterangan dari pengunggah bukti (transfer manual) */}
+                {payment.keterangan && (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-medium text-slate-500 mb-1">Keterangan</p>
+                    <p className="text-sm text-slate-800 whitespace-pre-wrap">{payment.keterangan}</p>
+                  </div>
                 )}
               </div>
             </CardContent>
@@ -537,7 +561,12 @@ export default function PaymentDetailPage() {
       </div>
 
       {/* Floating Bar for Actions */}
-      {!payment.isEnrolment && payment.status === 'PENDING' && (
+      {/* Tombol verifikasi cuma muncul kalau bukti transfer sudah masuk.
+          Tanpa bukti nggak ada yang bisa dikonfirmasi. Yang gratis
+          (totalNominal 0) nggak butuh bukti. */}
+      {!payment.isEnrolment &&
+        payment.status === 'PENDING' &&
+        (payment.gratis || payment.totalNominal === 0 || !!payment.buktiPembayaranUrl) && (
         <div className="fixed bottom-0 left-0 right-0 z-50">
           <Card className="rounded-none shadow-2xl animate-slide-up">
             <CardContent className="py-4 px-6 lg:px-8">

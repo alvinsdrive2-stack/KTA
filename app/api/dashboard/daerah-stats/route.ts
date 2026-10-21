@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
-import { formatDateKey, formatDateKeyMonth } from '@/lib/utils'
+import {
+  endOfWibDay,
+  formatDateKey,
+  formatDateKeyMonth,
+  shiftWibDate,
+  startOfWibDay,
+  startOfWibMonth,
+} from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,35 +31,31 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const period = searchParams.get('period') || 'month'
 
-    const now = new Date()
-    now.setHours(23, 59, 59, 999)
+    const now = endOfWibDay(new Date())
 
-    // Calculate current period dates
-    let currentStartDate = new Date(now.getTime())
-    const chartStartDate = new Date(now.getTime()) // For chart data range
+    // Calculate current period dates — semua batas dipatok kalender WIB
+    let currentStartDate = startOfWibDay(now)
+    let chartStartDate = startOfWibDay(now) // For chart data range
 
     switch (period) {
       case 'week':
-        chartStartDate.setDate(now.getDate() - 7)
-        currentStartDate = new Date(chartStartDate)
+        chartStartDate = startOfWibDay(shiftWibDate(now, { days: -7 }))
+        currentStartDate = chartStartDate
         break
       case 'month':
         // For labels: use calendar month
-        currentStartDate = new Date(now.getFullYear(), now.getMonth(), 1)
+        currentStartDate = startOfWibMonth(now)
         // For chart: still use 30 days for visualization
-        chartStartDate.setDate(now.getDate() - 30)
+        chartStartDate = startOfWibDay(shiftWibDate(now, { days: -30 }))
         break
       case 'year':
-        chartStartDate.setFullYear(now.getFullYear() - 1)
-        currentStartDate = new Date(chartStartDate)
+        chartStartDate = startOfWibDay(shiftWibDate(now, { years: -1 }))
+        currentStartDate = chartStartDate
         break
       default:
-        chartStartDate.setDate(now.getDate() - 30)
-        currentStartDate = new Date(chartStartDate)
+        chartStartDate = startOfWibDay(shiftWibDate(now, { days: -30 }))
+        currentStartDate = chartStartDate
     }
-
-    currentStartDate.setHours(0, 0, 0, 0)
-    chartStartDate.setHours(0, 0, 0, 0)
 
     // Build base where clause - include both READY_TO_PRINT and PRINTED
     const baseWhereClause: Prisma.KTARequestWhereInput = {
@@ -83,8 +86,7 @@ export async function GET(request: NextRequest) {
 
     if (period === 'week') {
       // Today's count
-      const todayStart = new Date(now)
-      todayStart.setHours(0, 0, 0, 0)
+      const todayStart = startOfWibDay(now)
       rightLabelValue = await prisma.kTARequest.count({
         where: {
           ...baseWhereClause,
@@ -95,10 +97,8 @@ export async function GET(request: NextRequest) {
         },
       })
       // Yesterday's count for comparison
-      const yesterdayStart = new Date(todayStart)
-      yesterdayStart.setDate(yesterdayStart.getDate() - 1)
-      const yesterdayEnd = new Date(todayStart)
-      yesterdayEnd.setMilliseconds(yesterdayEnd.getMilliseconds() - 1)
+      const yesterdayStart = startOfWibDay(shiftWibDate(todayStart, { days: -1 }))
+      const yesterdayEnd = new Date(todayStart.getTime() - 1)
       rightLabelPrevValue = await prisma.kTARequest.count({
         where: {
           ...baseWhereClause,
@@ -110,9 +110,7 @@ export async function GET(request: NextRequest) {
       })
     } else if (period === 'month') {
       // Last 5 days count - but only from current calendar month
-      const fiveDaysAgo = new Date(now)
-      fiveDaysAgo.setDate(now.getDate() - 5)
-      fiveDaysAgo.setHours(0, 0, 0, 0)
+      const fiveDaysAgo = startOfWibDay(shiftWibDate(now, { days: -5 }))
       // Use currentStartDate (beginning of calendar month) as lower bound
       const effectiveStart = fiveDaysAgo > currentStartDate ? fiveDaysAgo : currentStartDate
       rightLabelValue = await prisma.kTARequest.count({
@@ -125,10 +123,8 @@ export async function GET(request: NextRequest) {
         },
       })
       // Previous 5 days for comparison (also constrained to current month)
-      const tenDaysAgo = new Date(fiveDaysAgo)
-      tenDaysAgo.setDate(tenDaysAgo.getDate() - 5)
-      const sixDaysAgo = new Date(fiveDaysAgo)
-      sixDaysAgo.setMilliseconds(sixDaysAgo.getMilliseconds() - 1)
+      const tenDaysAgo = startOfWibDay(shiftWibDate(fiveDaysAgo, { days: -5 }))
+      const sixDaysAgo = new Date(fiveDaysAgo.getTime() - 1)
       // Only count if within current month
       const prevStart = tenDaysAgo > currentStartDate ? tenDaysAgo : currentStartDate
       rightLabelPrevValue = await prisma.kTARequest.count({
@@ -142,7 +138,7 @@ export async function GET(request: NextRequest) {
       })
     } else {
       // This month count
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const monthStart = startOfWibMonth(now)
       rightLabelValue = await prisma.kTARequest.count({
         where: {
           ...baseWhereClause,
@@ -153,9 +149,8 @@ export async function GET(request: NextRequest) {
         },
       })
       // Last month count for comparison
-      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      const lastMonthEnd = new Date(monthStart)
-      lastMonthEnd.setMilliseconds(lastMonthEnd.getMilliseconds() - 1)
+      const lastMonthStart = startOfWibMonth(now, -1)
+      const lastMonthEnd = new Date(monthStart.getTime() - 1)
       rightLabelPrevValue = await prisma.kTARequest.count({
         where: {
           ...baseWhereClause,

@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { authMiddleware } from '@/lib/auth-helpers'
+import { bolehLihatInvoice } from '@/lib/riwayat-invoice'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await authMiddleware(request)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const invoice = await prisma.bulkPayment.findUnique({
       where: { id: params.id },
       include: {
@@ -55,6 +62,16 @@ export async function GET(
 
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    // BPP (role PUSAT) cuma boleh buka invoice daerah Pusat. Tanpa cek ini,
+    // invoice BPD mana pun kebuka asal id-nya ketahuan — halaman riwayat
+    // memang nyembunyiin, tapi API-nya nggak.
+    if (!bolehLihatInvoice(session.user, {
+      daerahId: invoice.daerahId,
+      daerahKode: invoice.daerah.kodeDaerah,
+    })) {
+      return NextResponse.json({ error: 'Anda tidak memiliki akses' }, { status: 403 })
     }
 
     // Fetch previous KTA data for upgrades

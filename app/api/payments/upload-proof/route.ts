@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const paymentProof = formData.get('paymentProof') as File
     const bulkPaymentId = formData.get('bulkPaymentId') as string
+    const keterangan = ((formData.get('keterangan') as string) || '').trim()
 
     if (!paymentProof || !bulkPaymentId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -51,7 +52,15 @@ export async function POST(request: NextRequest) {
       where: { id: bulkPaymentId },
       data: {
         buktiPembayaranUrl: proofUrl,
+        // Keterangan transfer dari pengunggah (mis. "ditransfer dari rekening dinas").
+        ...(keterangan ? { keterangan } : {}),
         status: 'PAID',
+        // Invoice ini lunas lewat transfer manual, bukan Midtrans. Order id
+        // dari percobaan Midtrans yang dibatalkan dilepas biar nggak nyangkut
+        // terus jadi penanda "invoice Midtrans".
+        midtransOrderId: null,
+        midtransToken: null,
+        midtransRedirectUrl: null,
       }
     })
 

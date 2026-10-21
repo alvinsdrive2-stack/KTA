@@ -18,6 +18,8 @@ import { Separator as UISeparator } from '@/components/ui/separator'
 import { useSidebar } from '@/contexts/sidebar-context'
 import { useSession } from '@/hooks/useSession'
 import type { UpgradeCheckResult } from '@/lib/kta-upgrade'
+import { isK3Violation } from '@/lib/kta-upgrade'
+import { KODE_DAERAH_PUSAT } from '@/lib/riwayat-invoice'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 
@@ -139,7 +141,7 @@ export default function KTAApplyPage() {
 
     const userRole = session?.user?.role
     const userDaerahKode = session?.user?.daerah?.kodeDaerah
-    const canAssignAnyDaerah = userRole === 'PUSAT' || userRole === 'ADMIN' || userDaerahKode === '00'
+    const canAssignAnyDaerah = userRole === 'PUSAT' || userRole === 'ADMIN' || userDaerahKode === KODE_DAERAH_PUSAT
 
     if (canAssignAnyDaerah) {
       fetchDaerahList()
@@ -153,7 +155,7 @@ export default function KTAApplyPage() {
   // Check if user can assign to any daerah
   const canAssignAnyDaerah = session?.user?.role === 'PUSAT' ||
                              session?.user?.role === 'ADMIN' ||
-                             session?.user?.daerah?.kodeDaerah === '00'
+                             session?.user?.daerah?.kodeDaerah === KODE_DAERAH_PUSAT
 
   // Kode daerah buat pengecekan NIK — daerah 98 dibebaskan dari cek lintas daerah.
   //
@@ -170,6 +172,19 @@ export default function KTAApplyPage() {
     const tujuan = daerahList.find((d) => d.id === selectedDaerahId)
     return tujuan?.kodeDaerah || session?.user?.daerah?.kodeDaerah
   }, [daerahList, selectedDaerahId, session])
+
+  // K3 (MP01) cuma boleh diajukan lewat akun/daerah K3 (kode 98).
+  //
+  // Guard yang sama sudah ada di `app/api/kta/create/route.ts:115`, tapi di
+  // sana baru muncul setelah seluruh form diisi dan submit ditolak. Di sini
+  // dicek begitu data SIKI ketemu, jadi user langsung tahu sejak awal.
+  const k3Blocked = useMemo(() => {
+    if (!sikiData?.klasifikasi) return false
+    return isK3Violation(
+      { kode: sikiData.klasifikasi.kodeSubklasifikasi, nama: sikiData.klasifikasi.subklasifikasi },
+      daerahKode
+    )
+  }, [sikiData?.klasifikasi, daerahKode])
 
   // Calculate price when jenjang or diskon changes
   useEffect(() => {
@@ -997,6 +1012,18 @@ export default function KTAApplyPage() {
                     className="mt-1 bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
                 </div>
+                {k3Blocked && (
+                  <div className="md:col-span-2">
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Sub klasifikasi <strong>MP01 - Keselamatan Konstruksi (K3)</strong> hanya
+                        dapat diajukan melalui akun daerah K3. Akun ini bukan akun K3, jadi
+                        permohonan ini tidak bisa dilanjutkan.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="jenjang" className="text-slate-700">Kualifikasi</Label>
                   <Input
@@ -1242,11 +1269,13 @@ export default function KTAApplyPage() {
                 )}
                 <Button
                   onClick={completeCurrentAndNext}
-                  disabled={isLoading || !!(upgradeInfo && !upgradeInfo.canUpgrade)}
+                  disabled={isLoading || k3Blocked || !!(upgradeInfo && !upgradeInfo.canUpgrade)}
                   title={
-                    upgradeInfo && !upgradeInfo.canUpgrade
-                      ? upgradeInfo.reason
-                      : undefined
+                    k3Blocked
+                      ? 'Sub klasifikasi K3 hanya bisa diajukan lewat akun daerah K3'
+                      : upgradeInfo && !upgradeInfo.canUpgrade
+                        ? upgradeInfo.reason
+                        : undefined
                   }
                   className="flex-1 bg-slate-800 text-slate-100 hover:bg-slate-700 shadow-md"
                 >

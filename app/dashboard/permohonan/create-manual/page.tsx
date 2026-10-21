@@ -19,6 +19,7 @@ import { useSidebar } from '@/contexts/sidebar-context'
 import { useSession } from '@/hooks/useSession'
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
+import { KODE_DAERAH_PUSAT } from '@/lib/riwayat-invoice'
 
 const formSchema = z.object({
   nik: z.string().min(16, 'NIK harus 16 digit').max(16, 'NIK harus 16 digit'),
@@ -196,7 +197,7 @@ export default function CreateManualPage() {
 
     const userRole = session?.user?.role
     const userDaerahKode = session?.user?.daerah?.kodeDaerah
-    const canAssignAnyDaerah = userRole === 'PUSAT' || userRole === 'ADMIN' || userDaerahKode === '00'
+    const canAssignAnyDaerah = userRole === 'PUSAT' || userRole === 'ADMIN' || userDaerahKode === KODE_DAERAH_PUSAT
 
     if (canAssignAnyDaerah) {
       fetchDaerahList()
@@ -260,7 +261,7 @@ export default function CreateManualPage() {
   // Check if user can assign to any daerah
   const canAssignAnyDaerah = session?.user?.role === 'PUSAT' ||
                              session?.user?.role === 'ADMIN' ||
-                             session?.user?.daerah?.kodeDaerah === '00'
+                             session?.user?.daerah?.kodeDaerah === KODE_DAERAH_PUSAT
 
   // Daerah efektif: PUSAT/ADMIN pakai dropdown, user lain pakai daerah session
   const effDaerahId = canAssignAnyDaerah ? selectedDaerahId : session?.user?.daerahId

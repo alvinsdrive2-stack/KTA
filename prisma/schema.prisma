@@ -268,6 +268,10 @@ model BulkPayment {
   /// sekarang nggak boleh ngerubah invoice yang sudah terbit.
   diskonPersen          Int?
   buktiPembayaranUrl    String
+  /// Gratis karena pengajuan dinas (daerah Pusat / kode 99). Dibekukan saat
+  /// invoice dibuat. BUKAN berarti diskonPersen 100 — diskon tetap angka asli
+  /// buat laporan keuangan.
+  gratis                Boolean       @default(false)
   status                PaymentStatus @default(PENDING)
   verifiedBy            String?
   verifiedAt            DateTime?

@@ -10,7 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, XCircle, Clock, AlertCircle, ArrowLeft, Loader2, Download, FileSpreadsheet } from 'lucide-react'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useToast } from '@/components/ui/use-toast'
-import { safeInvoiceFilename } from '@/lib/utils'
+import { safeInvoiceFilename, formatDateTimeWib } from '@/lib/utils'
+import { useSession } from '@/hooks/useSession'
 
 interface BulkPaymentDetail {
   id: string
@@ -50,6 +51,7 @@ export default function PusatInvoiceDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
+  const { session } = useSession()
   const [payment, setPayment] = useState<BulkPaymentDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -274,8 +276,11 @@ export default function PusatInvoiceDetailPage() {
     )
   }
 
-  const canVerify = payment.status === 'PAID'
-  const canReject = payment.status === 'PAID' || payment.status === 'PENDING'
+  // Konfirmasi/verifikasi pembayaran itu wewenang KEUANGAN. Superadmin (ADMIN)
+  // dan BPP cuma bisa melihat, bukan memutuskan.
+  const bolehVerifikasi = session?.user?.role === 'KEUANGAN'
+  const canVerify = bolehVerifikasi && payment.status === 'PAID'
+  const canReject = bolehVerifikasi && (payment.status === 'PAID' || payment.status === 'PENDING')
 
   return (
     <>
@@ -327,7 +332,7 @@ export default function PusatInvoiceDetailPage() {
             )}
           </Badge>
           <span className="text-sm text-gray-600">
-            {new Date(payment.createdAt).toLocaleString('id-ID')}
+            {formatDateTimeWib(payment.createdAt)}
           </span>
         </div>
 
@@ -421,7 +426,7 @@ export default function PusatInvoiceDetailPage() {
                 <div className="flex justify-between border-b pb-2">
                   <span className="text-gray-600">Tanggal Pengajuan</span>
                   <span className="font-medium">
-                    {new Date(payment.createdAt).toLocaleString('id-ID')}
+                    {formatDateTimeWib(payment.createdAt)}
                   </span>
                 </div>
                 {payment.verifiedByUser && (
@@ -434,7 +439,7 @@ export default function PusatInvoiceDetailPage() {
                       <div className="flex justify-between border-b pb-2">
                         <span className="text-gray-600">Tanggal Konfirmasi</span>
                         <span className="font-medium">
-                          {new Date(payment.verifiedAt).toLocaleString('id-ID')}
+                          {formatDateTimeWib(payment.verifiedAt)}
                         </span>
                       </div>
                     )}

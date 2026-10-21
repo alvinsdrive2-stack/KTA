@@ -100,14 +100,14 @@ const navSections: NavSection[] = [
     roles: ['DAERAH', 'PUSAT', 'ADMIN', 'KEUANGAN'],
     items: [
       {
-        title: 'Pembayaran',
+        title: 'Pembuatan Invoice',
         href: '/dashboard/payments/daerah',
         icon: CreditCard,
         roles: ['DAERAH'],
         badge: null,
       },
       {
-        title: 'Pembayaran',
+        title: 'Pembuatan Invoice',
         href: '/dashboard/payments/pusat',
         icon: CreditCard,
         roles: ['PUSAT', 'ADMIN', 'KEUANGAN'],

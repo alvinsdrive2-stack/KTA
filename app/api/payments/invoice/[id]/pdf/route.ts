@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { authMiddleware } from '@/lib/auth-helpers'
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type RGB } from 'pdf-lib'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { safeInvoiceFilename, formatCurrency } from '@/lib/utils'
+import { safeInvoiceFilename, formatCurrency, formatDateWib, formatDateTimeWib } from '@/lib/utils'
 import { resolveInvoiceAmounts, lineHargaBase } from '@/lib/invoice'
+import { bolehLihatInvoice } from '@/lib/riwayat-invoice'
+import { terbilangRupiah } from '@/lib/terbilang'
+import { JENJANG_LABEL, getJenjangCategory, type JenjangCategory } from '@/lib/kta-upgrade'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await authMiddleware(request)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const invoice = await prisma.bulkPayment.findUnique({
       where: { id: params.id },
       include: {
@@ -54,6 +63,15 @@ export async function GET(
 
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    // PDF bisa diakses langsung lewat URL, jadi cek scope role di sini juga —
+    // bukan cuma di halaman riwayat.
+    if (!bolehLihatInvoice(session.user, {
+      daerahId: invoice.daerahId,
+      daerahKode: invoice.daerah.kodeDaerah,
+    })) {
+      return NextResponse.json({ error: 'Anda tidak memiliki akses' }, { status: 403 })
     }
 
     // Fetch previous KTA data for upgrades
@@ -142,21 +160,12 @@ export async function GET(
       return false
     }
 
-    // Helper function to format date
-    const formatDate = (date: Date | string) => {
-      return new Date(date).toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      })
-    }
+    // Helper function to format date — dipatok WIB, bukan zona server.
+    // `formatDateWib` mengabaikan jam, jadi tanggal pengajuan nggak geser
+    // walau server jalan di UTC.
+    const formatDate = (date: Date | string) => formatDateWib(date)
 
-    const formatDateTime = (date: Date | string) => {
-      return `${formatDate(date)} ${new Date(date).toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })}`
-    }
+    const formatDateTime = (date: Date | string) => formatDateTimeWib(date)
 
     // Word wrap text, return y position after last line
     const drawWrappedText = (
@@ -183,21 +192,6 @@ export async function GET(
       })
       if (line) page.drawText(line, { x, y: cy, size, font, color })
       return cy - (size + 4)
-    }
-
-    // Helper function to convert number to words (terbilang)
-    const terbilang = (nilai: number): string => {
-      const satuan = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas']
-      if (nilai === 0) return 'Nol'
-      if (nilai < 12) return satuan[Math.floor(nilai)]
-      if (nilai < 20) return satuan[Math.floor(nilai) - 10] + ' Belas'
-      if (nilai < 100) return (Math.floor(nilai) / 10 >= 1 ? satuan[Math.floor(nilai / 10)] + ' Puluh ' : '') + (nilai % 10 > 0 ? satuan[nilai % 10] : '')
-      if (nilai < 200) return 'Seratus ' + terbilang(nilai - 100)
-      if (nilai < 1000) return (Math.floor(nilai) / 100 >= 1 ? satuan[Math.floor(nilai / 100)] + ' Ratus ' : '') + terbilang(nilai % 100)
-      if (nilai < 2000) return 'Seribu ' + terbilang(nilai - 1000)
-      if (nilai < 1000000) return (Math.floor(nilai) / 1000 >= 1 ? terbilang(Math.floor(nilai / 1000)) + ' Ribu ' : '') + terbilang(nilai % 1000)
-      if (nilai < 1000000000) return (Math.floor(nilai) / 1000000 >= 1 ? terbilang(Math.floor(nilai / 1000000)) + ' Juta ' : '') + terbilang(nilai % 1000000)
-      return nilai.toString()
     }
 
     // ============================================
@@ -543,14 +537,19 @@ export async function GET(
         font: fontBold,
         color: navyBlue
       })
+    } else if (invoice.status === 'PENDING') {
+      // Belum dibayar = belum ada metode yang dipilih. Jangan tampilkan
+      // "BANK TRANSFER" yang cuma default kolom kosong.
+      drawWrappedText(
+        'Belum memilih metode pembayaran',
+        leftX + 10,
+        yPosition - 28,
+        9,
+        fontBold,
+        darkGray,
+        sectionWidth - 20
+      )
     } else {
-      page.drawText('Midtrans Payment Gateway', {
-        x: leftX + 10,
-        y: yPosition - 28,
-        size: 10,
-        font: fontBold,
-        color: darkGray
-      })
 
       let leftY = drawWrappedText(
         `Status: ${statusLabel[invoice.status] || invoice.status}`,
@@ -590,7 +589,7 @@ export async function GET(
       color: navyBlue
     })
 
-    const terbilangText = terbilang(totalTagihan) + ' Rupiah'
+    const terbilangText = terbilangRupiah(totalTagihan)
 
     // Word wrap for terbilang - wrap by words, not characters
     const words = terbilangText.split(' ')
@@ -703,6 +702,71 @@ export async function GET(
     })
 
     yPosition -= 100
+
+    // ============================================
+    // REKAP KUALIFIKASI - jumlah KTA per kategori jenjang
+    // ============================================
+    {
+      const hitung: Record<JenjangCategory, number> = { AHLI: 0, TEKNISI: 0, OPERATOR: 0 }
+      for (const p of paymentsWithPrev) {
+        hitung[getJenjangCategory(p.ktaRequest.jenjang)]++
+      }
+
+      // Tabel kecil: 3 baris + header, cukup 1 halaman.
+      ensureSpace(95)
+
+      yPosition -= 10
+      page.drawText('Rekap Kualifikasi', {
+        x: margin,
+        y: yPosition,
+        size: 9,
+        font: fontBold,
+        color: navyBlue
+      })
+      yPosition -= 16
+
+      const rekapWidth = contentWidth / 2
+      const rekapRows: Array<[string, number]> = [
+        [JENJANG_LABEL.AHLI, hitung.AHLI],
+        [JENJANG_LABEL.TEKNISI, hitung.TEKNISI],
+        [JENJANG_LABEL.OPERATOR, hitung.OPERATOR],
+      ]
+
+      // Header
+      page.drawRectangle({
+        x: margin,
+        y: yPosition - 4,
+        width: rekapWidth,
+        height: 14,
+        color: lightGray
+      })
+      page.drawText('Kualifikasi', { x: margin + 6, y: yPosition, size: 8, font: fontBold, color: navyBlue })
+      page.drawText('Jumlah', { x: margin + rekapWidth / 2 + 6, y: yPosition, size: 8, font: fontBold, color: navyBlue })
+      page.drawLine({
+        start: { x: margin, y: yPosition - 4 },
+        end: { x: margin + rekapWidth, y: yPosition - 4 },
+        thickness: 0.5,
+        color: navyBlue
+      })
+      yPosition -= 18
+
+      for (const [label, jumlah] of rekapRows) {
+        page.drawText(label, { x: margin + 6, y: yPosition, size: 8, font, color: darkGray })
+        page.drawText(String(jumlah), { x: margin + rekapWidth / 2 + 6, y: yPosition, size: 8, font: fontBold, color: darkGray })
+        page.drawLine({
+          start: { x: margin, y: yPosition - 4 },
+          end: { x: margin + rekapWidth, y: yPosition - 4 },
+          thickness: 0.3,
+          color: rgb(0.7, 0.7, 0.7)
+        })
+        yPosition -= 14
+      }
+
+      // Total
+      page.drawText('Total', { x: margin + 6, y: yPosition, size: 8, font: fontBold, color: navyBlue })
+      page.drawText(String(paymentsWithPrev.length), { x: margin + rekapWidth / 2 + 6, y: yPosition, size: 8, font: fontBold, color: navyBlue })
+      yPosition -= 12
+    }
 
     // Legal nggak boleh kepotong di ujung halaman — pindah sekalian kalau mepet.
     ensureSpace(60)

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { authMiddleware } from '@/lib/auth-helpers'
 import { Workbook, type Cell, type BorderStyle } from 'exceljs'
-import { safeInvoiceFilename, formatCurrency } from '@/lib/utils'
+import { safeInvoiceFilename, formatCurrency, formatDateWib, formatDateTimeWib } from '@/lib/utils'
 import { resolveInvoiceAmounts, lineHargaBase } from '@/lib/invoice'
+import { bolehLihatInvoice } from '@/lib/riwayat-invoice'
+import { terbilangRupiah } from '@/lib/terbilang'
+import { JENJANG_LABEL, getJenjangCategory, type JenjangCategory } from '@/lib/kta-upgrade'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -15,40 +19,20 @@ const LIGHT = 'FFF5F7FA'
 const BORDER = 'FFD9D9D9'
 const WHITE = 'FFFFFFFF'
 
-const formatDate = (d: Date | string) => {
-  return new Date(d).toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
-}
+const formatDate = (d: Date | string) => formatDateWib(d)
 
-const formatDateTime = (d: Date | string) => {
-  return `${formatDate(d)} ${new Date(d).toLocaleTimeString('id-ID', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })}`
-}
-
-const terbilang = (nilai: number): string => {
-  const satuan = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas']
-  if (nilai === 0) return 'Nol'
-  if (nilai < 12) return satuan[Math.floor(nilai)]
-  if (nilai < 20) return satuan[Math.floor(nilai) - 10] + ' Belas'
-  if (nilai < 100) return (Math.floor(nilai) / 10 >= 1 ? satuan[Math.floor(nilai / 10)] + ' Puluh ' : '') + (nilai % 10 > 0 ? satuan[nilai % 10] : '')
-  if (nilai < 200) return 'Seratus ' + terbilang(nilai - 100)
-  if (nilai < 1000) return (Math.floor(nilai) / 100 >= 1 ? satuan[Math.floor(nilai / 100)] + ' Ratus ' : '') + terbilang(nilai % 100)
-  if (nilai < 2000) return 'Seribu ' + terbilang(nilai - 1000)
-  if (nilai < 1000000) return (Math.floor(nilai) / 1000 >= 1 ? terbilang(Math.floor(nilai / 1000)) + ' Ribu ' : '') + terbilang(nilai % 1000)
-  if (nilai < 1000000000) return (Math.floor(nilai) / 1000000 >= 1 ? terbilang(Math.floor(nilai / 1000000)) + ' Juta ' : '') + terbilang(nilai % 1000000)
-  return nilai.toString()
-}
+const formatDateTime = (d: Date | string) => formatDateTimeWib(d)
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await authMiddleware(request)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const invoice = await prisma.bulkPayment.findUnique({
       where: { id: params.id },
       include: {
@@ -92,6 +76,14 @@ export async function GET(
 
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    // Excel bisa diakses langsung lewat URL — cek scope role di sini juga.
+    if (!bolehLihatInvoice(session.user, {
+      daerahId: invoice.daerahId,
+      daerahKode: invoice.daerah.kodeDaerah,
+    })) {
+      return NextResponse.json({ error: 'Anda tidak memiliki akses' }, { status: 403 })
     }
 
     // Fetch previous KTA data for upgrades
@@ -364,7 +356,7 @@ export async function GET(
     // ============================================
     // 3 SECTION (layout file contoh): Metode (B) | Terbilang (C:D) | Rincian (E:F)
     // ============================================
-    const terbilangText = terbilang(totalTagihan) + ' Rupiah'
+    const terbilangText = terbilangRupiah(totalTagihan)
 
     // Title row
     // Metode Pembayaran (B) - title fill LIGHT, tanpa border box
@@ -393,8 +385,13 @@ export async function GET(
     ws.getRow(row).height = 20.1
     row++
 
-    // Baris 2: metode (E:F masih bagian judul Rincian)
-    ws.getCell(`B${row}`).value = isFree ? 'Bank Transfer' : 'Midtrans Payment Gateway'
+    // Baris 2: metode (E:F masih bagian judul Rincian).
+    // PENDING = belum pilih metode; jangan tampilkan default "BANK TRANSFER".
+    ws.getCell(`B${row}`).value = isFree
+      ? 'Bank Transfer'
+      : invoice.status === 'PENDING'
+        ? 'Belum memilih metode pembayaran'
+        : 'Midtrans Payment Gateway'
     ws.getCell(`B${row}`).font = { name: 'Helvetica', size: 9, bold: true, color: { argb: DARK } }
     ws.getCell(`B${row}`).alignment = { horizontal: 'left', vertical: 'top', wrapText: true }
     ws.getRow(row).height = 21.95
@@ -425,7 +422,9 @@ export async function GET(
     // Baris 4: Status (B) + Porsi BPD (E:F). Gratis (diskon >= 100) tampil info bank, bukan Midtrans.
     ws.getCell(`B${row}`).value = isFree
       ? 'Bank: BTN KC Jakarta Kuningan'
-      : `Status: ${statusLabel[invoice.status] || invoice.status}`
+      : invoice.status === 'PENDING'
+        ? ''
+        : `Status: ${statusLabel[invoice.status] || invoice.status}`
     ws.getCell(`B${row}`).font = { name: 'Helvetica', size: 9, color: { argb: DARK } }
     ws.getCell(`B${row}`).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
 
@@ -446,7 +445,9 @@ export async function GET(
     // Baris 5: Metode (B) + lanjutan border Rincian (E:F kosong). Gratis tampil nomor rekening.
     ws.getCell(`B${row}`).value = isFree
       ? 'No. Rekening: 00001.01.30.000986.9'
-      : `Metode: ${paymentType}`
+      : invoice.status === 'PENDING'
+        ? ''
+        : `Metode: ${paymentType}`
     ws.getCell(`B${row}`).font = { name: 'Helvetica', size: 9, color: { argb: DARK } }
     ws.getCell(`B${row}`).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
     ws.getCell(`E${row}`).border = { left: { style: 'medium', color: { argb: NAVY } } }
@@ -479,6 +480,72 @@ export async function GET(
     totalTagVal.alignment = { horizontal: 'left', vertical: 'top' }
     ws.getRow(row).height = 18
     row++
+
+    row++ // spacer
+
+    // ============================================
+    // REKAP KUALIFIKASI - jumlah KTA per kategori jenjang
+    // ============================================
+    {
+      const hitung: Record<JenjangCategory, number> = { AHLI: 0, TEKNISI: 0, OPERATOR: 0 }
+      const payRows = paymentsWithPrev ?? invoice.payments
+      for (const p of payRows) {
+        hitung[getJenjangCategory(p.ktaRequest.jenjang)]++
+      }
+
+      ws.mergeCells(`A${row}:B${row}`)
+      const rekapTitle = ws.getCell(`A${row}`)
+      rekapTitle.value = 'Rekap Kualifikasi'
+      rekapTitle.font = { name: 'Helvetica', size: 10, bold: true, color: { argb: NAVY } }
+      rekapTitle.alignment = { horizontal: 'left', vertical: 'middle' }
+      row++
+
+      const rekapHeader = ['Kualifikasi', 'Jumlah']
+      rekapHeader.forEach((teks, i) => {
+        const cell = ws.getCell(`${i === 0 ? 'A' : 'B'}${row}`)
+        cell.value = teks
+        cell.font = { name: 'Helvetica', size: 9, bold: true, color: { argb: NAVY } }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT } }
+        cell.alignment = { horizontal: i === 0 ? 'left' : 'center', vertical: 'middle' }
+        cell.border = {
+          top: { style: 'thin', color: { argb: BORDER } },
+          bottom: { style: 'thin', color: { argb: BORDER } },
+          left: i === 0 ? { style: 'thin', color: { argb: BORDER } } : undefined,
+          right: { style: 'thin', color: { argb: BORDER } },
+        }
+      })
+      row++
+
+      const rekapRows: Array<[string, number]> = [
+        [JENJANG_LABEL.AHLI, hitung.AHLI],
+        [JENJANG_LABEL.TEKNISI, hitung.TEKNISI],
+        [JENJANG_LABEL.OPERATOR, hitung.OPERATOR],
+        ['Total', payRows.length],
+      ]
+      rekapRows.forEach(([label, jumlah], i) => {
+        const bold = label === 'Total'
+        const namaCell = ws.getCell(`A${row}`)
+        namaCell.value = label
+        namaCell.font = { name: 'Helvetica', size: 9, bold, color: { argb: DARK } }
+        namaCell.alignment = { horizontal: 'left', vertical: 'middle' }
+        namaCell.border = {
+          left: { style: 'thin', color: { argb: BORDER } },
+          right: { style: 'thin', color: { argb: BORDER } },
+          bottom: { style: 'thin', color: { argb: BORDER } },
+          top: bold ? { style: 'thin', color: { argb: NAVY } } : undefined,
+        }
+        const jumlahCell = ws.getCell(`B${row}`)
+        jumlahCell.value = jumlah
+        jumlahCell.font = { name: 'Helvetica', size: 9, bold, color: { argb: DARK } }
+        jumlahCell.alignment = { horizontal: 'center', vertical: 'middle' }
+        jumlahCell.border = namaCell.border
+        if (i % 2 === 0) {
+          namaCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT } }
+          jumlahCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT } }
+        }
+        row++
+      })
+    }
 
     row++ // spacer
 

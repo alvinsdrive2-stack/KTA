@@ -71,7 +71,11 @@ export async function POST(request: NextRequest) {
     // Harga dasar per baris (upgrade = selisih jenjang) buat snapshot invoice.
     const { totalHargaBase, baseById } = await computeHargaBaseSnapshot(ktaRequests)
 
-    // Diskon >=100% => gratis, auto-marked as PAID (manual payment / tanpa bayar)
+    // Gratis otomatis cuma dari diskon 100%. Pengajuan dinas gratis itu
+    // PILIHAN user di halaman invoice (endpoint /api/payments/dinas), bukan
+    // ditentukan dari daerah — invoice Pusat yang bayar online/transfer tetap
+    // ditagih angka aslinya.
+    const gratis = false
     const isFree = diskonPersen >= 100
 
     // Generate invoice number: INV/KTA-GATENSI/[yymm]/[urut]
@@ -99,6 +103,7 @@ export async function POST(request: NextRequest) {
         totalHargaBase,
         diskonPersen,
         status: isFree ? 'PAID' : 'PENDING',
+        gratis,
         daerahId: invoiceDaerahId,
         buktiPembayaranUrl: '', // Empty string for now, will be filled when payment proof uploaded
         submittedBy: session.user.id

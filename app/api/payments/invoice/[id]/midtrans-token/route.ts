@@ -92,63 +92,70 @@ export async function POST(
       email: bulkPayment.submittedByUser.email
     }
 
-    // Generate order_id: KTA_GATENSI_yymm_000-timestamp (sequential per month)
-    // Midtrans only allows alphanumeric plus - _ ~ . in order_id
-    const now = new Date()
-    const yy = String(now.getFullYear()).slice(-2)
-    const mm = String(now.getMonth() + 1).padStart(2, '0')
-    const orderPrefix = `KTA_GATENSI_${yy}${mm}_`
-    const ts = Math.floor(Date.now() / 1000)
-
-    // Ambil semua order_id bulan ini, hitung sequence tertinggi dari ANGKA-nya.
+    // Order_id ikut nomor invoice, bukan urutan sendiri.
     //
-    // Dulu ini `orderBy: midtransOrderId desc, take: 1` — sort string, jadi
-    // urutannya salah begitu lewat 9: "KTA_..._010" dianggap lebih kecil dari
-    // "KTA_..._009" karena '1' < '9'. Akibatnya sequence bisa balik ke angka
-    // yang udah kepakai.
-    const orderBulanIni = await prisma.bulkPayment.findMany({
-      where: { midtransOrderId: { startsWith: orderPrefix } },
-      select: { midtransOrderId: true }
-    })
-    let seqTertinggi = 0
-    for (const o of orderBulanIni) {
-      const n = parseInt((o.midtransOrderId || '').split('-')[0].split('_').pop() || '0', 10)
-      if (Number.isFinite(n) && n > seqTertinggi) seqTertinggi = n
+    // InvoiceNumber: INV/KTA-GATENSI/2610/093  ->  KTA_GATENSI_2610_093
+    // Midtrans cuma nerima alphanumeric plus - _ ~ . jadi '/' dibuang dan
+    // prefix "INV" dibongkar.
+    //
+    // Dulu sequence-nya dihitung sendiri dari jumlah row yang udah punya
+    // midtransOrderId — hasilnya beda sama nomor invoice (invoice 093 dapet
+    // order 107). Sekarang sumbernya cuma satu: invoiceNumber.
+    const invoiceNumber = bulkPayment.invoiceNumber || ''
+    const m = invoiceNumber.match(/^INV\/KTA-GATENSI\/(\d{4})\/(\d+)$/)
+    if (!m) {
+      return NextResponse.json(
+        { error: `Nomor invoice tidak valid untuk Midtrans: ${invoiceNumber}` },
+        { status: 400 }
+      )
     }
+    const orderBase = `KTA_GATENSI_${m[1]}_${m[2]}`
+    const ts = Math.floor(Date.now() / 1000)
 
     let orderId = ''
     let snapResponse: SnapTokenResponse | null = null
 
-    // Klaim order_id di DB DULU, baru panggil Midtrans.
+    // One invoice = one order_id. Kalau sebelumnya sudah pernah dibuat
+    // dengan format yang sama, pakai ulang biar nggak ada dua transaksi
+    // untuk tagihan yang sama.
     //
-    // Urutan sebaliknya (panggil Midtrans dulu, simpan belakangan) bikin
-    // transaksi ada di Midtrans tapi nggak tercatat di sini kalau prosesnya
-    // mati di antaranya. Webhook-nya lalu 404 terus karena nggak nemu
-    // order_id-nya — duit masuk, KTA nggak pernah terbit.
-    //
-    // Yang diklaim cuma kolom midtransOrderId; token diisi setelah Midtrans
-    // balas. Kalau panggilan ke Midtrans gagal, klaimnya dilepas lagi biar
-    // nggak ada order_id nyangkut tanpa transaksi.
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const kandidat = `${orderPrefix}${String(seqTertinggi + 1 + attempt).padStart(3, '0')}-${ts}`
-
+    // Order_id versi lama (format sequence beda) tetap dibiarkan apa adanya
+    // karena transaksinya mungkin masih hidup di Midtrans — webhook masih
+    // perlu nemu baris ini lewat order_id itu.
+    const existingOrder = bulkPayment.midtransOrderId
+    if (existingOrder && existingOrder.startsWith(`${orderBase}-`)) {
+      orderId = existingOrder
+    } else if (existingOrder) {
+      console.warn(
+        `midtransOrderId ${bulkPayment.id} (${existingOrder}) tidak sesuai invoice ${invoiceNumber}, tetap dipakai`
+      )
+      orderId = existingOrder
+    } else {
+      // Klaim order_id di DB DULU, baru panggil Midtrans.
+      //
+      // Urutan sebaliknya (panggil Midtrans dulu, simpan belakangan) bikin
+      // transaksi ada di Midtrans tapi nggak tercatat di sini kalau prosesnya
+      // mati di antaranya. Webhook-nya lalu 404 terus karena nggak nemu
+      // order_id-nya — duit masuk, KTA nggak pernah terbit.
+      //
+      // Bentrok (P2002) berarti ada invoice lain dengan nomor yang sama —
+      // itu data yang salah, bukan hal yang bisa di-retry pakai nomor lain.
+      const kandidat = `${orderBase}-${ts}`
       try {
         await prisma.bulkPayment.update({
           where: { id: params.id },
           data: { midtransOrderId: kandidat }
         })
       } catch (err) {
-        // P2002 = order_id ini udah dipakai baris lain, coba nomor berikutnya
-        if ((err as { code?: string })?.code === 'P2002') continue
+        if ((err as { code?: string })?.code === 'P2002') {
+          return NextResponse.json(
+            { error: `Order ID ${kandidat} sudah dipakai invoice lain` },
+            { status: 409 }
+          )
+        }
         throw err
       }
-
       orderId = kandidat
-      break
-    }
-
-    if (!orderId) {
-      throw new Error('Failed to allocate unique Midtrans order_id')
     }
 
     try {
@@ -168,8 +175,10 @@ export async function POST(
       snapResponse = await generateSnapToken(transaction)
     } catch (err) {
       // Midtrans nolak / nggak kebales — lepas klaimnya biar nggak ada
-      // order_id yang nyangkut tanpa transaksi.
-      await prisma.bulkPayment.update({
+      // order_id yang nyangkut tanpa transaksi. Cuma kalau order_id itu
+      // memang baru diklaim request ini; kalau dipakai ulang, jangan
+      // dihapus.
+      if (orderId === `${orderBase}-${ts}`) await prisma.bulkPayment.update({
         where: { id: params.id },
         data: { midtransOrderId: null }
       }).catch(() => {})

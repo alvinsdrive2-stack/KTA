@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { Workbook, type Cell } from 'exceljs'
 import { getPeriodRange } from '@/lib/finance-period'
+import { startOfWibDay, endOfWibDay, formatDateWib } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,13 +15,7 @@ const LIGHT = 'FFF5F7FA'
 const BORDER = 'FFD9D9D9'
 const WHITE = 'FFFFFFFF'
 
-const formatDate = (d: Date | string) => {
-  return new Date(d).toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
-}
+const formatDate = (d: Date | string) => formatDateWib(d)
 
 const kualifikasiLabel = (jenjang: string | null) => {
   const n = parseInt(jenjang || '', 10)
@@ -48,12 +43,9 @@ export async function GET(request: NextRequest) {
     const endStr = searchParams.get('end')
 
     const fallback = getPeriodRange('ytd')
-    const start = startStr && endStr
-      ? new Date(`${startStr}T00:00:00`)
-      : fallback.start
-    const end = startStr && endStr
-      ? new Date(`${endStr}T23:59:59.999`)
-      : fallback.end
+    // Batas rentang dipatok WIB — sama dengan resolveRange di lib/finance-period.
+    const start = startStr && endStr ? startOfWibDay(startStr) : fallback.start
+    const end = startStr && endStr ? endOfWibDay(endStr) : fallback.end
 
     const isDaerah = session.user.role === 'DAERAH'
 
@@ -120,6 +112,8 @@ export async function GET(request: NextRequest) {
       no: number
       invoice: string
       tanggal: string
+      tanggalInvoice: string
+      tanggalDibayar: string
       daerah: string
       idIzin: string
       nik: string
@@ -142,6 +136,9 @@ export async function GET(request: NextRequest) {
           no: no++,
           invoice: bp.invoiceNumber,
           tanggal: formatDate(bp.createdAt),
+          // Diisi paling kanan: tanggal invoice terbit & tanggal bukti bayar masuk.
+          tanggalInvoice: formatDate(bp.createdAt),
+          tanggalDibayar: bp.verifiedAt ? formatDate(bp.verifiedAt) : '-',
           daerah: bp.daerah?.namaDaerah || '-',
           idIzin: k.idIzin || '-',
           nik: k.nik || '-',
@@ -174,14 +171,14 @@ export async function GET(request: NextRequest) {
 
     // Layout beda per role: DAERAH drop kolom Daerah & cuma satu kolom Porsi (isi diskon)
     const cols = isDaerah
-      ? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-      : ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+      ? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+      : ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']
     const colCount = cols.length
     const lastCol = cols[colCount - 1]
 
     ws.columns = isDaerah
-      ? [{ width: 5 }, { width: 24 }, { width: 14 }, { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }]
-      : [{ width: 5 }, { width: 24 }, { width: 14 }, { width: 24 }, { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }]
+      ? [{ width: 5 }, { width: 24 }, { width: 14 }, { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }]
+      : [{ width: 5 }, { width: 24 }, { width: 14 }, { width: 24 }, { width: 16 }, { width: 18 }, { width: 28 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }]
 
     const box = (cell: Cell) => {
       cell.border = {
@@ -245,10 +242,11 @@ export async function GET(request: NextRequest) {
     // Kolom numerik mulai dari index ini
     const numericStart = isDaerah ? 7 : 8
 
-    // Table header
+    // Table header. Dua kolom tanggal ditaruh paling kanan biar blok angka
+    // Harga/Diskon/Total Bayar tetap bersebelahan.
     const headers = isDaerah
-      ? ['No', 'No. Invoice', 'Tanggal', 'ID Izin', 'NIK', 'Nama', 'Kualifikasi', 'Porsi']
-      : ['No', 'No. Invoice', 'Tanggal', 'Daerah', 'ID Izin', 'NIK', 'Nama', 'Kualifikasi', 'Harga', 'Diskon (Porsi)', 'Total Bayar']
+      ? ['No', 'No. Invoice', 'Tanggal', 'ID Izin', 'NIK', 'Nama', 'Kualifikasi', 'Porsi', 'Tanggal Invoice', 'Tanggal Dibayar']
+      : ['No', 'No. Invoice', 'Tanggal', 'Daerah', 'ID Izin', 'NIK', 'Nama', 'Kualifikasi', 'Harga', 'Diskon (Porsi)', 'Total Bayar', 'Tanggal Invoice', 'Tanggal Dibayar']
     cols.forEach((col, i) => {
       const cell = ws.getCell(`${col}${row}`)
       cell.value = headers[i]
@@ -261,8 +259,8 @@ export async function GET(request: NextRequest) {
     // Data rows
     rows.forEach((r) => {
       const values: (string | number)[] = isDaerah
-        ? [r.no, r.invoice, r.tanggal, r.idIzin, r.nik, r.nama, r.jenjang, r.diskon]
-        : [r.no, r.invoice, r.tanggal, r.daerah, r.idIzin, r.nik, r.nama, r.jenjang, r.harga, r.diskon, r.bayar]
+        ? [r.no, r.invoice, r.tanggal, r.idIzin, r.nik, r.nama, r.jenjang, r.diskon, r.tanggalInvoice, r.tanggalDibayar]
+        : [r.no, r.invoice, r.tanggal, r.daerah, r.idIzin, r.nik, r.nama, r.jenjang, r.harga, r.diskon, r.bayar, r.tanggalInvoice, r.tanggalDibayar]
       cols.forEach((col, i) => {
         const cell = ws.getCell(`${col}${row}`)
         cell.value = values[i]
@@ -290,7 +288,8 @@ export async function GET(request: NextRequest) {
     totalLabel.alignment = { horizontal: 'right', vertical: 'middle' }
 
     const totalValues = isDaerah ? [totalDiskon] : [totalHarga, totalDiskon, totalBayar]
-    const totalCols = cols.slice(totalMergeCount)
+    // Kolom angka: dari numericStart sampai sebelum 2 kolom tanggal di kanan.
+    const totalCols = cols.slice(numericStart, colCount - 2)
     totalCols.forEach((col, i) => {
       const cell = ws.getCell(`${col}${row}`)
       cell.value = totalValues[i]

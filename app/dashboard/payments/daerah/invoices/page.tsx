@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, FileText, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { ArrowLeft, FileText, CalendarRange, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
 import { PulseLogo } from '@/components/ui/loading-spinner'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { SortableHeader } from '@/components/ui/sortable-header'
 import { getPaymentStatusBadge as getStatusBadge } from '@/lib/status-badges'
+import { formatDateTimeWibShort } from '@/lib/utils'
 
 interface BulkPayment {
   id: string
@@ -27,6 +30,8 @@ export default function InvoicesHistoryPage() {
   const router = useRouter()
   const [invoices, setInvoices] = useState<BulkPayment[]>([])
   const [loading, setLoading] = useState(true)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   const { sort, toggleSort, applyClientSort } = useTableSort('createdAt', 'desc')
 
@@ -41,13 +46,16 @@ export default function InvoicesHistoryPage() {
     }
   })
 
-  useEffect(() => {
-    fetchInvoices()
-  }, [])
-
+  // Filter tanggal jalan di server biar invoice lama nggak ikut ke-download
+  // tiap kali rentangnya diganti.
   const fetchInvoices = async () => {
     try {
-      const response = await fetch('/api/payments/bulk?all=true')
+      setLoading(true)
+      const params = new URLSearchParams({ all: 'true' })
+      if (startDate) params.append('startDate', startDate)
+      if (endDate) params.append('endDate', endDate)
+
+      const response = await fetch(`/api/payments/bulk?${params}`)
       const data = await response.json()
 
       if (data.success) {
@@ -59,6 +67,18 @@ export default function InvoicesHistoryPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchInvoices()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate])
+
+  const resetFilter = () => {
+    setStartDate('')
+    setEndDate('')
+  }
+
+  const adaFilter = !!(startDate || endDate)
 
 
   if (loading) {
@@ -85,6 +105,46 @@ export default function InvoicesHistoryPage() {
         </div>
       </div>
 
+      {/* Filter Tanggal */}
+      <Card className="card-3d">
+        <CardContent className="pt-5">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-700 sm:mr-1">
+              <CalendarRange className="h-4 w-4 text-slate-500" />
+              Filter
+            </div>
+            <div>
+              <Label htmlFor="start-date" className="text-xs text-slate-500">Tanggal Awal</Label>
+              <Input
+                id="start-date"
+                type="date"
+                value={startDate}
+                max={endDate || undefined}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="h-9 w-44"
+              />
+            </div>
+            <div>
+              <Label htmlFor="end-date" className="text-xs text-slate-500">Tanggal Akhir</Label>
+              <Input
+                id="end-date"
+                type="date"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="h-9 w-44"
+              />
+            </div>
+            {adaFilter && (
+              <Button variant="outline" size="sm" onClick={resetFilter} className="h-9 gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Reset
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Invoices Table */}
       <Card className="card-3d">
         <CardHeader className="border-b border-slate-200">
@@ -94,10 +154,16 @@ export default function InvoicesHistoryPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {invoices.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <PulseLogo />
+            </div>
+          ) : invoices.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">Belum ada invoice pembayaran</p>
+              <p className="text-slate-500">
+                {adaFilter ? 'Tidak ada invoice pada rentang tanggal ini' : 'Belum ada invoice pembayaran'}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -144,23 +210,11 @@ export default function InvoicesHistoryPage() {
                           )}
                         </td>
                         <td className="py-3 px-4 text-sm text-slate-600">
-                          {new Date(invoice.createdAt).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          {formatDateTimeWibShort(invoice.createdAt)}
                         </td>
                         <td className="py-3 px-4 text-sm text-slate-600">
                           {invoice.status !== 'REJECTED' && invoice.verifiedAt ? (
-                            new Date(invoice.verifiedAt).toLocaleDateString('id-ID', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })
+                            formatDateTimeWibShort(invoice.verifiedAt)
                           ) : (
                             <span className="text-slate-400">-</span>
                           )}

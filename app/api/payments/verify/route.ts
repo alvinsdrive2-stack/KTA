@@ -95,6 +95,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Bulk payment not found' }, { status: 404 })
     }
 
+    // Setuju tanpa bukti transfer = memverifikasi pembayaran yang nggak pernah
+    // dibuktikan. Gratis (total 0) tetap boleh, memang nggak ada yang dibayar.
+    // Tombolnya sudah disembunyikan di UI; ini penjaganya kalau endpoint-nya
+    // dipanggil langsung.
+    if (approved && !bulkPayment.gratis && bulkPayment.totalNominal > 0 && !bulkPayment.buktiPembayaranUrl) {
+      return NextResponse.json(
+        { error: 'Belum ada bukti transfer untuk invoice ini. Pembayaran tidak bisa diverifikasi.' },
+        { status: 400 }
+      )
+    }
+
     // Update bulk payment status
     const updatedBulkPayment = await prisma.bulkPayment.update({
       where: { id: bulkPaymentId },
@@ -136,6 +147,15 @@ export async function POST(request: NextRequest) {
       }
 
       console.log(`📊 Found ${upgradeKtaIds.length} upgrade KTA(s) and ${normalKtaIds.length} normal KTA(s)`)
+
+      // Tanggal terbit = tanggal pembayaran lunas. Disamakan dengan jalur
+      // Midtrans (midtrans-notification/route.ts) yang sudah set tanggalDaftar
+      // ke waktu verifikasi — kalau cuma satu jalur yang set, masa berlaku KTA
+      // (5 tahun dari tanggalDaftar) beda tergantung cara bayarnya.
+      await prisma.kTARequest.updateMany({
+        where: { id: { in: ktaIds } },
+        data: { tanggalDaftar: new Date() }
+      })
 
       // Process upgrade KTAs - set to UPGRADE_PAID
       if (upgradeKtaIds.length > 0) {
