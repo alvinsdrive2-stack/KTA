@@ -545,8 +545,8 @@ export default function KTADetailPage() {
           <CardContent className="py-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium mb-1">Nomor KTA</p>
-                <p className="text-white text-3xl font-bold font-mono tracking-wider">{kta.nomorKTA || 'Belum Dibuat'}</p>
+                <p className="text-blue-300 text-sm font-medium mb-1">Nomor KTA</p>
+                <p className="text-slate-800 text-3xl font-bold font-mono tracking-wider">{kta.nomorKTA || 'Belum Dibuat'}</p>
               </div>
               <IdCard className="h-12 w-12 text-blue-200" />
             </div>
