@@ -152,8 +152,12 @@ export async function generateSnapToken(
       redirect_url: response.redirect_url,
     }
   } catch (error) {
+    // Jangan dibungkus jadi pesan generik: 401 (server key salah), 400
+    // (payload ditolak Midtrans), dan error jaringan beda penanganannya.
+    // Pesan generik bikin log cuma bilang "Failed to generate payment token"
+    // tanpa nyebut penyebabnya.
     console.error('Error generating Snap token:', error)
-    throw new Error('Failed to generate payment token')
+    throw error instanceof Error ? error : new Error(String(error))
   }
 }
 
