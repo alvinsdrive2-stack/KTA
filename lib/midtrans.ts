@@ -125,6 +125,52 @@ function getSnapApi(): SnapApi {
 }
 
 /**
+ * Error Midtrans yang sudah dibersihkan.
+ *
+ * Objek mentah dari axios nyimpen `config.headers.Authorization` — alias
+ * server key dalam base64. Jangan pernah log atau lempar objek itu: log pm2
+ * bakal nyetak key-nya utuh. Yang disimpan cuma status dan pesan.
+ */
+export class MidtransApiError extends Error {
+  readonly statusCode: number
+  readonly messages: string[]
+
+  constructor(statusCode: number, messages: string[]) {
+    super(messages.join('; ') || `Midtrans error ${statusCode}`)
+    this.name = 'MidtransApiError'
+    this.statusCode = statusCode
+    this.messages = messages
+  }
+
+  /** Midtrans nolak karena order_id ini sudah pernah dipakai transaksi Snap. */
+  get isOrderIdTaken(): boolean {
+    return this.messages.some((m) => m.includes('order_id has already been taken'))
+  }
+}
+
+/** Ubah error apa pun jadi log yang aman — tanpa header, tanpa key. */
+function safeErrorInfo(error: unknown): { name: string; code: number | null; messages: string[] } {
+  const e = error as {
+    httpStatusCode?: number
+    ApiResponse?: { error_messages?: string[] | string }
+    message?: string
+  }
+  const raw = e?.ApiResponse?.error_messages
+  const messages = Array.isArray(raw) ? raw : raw ? [raw] : []
+  return {
+    // Cuma nama kelasnya (`MidtransError`, `AxiosError`), bukan objeknya.
+    name: error instanceof Error ? error.constructor.name : typeof error,
+    code: typeof e?.httpStatusCode === 'number' ? e.httpStatusCode : null,
+    messages: messages.length > 0 ? messages : [String(e?.message ?? 'unknown error').slice(0, 200)],
+  }
+}
+
+function toMidtransApiError(error: unknown): MidtransApiError {
+  const info = safeErrorInfo(error)
+  return new MidtransApiError(info.code ?? 0, info.messages)
+}
+
+/**
  * Generate Snap Token for payment
  */
 export async function generateSnapToken(
@@ -150,10 +196,10 @@ export async function generateSnapToken(
   } catch (error) {
     // Jangan dibungkus jadi pesan generik: 401 (server key salah), 400
     // (payload ditolak Midtrans), dan error jaringan beda penanganannya.
-    // Pesan generik bikin log cuma bilang "Failed to generate payment token"
-    // tanpa nyebut penyebabnya.
-    console.error('Error generating Snap token:', error)
-    throw error instanceof Error ? error : new Error(String(error))
+    // Tapi jangan juga log objek mentahnya — lihat MidtransApiError.
+    const safe = safeErrorInfo(error)
+    console.error('Error generating Snap token:', safe)
+    throw toMidtransApiError(error)
   }
 }
 
@@ -166,9 +212,23 @@ export async function getTransactionStatus(orderId: string): Promise<Record<stri
     const status = await snap.transaction.status(orderId)
     return status
   } catch (error) {
-    console.error('Error getting transaction status:', error)
-    throw new Error('Failed to get transaction status')
+    console.error('Error getting transaction status:', safeErrorInfo(error))
+    throw toMidtransApiError(error)
   }
+}
+
+/**
+ * Status transaksi yang artinya transaksi lama sudah mati — aman kalau
+ * order_id-nya dianggap bebas dan dipakai transaksi baru.
+ *
+ * `pending` sengaja TIDAK masuk daftar ini: transaksinya masih hidup, bikin
+ * transaksi baru untuk order_id yang sama ditolak Midtrans, dan bikin order_id
+ * baru berarti tagihan dobel.
+ */
+const DEAD_TRANSACTION_STATUSES = new Set(['expire', 'cancel', 'deny', 'failure'])
+
+export function isDeadTransactionStatus(status: unknown): boolean {
+  return typeof status === 'string' && DEAD_TRANSACTION_STATUSES.has(status)
 }
 
 /**

@@ -4,6 +4,9 @@ import { authMiddleware } from '@/lib/auth-helpers'
 import { resolveInvoiceAmounts } from '@/lib/invoice'
 import {
   generateSnapToken,
+  getTransactionStatus,
+  isDeadTransactionStatus,
+  MidtransApiError,
   resolveEnabledPayments,
   type SnapTokenResponse,
   type MidtransItemDetails,
@@ -123,6 +126,7 @@ export async function POST(
     // karena transaksinya mungkin masih hidup di Midtrans — webhook masih
     // perlu nemu baris ini lewat order_id itu.
     const existingOrder = bulkPayment.midtransOrderId
+    let claimedThisRequest = false
     if (existingOrder && existingOrder.startsWith(`${orderBase}-`)) {
       orderId = existingOrder
     } else if (existingOrder) {
@@ -156,6 +160,7 @@ export async function POST(
         throw err
       }
       orderId = kandidat
+      claimedThisRequest = true
     }
 
     try {
@@ -174,15 +179,66 @@ export async function POST(
       console.log('Creating new Midtrans transaction:', orderId)
       snapResponse = await generateSnapToken(transaction)
     } catch (err) {
-      // Midtrans nolak / nggak kebales — lepas klaimnya biar nggak ada
-      // order_id yang nyangkut tanpa transaksi. Cuma kalau order_id itu
-      // memang baru diklaim request ini; kalau dipakai ulang, jangan
-      // dihapus.
-      if (orderId === `${orderBase}-${ts}`) await prisma.bulkPayment.update({
-        where: { id: params.id },
-        data: { midtransOrderId: null }
-      }).catch(() => {})
-      throw err
+      // Order_id lama ditolak karena transaksinya sudah pernah dibuat di
+      // Midtrans. Ini yang bikin invoice mentok 400 selamanya: order_id
+      // disimpan di DB lalu dipakai ulang, padahal Snap cuma nerima satu
+      // transaksi per order_id.
+      //
+      // Kalau transaksi lamanya sudah mati (expire/deny/cancel/failure),
+      // order_id itu bebas — klaim nomor baru dan coba sekali lagi.
+      // Kalau masih hidup (pending/settlement), JANGAN bikin nomor baru:
+      // itu bikin dua tagihan aktif untuk satu invoice.
+      if (err instanceof MidtransApiError && err.isOrderIdTaken) {
+        let status: unknown = null
+        try {
+          const s = await getTransactionStatus(orderId)
+          status = s.transaction_status
+        } catch (statusErr) {
+          // Gagal nanya status bukan alasan bikin nomor baru — lebih baik
+          // user lihat pesan jelas daripada dapat tagihan dobel.
+          console.error('Gagal cek status transaksi lama:', statusErr instanceof Error ? statusErr.message : statusErr)
+        }
+
+        if (isDeadTransactionStatus(status)) {
+          const newOrderId = `${orderBase}-${Math.floor(Date.now() / 1000)}`
+          await prisma.bulkPayment.update({
+            where: { id: params.id },
+            data: { midtransOrderId: newOrderId }
+          })
+          console.log('Order lama sudah mati, klaim order baru:', newOrderId)
+
+          const retry: MidtransTransaction = {
+            transaction_details: { order_id: newOrderId, gross_amount: totalTagihan },
+            item_details: itemDetails,
+            customer_details: customerDetails,
+            enabled_payments: resolveEnabledPayments(totalTagihan)
+          }
+          snapResponse = await generateSnapToken(retry)
+          orderId = newOrderId
+          claimedThisRequest = true
+        } else {
+          return NextResponse.json(
+            {
+              error:
+                'Invoice ini sudah punya transaksi Midtrans yang masih aktif. ' +
+                'Buka link pembayaran yang lama, atau tunggu sampai transaksi itu kedaluwarsa.'
+            },
+            { status: 409 }
+          )
+        }
+      } else {
+        // Midtrans nolak / nggak kebales — lepas klaimnya biar nggak ada
+        // order_id yang nyangkut tanpa transaksi. Cuma kalau order_id itu
+        // memang baru diklaim request ini; kalau dipakai ulang, jangan
+        // dihapus.
+        if (claimedThisRequest) {
+          await prisma.bulkPayment.update({
+            where: { id: params.id },
+            data: { midtransOrderId: null }
+          }).catch(() => {})
+        }
+        throw err
+      }
     }
 
     // Token disimpan setelah transaksi jadi. Kalau langkah ini gagal, order_id
@@ -197,7 +253,9 @@ export async function POST(
         }
       })
     } catch (err) {
-      console.error('Gagal simpan token Midtrans (order_id tetap keklaim):', orderId, err)
+      // err di sini sudah MidtransApiError — udah dibersihkan, tanpa header
+      // Authorization. Jangan log objek aslinya.
+      console.error('Gagal simpan token Midtrans (order_id tetap keklaim):', orderId, err instanceof Error ? err.message : err)
     }
 
     return NextResponse.json({
@@ -210,7 +268,7 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error('Generate Midtrans token error:', error)
+    console.error('Generate Midtrans token error:', error instanceof Error ? error.message : error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
