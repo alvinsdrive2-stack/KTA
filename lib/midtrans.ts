@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import midtransClient from 'midtrans-client'
 import type { PaymentStatus } from '@prisma/client'
 
 // Type definitions for Midtrans
@@ -105,18 +106,13 @@ let snapApi: SnapApi | null = null
 
 function getSnapApi(): SnapApi {
   if (!snapApi) {
-    // Lazy require disengaja: midtrans-client cuma CJS dan cukup di-load saat
-    // pertama kali dipakai, jangan ikut module init.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const midtransClient = require('midtrans-client')
-
     const isProduction = process.env.MIDTRANS_ENVIRONMENT === 'production'
 
     snapApi = new midtransClient.Snap({
       isProduction,
       serverKey: process.env.MIDTRANS_SERVER_KEY || '',
       clientKey: process.env.MIDTRANS_CLIENT_KEY || '',
-    }) as SnapApi
+    }) as unknown as SnapApi
 
     console.log('Midtrans Snap API initialized:', {
       isProduction,

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "app/dashboard/layout-client.tsx"
+        ],
+        "createdAt": "2026-10-21T02:31:08.646Z",
+        "reason": "false positive: text-slate-700 sits on bg-white/50 sidebar footer; red appears only as hover:bg-red-50, not the resting background"
+      }
+    ]
+  }
+}
