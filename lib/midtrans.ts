@@ -144,7 +144,10 @@ export class MidtransApiError extends Error {
 
   /** Midtrans nolak karena order_id ini sudah pernah dipakai transaksi Snap. */
   get isOrderIdTaken(): boolean {
-    return this.messages.some((m) => m.includes('order_id has already been taken'))
+    // Pesannya bisa Inggris atau Indonesia tergantung endpoint/region Midtrans.
+    return this.messages.some(
+      (m) => m.includes('order_id has already been taken') || m.includes('order_id sudah digunakan')
+    )
   }
 }
 
