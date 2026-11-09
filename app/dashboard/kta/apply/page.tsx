@@ -1131,6 +1131,16 @@ export default function KTAApplyPage() {
                   </Alert>
                 )}
 
+                {/* Info kalau boleh lanjut tapi bukan upgrade (mis. KTA lama kadaluarsa) */}
+                {upgradeInfo && upgradeInfo.canUpgrade && !upgradeInfo.isUpgrade && upgradeInfo.reason && (
+                  <Alert className="bg-amber-50 border-amber-200">
+                    <Info className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-800 text-sm">
+                      {upgradeInfo.reason}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* Error Alert if cannot upgrade */}
                 {upgradeInfo && !upgradeInfo.canUpgrade && (
                   <Alert variant="destructive" className="border-red-200 bg-red-50">

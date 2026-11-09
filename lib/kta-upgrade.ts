@@ -1,6 +1,7 @@
 import type { KTARequest } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { deriveSikiFields, type SikiDataInput } from '@/lib/siki-fields'
+import { addYearsWib } from '@/lib/utils'
 
 export interface UpgradeCheckResult {
   isUpgrade: boolean
@@ -28,6 +29,12 @@ export const KODE_DAERAH_BEBAS_NIK = '98'
 
 /** Kode subklasifikasi K3. Daerah di luar 98 nggak boleh ngajuin ini. */
 export const KODE_SUBKLASIFIKASI_K3 = 'MP01'
+
+/**
+ * Masa berlaku KTA, tahun. Harus sama dengan yang dipakai `lib/kta-expiry.ts`
+ * dan cron `check-expired-kta`; kalau salah satu berubah, yang lain ikut.
+ */
+export const MASA_BERLAKU_TAHUN = 5
 
 /** Nama subklasifikasi K3 yang tersimpan di baris KTA (jalur manual tanpa kode). */
 const NAMA_SUBKLASIFIKASI_K3 = 'KESELAMATAN KONSTRUKSI'
@@ -88,6 +95,35 @@ export function getJenjangCategory(jenjang: number | string): JenjangCategory {
   if (jenjangNum <= 3) return 'OPERATOR' // 1-3
   if (jenjangNum <= 6) return 'TEKNISI' // 4-6
   return 'AHLI' // 7-9
+}
+
+/**
+ * Peringkat senioritas kategori. Angka lebih besar = lebih tinggi.
+ *
+ * Dipakai buat mutusin naik/turun kategori. Urutan Operator < Teknisi < Ahli
+ * sama dengan penomoran resmi klasifikasi (Operator = klasifikasi 3, Teknisi =
+ * 2, Ahli = 1), cuma dibalik biar perbandingannya `new > old` = naik.
+ */
+const KATEGORI_RANK: Record<JenjangCategory, number> = {
+  OPERATOR: 1,
+  TEKNISI: 2,
+  AHLI: 3,
+}
+
+export function getJenjangRank(jenjang: number | string): number {
+  return KATEGORI_RANK[getJenjangCategory(jenjang)]
+}
+
+/**
+ * Masa berlaku KTA lama sudah lewat?
+ *
+ * Dipakai `checkUpgradeScenario` buat nolak upgrade dari KTA yang kadaluarsa.
+ * Nggak pakai `isKTAExpired()` dari `lib/kta-expiry.ts` karena file itu narik
+ * `prisma` di top-level; modul ini dipakai halaman client lewat
+ * `components/ui/jenjang-badge` dan `app/dashboard/kta/apply`.
+ */
+export function isTanggalDaftarExpired(tanggalDaftar: Date | string): boolean {
+  return new Date() > addYearsWib(tanggalDaftar, MASA_BERLAKU_TAHUN)
 }
 
 /**
@@ -219,17 +255,30 @@ export async function checkUpgradeScenario(
   })
 
   if (pendingKta) {
-    // There's a pending KTA - cannot create new one
-    return {
-      isUpgrade: false,
-      canUpgrade: false,
-      existingKta: pendingKta,
-      newJenjang,
-      oldJenjang: parseInt(pendingKta.jenjang, 10),
-      hargaBaru: newJenjang >= 7 ? 300000 : 100000,
-      hargaLama: 0,
-      hargaUpgrade: 0,
-      reason: `Anda memiliki permohonan KTA yang sedang diproses (Status: ${pendingKta.status}). Selesaikan terlebih dahulu sebelum membuat permohonan baru.`
+    // Pengecualian: DRAFT yang sebenarnya KTA kadaluarsa.
+    //
+    // Cron `check-expired-kta` (dan `checkAndUpdateExpiredKTA`) menandai KTA
+    // lewat masa berlaku sebagai DRAFT, dan DRAFT masuk daftar status pending.
+    // Tanpa pengecualian ini, anggota yang KTA-nya kadaluarsa diblokir permanen
+    // dengan alasan "permohonan sedang diproses" padahal nggak ada permohonan
+    // apa pun — dan pengajuan barunya nggak pernah bisa jalan.
+    const pendingKadaluarsa =
+      pendingKta.status === 'DRAFT' &&
+      !!pendingKta.tanggalDaftar &&
+      isTanggalDaftarExpired(pendingKta.tanggalDaftar)
+
+    if (!pendingKadaluarsa) {
+      return {
+        isUpgrade: false,
+        canUpgrade: false,
+        existingKta: pendingKta,
+        newJenjang,
+        oldJenjang: parseInt(pendingKta.jenjang, 10),
+        hargaBaru: newJenjang >= 7 ? 300000 : 100000,
+        hargaLama: 0,
+        hargaUpgrade: 0,
+        reason: `Anda memiliki permohonan KTA yang sedang diproses (Status: ${pendingKta.status}). Selesaikan terlebih dahulu sebelum membuat permohonan baru.`
+      }
     }
   }
 
@@ -284,8 +333,42 @@ export async function checkUpgradeScenario(
     }
   }
 
-  // Same category but not higher jenjang -> ERROR
-  if (oldCategory === newCategory && newJenjangNum < oldJenjang) {
+  // Kategori sama, jenjang beda -> bukan upgrade.
+  //
+  // Naik jenjang di dalam satu kategori (Ahli 7 -> 8, Operator 1 -> 2) bukan
+  // kenaikan klasifikasi, cuma perpindahan jabatan kerja. KTA-nya tetap sah
+  // sampai masa berlakunya habis, dan yang berubah bukan kartunya — cukup
+  // permohonan perubahan Jabatan Kerja lewat `/api/kta/change-request`.
+  // Sebelumnya jalur ini lolos sebagai upgrade: bikin baris KTA baru, nomor
+  // baru, dan `tanggalDaftar` baru — artinya masa berlaku ikut direset padahal
+  // seharusnya tetap.
+  if (oldCategory === newCategory) {
+    const backfilledFields = await backfillEmptyFields(existingKta.id, sikiData)
+
+    // Arahannya beda: naik jenjang di kategori sama memang bisa diselesaikan
+    // lewat permohonan perubahan Jabatan Kerja, sedangkan turun jenjang nggak
+    // — jadi jangan arahkan ke sana.
+    const reason =
+      newJenjangNum > oldJenjang
+        ? `Jenjang ${oldJenjang} dan ${newJenjangNum} masih kategori ${JENJANG_LABEL[oldCategory]}. Ini bukan upgrade — ajukan permohonan perubahan Jabatan Kerja, KTA Anda tetap berlaku sampai masa berlakunya habis.`
+        : `Anda sudah memiliki KTA jenjang ${oldJenjang} kategori ${JENJANG_LABEL[oldCategory]}. Jenjang ${newJenjangNum} bukan kenaikan klasifikasi, jadi tidak bisa diterbitkan.`
+
+    return {
+      isUpgrade: false,
+      canUpgrade: false,
+      existingKta,
+      newJenjang: newJenjangNum,
+      oldJenjang,
+      hargaBaru: newJenjangNum >= 7 ? 300000 : 100000,
+      hargaLama: oldJenjang >= 7 ? 300000 : 100000,
+      hargaUpgrade: 0,
+      reason,
+      ...(backfilledFields.length > 0 ? { backfilledFields } : {})
+    }
+  }
+
+  // Turun kategori -> ERROR (downgrade not allowed)
+  if (getJenjangRank(newJenjangNum) < getJenjangRank(oldJenjang)) {
     const backfilledFields = await backfillEmptyFields(existingKta.id, sikiData)
 
     return {
@@ -302,21 +385,28 @@ export async function checkUpgradeScenario(
     }
   }
 
-  // Lower category -> ERROR (downgrade not allowed)
-  if (newJenjangNum < oldJenjang) {
-    const backfilledFields = await backfillEmptyFields(existingKta.id, sikiData)
+  // Naik kategori, tapi masa berlaku KTA lamanya sudah habis -> bukan upgrade,
+  // tapi pengajuan baru (bayar penuh).
+  //
+  // Masa berlaku dihitung dari `tanggalDaftar`, dan `tanggalDaftar` di-reset di
+  // jalur pembayaran. Jadi KTA yang sudah lewat masa berlakunya bukan "KTA
+  // aktif" lagi: nggak boleh jadi dasar upgrade, tapi juga nggak boleh
+  // memblokir — pengajuan barunya diteruskan sebagai permohonan baru.
+  // `existingKta` sengaja `null`: pemanggil (`app/api/kta/create`) menulis
+  // `upgradeFromKtaId` dari situ, dan buat pengajuan baru kolom itu harus kosong.
+  if (isTanggalDaftarExpired(existingKta.tanggalDaftar)) {
+    const batas = addYearsWib(existingKta.tanggalDaftar, MASA_BERLAKU_TAHUN)
 
     return {
       isUpgrade: false,
-      canUpgrade: false,
-      existingKta,
+      canUpgrade: true,
+      existingKta: null,
       newJenjang: newJenjangNum,
-      oldJenjang,
+      oldJenjang: null,
       hargaBaru: newJenjangNum >= 7 ? 300000 : 100000,
-      hargaLama: oldJenjang >= 7 ? 300000 : 100000,
-      hargaUpgrade: 0,
-      reason: `Anda sudah memiliki KTA jenjang ${oldJenjang} (${oldCategory}). Tidak bisa downgrade ke jenjang ${newJenjangNum}.`,
-      ...(backfilledFields.length > 0 ? { backfilledFields } : {})
+      hargaLama: 0,
+      hargaUpgrade: newJenjangNum >= 7 ? 300000 : 100000,
+      reason: `KTA jenjang ${oldJenjang} Anda sudah kadaluarsa sejak ${batas.toLocaleDateString('id-ID')}, jadi ini bukan upgrade melainkan permohonan KTA baru.`
     }
   }
 
