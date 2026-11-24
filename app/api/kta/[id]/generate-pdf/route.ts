@@ -5,6 +5,7 @@ import { QRCodeGenerator } from '@/lib/qr-generator'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { generateNomorKTA } from '@/lib/kta-numbering'
 import { readUpload, contentTypeFor } from '@/lib/upload-storage'
+import { resolveKtpDataUrl, KtpSourceError } from '@/lib/ktp-source'
 
 export const dynamic = 'force-dynamic'
 
@@ -220,46 +221,18 @@ export async function GET(
     // Resolve KTP jadi base64 kalau diminta.
     //
     // Cuma `ktpUrl` yang ada di schema (nggak ada kolom `ktpData`), jadi
-    // sumbernya selalu file lokal atau URL eksternal. Aturan baca-nya sama
-    // dengan foto: file lokal lewat `readUpload()`, URL eksternal (khas SIKI)
-    // di-fetch server-side — SIKI sering geo-blocked kalau dari browser.
+    // sumbernya selalu file lokal atau URL eksternal. Aturan bacanya ada di
+    // `lib/ktp-source.ts` — dipakai bareng jalur bulk biar nggak beda perilaku.
     let ktpData: string | undefined
 
-    if (includeKtp && !ktpData && ktaRequest.ktpUrl) {
-      if (ktaRequest.ktpUrl.startsWith('/uploads/') || ktaRequest.ktpUrl.startsWith('uploads/')) {
-        const key = ktaRequest.ktpUrl.replace(/^\/?uploads\//, '')
-        const buffer = await readUpload(key)
-        if (!buffer) {
-          return NextResponse.json({
-            error: 'File KTP nggak ketemu di storage'
-          }, { status: 400 })
+    if (includeKtp && ktaRequest.ktpUrl) {
+      try {
+        ktpData = await resolveKtpDataUrl(ktaRequest.ktpUrl)
+      } catch (error) {
+        if (error instanceof KtpSourceError) {
+          return NextResponse.json({ error: error.message }, { status: error.status })
         }
-        ktpData = `data:${contentTypeFor(key)};base64,${buffer.toString('base64')}`
-      } else if (ktaRequest.ktpUrl.startsWith('http')) {
-        try {
-          const response = await fetch(ktaRequest.ktpUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            },
-          })
-          if (!response.ok) {
-            return NextResponse.json({
-              error: `Gagal ambil file KTP dari SIKI (HTTP ${response.status})`
-            }, { status: 502 })
-          }
-          const buffer = Buffer.from(await response.arrayBuffer())
-          const mimeType = (response.headers.get('content-type') || 'image/jpeg').split(';')[0].trim()
-          ktpData = `data:${mimeType};base64,${buffer.toString('base64')}`
-        } catch (error) {
-          return NextResponse.json({
-            error: 'Gagal ambil file KTP dari SIKI',
-            details: error instanceof Error ? error.message : 'Unknown error'
-          }, { status: 502 })
-        }
-      } else {
-        return NextResponse.json({
-          error: 'Format ktpUrl nggak dikenali'
-        }, { status: 400 })
+        throw error
       }
     }
 

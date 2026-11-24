@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { authMiddleware } from '@/lib/auth-helpers'
 import { generateNomorKTA } from '@/lib/kta-numbering'
 import { keyToUrl, readUpload, contentTypeFor } from '@/lib/upload-storage'
+import { resolveKtpDataUrl } from '@/lib/ktp-source'
 import { KTAPDFGenerator } from '@/lib/pdf-generator'
 import { QRCodeGenerator } from '@/lib/qr-generator'
 import archiver from 'archiver'
@@ -75,6 +76,41 @@ export async function POST(request: NextRequest) {
           error: 'Sebagian KTA belum punya file KTP',
           tanpaKtp: tanpaKtp.map(k => ({ id: k.id, nama: k.nama, nomorKTA: k.nomorKTA }))
         }, { status: 400 })
+      }
+    }
+
+    // KTP di-resolve SEBELUM ZIP dibuat. `resolveKtpDataUrl()` bisa nge-fetch
+    // URL SIKI, dan itu bisa gagal — kalau baru gagal di tengah streaming,
+    // ZIP-nya udah telanjur dikirim dan kartunya hilang tanpa penjelasan.
+    const ktpDataById = new Map<string, string>()
+    if (includeKtp) {
+      const resolved = await Promise.all(
+        ktas.map(async (kta) => {
+          if (!kta.ktpUrl) return null
+          try {
+            return [kta.id, await resolveKtpDataUrl(kta.ktpUrl)] as const
+          } catch (error) {
+            const reason = error instanceof Error ? error.message : 'Unknown error'
+            return { failed: true as const, id: kta.id, nama: kta.nama, nomorKTA: kta.nomorKTA, reason }
+          }
+        })
+      )
+
+      const gagal = resolved.filter((item) => item !== null && typeof item === 'object' && 'failed' in item)
+      if (gagal.length > 0) {
+        return NextResponse.json({
+          error: 'Sebagian file KTP gagal diambil',
+          gagalKtp: gagal.map((item) => {
+            const failure = item as { id: string; nama: string; nomorKTA: string | null; reason: string }
+            return { id: failure.id, nama: failure.nama, nomorKTA: failure.nomorKTA, reason: failure.reason }
+          })
+        }, { status: 502 })
+      }
+
+      for (const item of resolved) {
+        if (Array.isArray(item)) {
+          ktpDataById.set(item[0], item[1])
+        }
       }
     }
 
@@ -181,6 +217,10 @@ export async function POST(request: NextRequest) {
             }
           }
 
+          // KTP sudah di-resolve di depan jadi base64 — lihat `ktpDataById`.
+          // Generator sengaja nolak URL http, jadi jangan pernah kirim `ktpUrl`.
+          const ktpData = ktpDataById.get(kta.id)
+
           const ktaData = {
             id: kta.id,
             nik: kta.nik || '',
@@ -192,9 +232,9 @@ export async function POST(request: NextRequest) {
             qrCodePath: qrCodePath,
             ...(fotoData ? { fotoData } : {}),
             ...(!fotoData && kta.fotoUrl && !kta.fotoUrl.startsWith('http') ? { fotoUrl: kta.fotoUrl } : {}),
-            // `ktpUrl` di sini selalu path upload lokal (dijamin cek di atas),
-            // jadi generator bisa baca langsung dari storage.
-            ...(includeKtp && kta.ktpUrl ? { ktpUrl: kta.ktpUrl } : {})
+            // `ktpData` (bukan `ktpUrl`): generator cuma nerima base64/file lokal,
+            // dan URL SIKI sudah di-fetch di depan lewat `resolveKtpDataUrl()`.
+            ...(ktpData ? { ktpData } : {})
           }
 
           // Generate PDF on-demand

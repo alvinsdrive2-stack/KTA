@@ -511,6 +511,36 @@ async function pdfFirstPageToPng(pdfBytes: Buffer): Promise<Buffer> {
 }
 
 /**
+ * Siapkan byte gambar yang pas buat halaman KTP.
+ *
+ * KTP yang di-scan/di-upload sering berupa lembar A4 penuh dengan KTP cuma di
+ * sebagian halaman. `fit: 'cover'` memotong tengah frame, jadi bagian yang
+ * terbuang justru KTP-nya — hasilnya halaman nyaris putih. Di sini: buang
+ * margin putih dulu (`trim`), lalu tempel utuh (`contain`) di kanvas rasio KTP.
+ *
+ * `contain` dipakai supaya seluruh dokumen tetap kelihatan walau rasio
+ * sumbernya beda. Kalau sumbernya udah persis rasio KTP, `contain` = full-bleed.
+ */
+async function renderKtpPageImage(ktpBytes: Buffer): Promise<Buffer> {
+  let trimmed = ktpBytes
+
+  try {
+    const result = await sharp(ktpBytes).trim({ threshold: 20 }).toBuffer({ resolveWithObject: true })
+    // Trim yang kelewat agresif bisa nyisain potongan kecil; itu bukan KTP.
+    if (result.info.width > 50 && result.info.height > 50) {
+      trimmed = result.data
+    }
+  } catch {
+    // Gambar tanpa margin putih (atau format yang nggak bisa di-trim) dipakai apa adanya.
+  }
+
+  return sharp(trimmed)
+    .resize(KTP_PAGE_WIDTH, KTP_PAGE_HEIGHT, { fit: 'contain', background: '#ffffff' })
+    .jpeg({ quality: KTP_JPEG_QUALITY, mozjpeg: true })
+    .toBuffer()
+}
+
+/**
  * Ambil byte gambar KTP dari base64 atau dari storage lokal.
  *
  * Hanya menerima dua sumber, sama seperti foto: base64 (`ktpData`) dan file
@@ -955,12 +985,7 @@ export class KTAPDFGenerator {
       console.log('⏳ Processing KTP page...')
       const ktpBytes = await readKtpImageBytes(ktaData.ktpData, ktaData.ktpUrl)
 
-      // Skala ulang biar pas lebar halaman; KTP asli landscape jadi tingginya
-      // nggak akan pernah lebih dari halaman.
-      const resizedKtp = await sharp(ktpBytes)
-        .resize(KTP_PAGE_WIDTH, KTP_PAGE_HEIGHT, { fit: 'cover', position: 'center' })
-        .jpeg({ quality: KTP_JPEG_QUALITY, mozjpeg: true })
-        .toBuffer()
+      const resizedKtp = await renderKtpPageImage(ktpBytes)
 
       const pageKtp = pdfDoc.addPage([KTP_PAGE_WIDTH, KTP_PAGE_HEIGHT])
       const ktpImage = await pdfDoc.embedJpg(resizedKtp)
