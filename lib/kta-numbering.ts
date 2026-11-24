@@ -27,12 +27,27 @@ const JENJANG_RULES: JenjangRule[] = [
 ]
 
 /**
+ * Berapa kali boleh nyoba ulang sebelum menyerah. Satu putaran cukup buat
+ * drift biasa (counter cuma ketinggalan beberapa puluh), putaran kedua jaga-jaga
+ * kalau ada request lain yang naik duluan di antara cek dan lompat.
+ */
+const MAX_ATTEMPTS = 3
+
+const P2025 = 'P2025'
+
+/**
  * Ambil sequence berikutnya buat daerah + jenjang tertentu, catat ke database,
  * balikin nomor KTA lengkap (`<kodeDaerah>.<kodeJenjang>.<sequence 6 digit>`).
  *
- * Perhatian: increment-nya read-then-write, jadi dua request bersamaan bisa
- * dapet sequence yang sama. Kolom `nomorKTA` di schema `@unique`, jadi yang
- * kalah bakal gagal insert — bukan bikin data ganda.
+ * Naikkan counter pakai `{ increment: 1 }` — satu statement UPDATE, jadi dua
+ * request barengan nggak mungkin dapet angka yang sama. Versi sebelumnya baca
+ * counter dulu baru tulis, dan itu bikin seluruh batch paralel (lihat
+ * `app/api/kta/bulk-download`) ngeklaim satu nomor yang sama. Karena `nomorKTA`
+ * `@unique`, semua yang kalah gagal insert.
+ *
+ * Nomor yang ternyata sudah terpakai artinya counter di belakang data — pernah
+ * kejadian di 25 daerah, jadi bukan kasus teoretis. Kalau ketemu, counter
+ * dilompatkan ke nomor tertinggi yang sudah ada, bukan dicoba satu-satu.
  */
 export async function generateNomorKTA(daerahId: string, jenjang: string): Promise<string> {
   const jenjangNum = parseInt(jenjang, 10)
@@ -42,33 +57,86 @@ export async function generateNomorKTA(daerahId: string, jenjang: string): Promi
     throw new Error(`Invalid jenjang: ${jenjang}. Must be between 1-9.`)
   }
 
-  const daerah = await prisma.daerah.findUnique({
-    where: { id: daerahId },
-    select: {
-      kodeDaerah: true,
-      lastSequenceAhli: true,
-      lastSequenceTeknisi: true,
-      lastSequenceOperator: true,
-    },
-  })
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const daerah = await naikkanCounter(daerahId, rule)
+    const nomorKTA = formatNomor(daerah.kodeDaerah, rule.code, daerah[rule.field])
 
-  if (!daerah) {
-    throw new Error('Daerah not found')
+    const terpakai = await prisma.kTARequest.findFirst({
+      where: { nomorKTA },
+      select: { id: true },
+    })
+    if (!terpakai) {
+      console.log(
+        `Generated nomorKTA: ${nomorKTA} (daerah=${daerah.kodeDaerah}, jenjang=${jenjang}, category=${rule.label}, code=${rule.code})`
+      )
+      return nomorKTA
+    }
+
+    console.warn(
+      `nomorKTA ${nomorKTA} sudah terpakai — counter daerah ${daerah.kodeDaerah} ` +
+        `di belakang data. Lompat ke nomor tertinggi.`
+    )
+    await lompatKeNomorTertinggi(daerahId, daerah.kodeDaerah, rule)
   }
 
-  const nextSequence = daerah[rule.field] + 1
+  throw new Error(
+    `Gagal dapet nomorKTA unik buat daerah ${daerahId} jenjang ${jenjang} setelah ${MAX_ATTEMPTS} percobaan`
+  )
+}
 
-  await prisma.daerah.update({
-    where: { id: daerahId },
-    data: { [rule.field]: nextSequence },
+async function naikkanCounter(
+  daerahId: string,
+  rule: JenjangRule
+): Promise<{ kodeDaerah: string } & Record<SequenceField, number>> {
+  try {
+    return await prisma.daerah.update({
+      where: { id: daerahId },
+      data: { [rule.field]: { increment: 1 } },
+      select: {
+        kodeDaerah: true,
+        lastSequenceAhli: true,
+        lastSequenceTeknisi: true,
+        lastSequenceOperator: true,
+      },
+    })
+  } catch (error) {
+    // Prisma nggak nemu barisnya = daerah nggak ada. Pemanggil lama dapat pesan
+    // yang sama, jadi kontraknya nggak berubah.
+    if ((error as { code?: string } | null)?.code === P2025) {
+      throw new Error('Daerah not found')
+    }
+    throw error
+  }
+}
+
+/**
+ * Naikkan counter ke nomor tertinggi yang sudah terpakai buat daerah + jenjang
+ * ini. Dibatasi `updateMany` dengan syarat counter masih lebih kecil, jadi kalau
+ * request lain sudah naik lebih tinggi duluan, nilainya nggak diturunkan.
+ */
+async function lompatKeNomorTertinggi(
+  daerahId: string,
+  kodeDaerah: string,
+  rule: JenjangRule
+): Promise<void> {
+  const prefix = `${kodeDaerah}.${rule.code}.`
+
+  // Nomor sequence di-pad 6 digit, jadi urutan leksikografis = urutan angka.
+  const terakhir = await prisma.kTARequest.findFirst({
+    where: { nomorKTA: { startsWith: prefix } },
+    orderBy: { nomorKTA: 'desc' },
+    select: { nomorKTA: true },
   })
 
-  const sequence = String(nextSequence).padStart(6, '0')
-  const nomorKTA = `${daerah.kodeDaerah}.${rule.code}.${sequence}`
+  const sequence = parseInt(terakhir?.nomorKTA?.slice(prefix.length) ?? '', 10)
+  if (!Number.isFinite(sequence)) return
 
-  console.log(
-    `Generated nomorKTA: ${nomorKTA} (daerah=${daerah.kodeDaerah}, jenjang=${jenjang}, category=${rule.label}, code=${rule.code}, sequence=${sequence})`
-  )
+  await prisma.daerah.updateMany({
+    where: { id: daerahId, [rule.field]: { lt: sequence } },
+    data: { [rule.field]: sequence },
+  })
+}
 
-  return nomorKTA
+function formatNomor(kodeDaerah: string, kodeJenjang: string, sequence: number): string {
+  return `${kodeDaerah}.${kodeJenjang}.${String(sequence).padStart(6, '0')}`
 }

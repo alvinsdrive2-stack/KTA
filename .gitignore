@@ -56,3 +56,6 @@ tmpclaude-*-cwd
 
 # Script dump DB berisi kredensial — jangan pernah di-track
 scripts/dump-supabase.ts
+
+# claude-mem memory folder
+.claude-mem/

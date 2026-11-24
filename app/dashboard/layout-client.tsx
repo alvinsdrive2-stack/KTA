@@ -266,10 +266,16 @@ function VerificationFloatingBar() {
         })
       } else {
         const error = await response.json()
+        const gagalKta = Array.isArray(error.gagalKta) && error.gagalKta.length > 0
+          ? `\n\nGagal dibuat: ${error.gagalKta.map((k: { nama: string }) => k.nama).join(', ')}`
+          : ''
+        const gagalKtp = Array.isArray(error.gagalKtp) && error.gagalKtp.length > 0
+          ? `\n\nKTP gagal diambil: ${error.gagalKtp.map((k: { nama: string }) => k.nama).join(', ')}`
+          : ''
         toast({
           variant: 'destructive',
           title: 'Download Gagal',
-          description: error.error || 'Gagal mendownload KTA.',
+          description: (error.error || 'Gagal mendownload KTA.') + gagalKta + gagalKtp,
         })
       }
     } catch (error) {
@@ -528,11 +534,17 @@ function KTAFloatingBar() {
         clearSelection()
       } else {
         const error = await response.json()
-        // KTP yang bolong dilaporkan per-KTA biar user tau mana yang harus diurus.
-        const detail = Array.isArray(error.tanpaKtp) && error.tanpaKtp.length > 0
-          ? `\n\nBelum ada KTP: ${error.tanpaKtp.map((k: { nama: string }) => k.nama).join(', ')}`
-          : ''
-        alert((error.error || 'Failed to download files') + detail)
+        // Kegagalan dilaporkan per-KTA biar user tau kartu mana yang harus diurus.
+        const namaDari = (daftar: unknown): string =>
+          Array.isArray(daftar) && daftar.length > 0
+            ? daftar.map((k: { nama: string }) => k.nama).join(', ')
+            : ''
+        const detail = [
+          namaDari(error.tanpaKtp) ? `Belum ada KTP: ${namaDari(error.tanpaKtp)}` : '',
+          namaDari(error.gagalKtp) ? `KTP gagal diambil: ${namaDari(error.gagalKtp)}` : '',
+          namaDari(error.gagalKta) ? `Gagal dibuat: ${namaDari(error.gagalKta)}` : '',
+        ].filter(Boolean).join('\n\n')
+        alert((error.error || 'Failed to download files') + (detail ? `\n\n${detail}` : ''))
       }
     } catch (error) {
       alert('Failed to download files')

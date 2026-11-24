@@ -141,7 +141,13 @@ export async function POST(request: NextRequest) {
         resolve(response)
       })
 
-      // Generate and add each PDF to the ZIP
+      // Generate and add each PDF to the ZIP.
+      //
+      // Kegagalan per-item DIKUMPULKAN, bukan ditelan. Dulu catch di sini cuma
+      // `console.error` lalu lanjut, jadi ZIP tetap dikirim walau isinya bolong —
+      // dan user nggak punya cara tahu kartu mana yang hilang.
+      const gagal: { id: string; nama: string; nomorKTA: string | null; reason: string }[] = []
+
       const generatePromises = ktas.map(async (kta) => {
         try {
           // Generate nomorKTA if not exists
@@ -247,11 +253,31 @@ export async function POST(request: NextRequest) {
           console.log(`✅ Added PDF to ZIP: ${fileName}`)
         } catch (error) {
           console.error(`❌ Error generating PDF for ${kta.nama}:`, error)
+          gagal.push({
+            id: kta.id,
+            nama: kta.nama,
+            nomorKTA: kta.nomorKTA,
+            reason: error instanceof Error ? error.message : 'Unknown error',
+          })
         }
       })
 
       try {
         await Promise.all(generatePromises)
+
+        // ZIP setengah jadi lebih berbahaya daripada error: user ngira semua
+        // kartu udah ke-download. Batalkan arsip dan laporkan per-KTA.
+        if (gagal.length > 0) {
+          archive.abort()
+          resolve(
+            NextResponse.json({
+              error: 'Sebagian KTA gagal dibuat',
+              gagalKta: gagal,
+            }, { status: 502 })
+          )
+          return
+        }
+
         archive.finalize()
       } catch (error) {
         console.error('Error generating PDFs:', error)
